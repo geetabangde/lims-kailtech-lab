@@ -10,7 +10,8 @@ const ObservationVC = ({
 }) => {
   const [inputErrors, setInputErrors] = useState({});
 
-  if (selectedTableData?.id !== 'observationvc') return null;
+  // Also used for observationsrf / observationstdf (same grid: Sr. No., Nominal, 5 observations, Average, Error)
+  if (!['observationvc', 'observationsrf', 'observationstdf'].includes(selectedTableData?.id)) return null;
 
   const formatValueByLc = (val, decimals, leastCount) => {
     if (val === null || val === undefined || val === '') return '';
@@ -125,7 +126,7 @@ const ObservationVC = ({
       const point = (observations && observations[rowIndex]) ||
                     (selectedTableData?.calibration_points && selectedTableData.calibration_points[rowIndex]) ||
                     {};
-      const matrixType = point.matrix_type || point.matrixtype || 'Vernier Caliper Measurement';
+      const matrixType = point.matrix_type || point.matrixtype || (selectedTableData?.id === 'observationsrf' ? 'SRF Measurement' : selectedTableData?.id === 'observationstdf' ? 'STDF Measurement' : 'Vernier Caliper Measurement');
       if (!groupedRows[matrixType]) {
         groupedRows[matrixType] = [];
       }
@@ -135,7 +136,7 @@ const ObservationVC = ({
 
   if (Object.keys(groupedRows).length === 0 && Array.isArray(observations) && observations.length > 0) {
     observations.forEach((point, rowIndex) => {
-      const matrixType = point.matrix_type || point.matrixtype || 'Vernier Caliper Measurement';
+      const matrixType = point.matrix_type || point.matrixtype || (selectedTableData?.id === 'observationsrf' ? 'SRF Measurement' : selectedTableData?.id === 'observationstdf' ? 'STDF Measurement' : 'Vernier Caliper Measurement');
       if (!groupedRows[matrixType]) {
         groupedRows[matrixType] = [];
       }

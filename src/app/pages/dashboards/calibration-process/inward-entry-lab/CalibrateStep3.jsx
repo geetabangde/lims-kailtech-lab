@@ -14,6 +14,8 @@ import { Flatpickr } from "components/shared/form/Flatpickr";
 import "flatpickr/dist/themes/light.css";
 import ObservationBiomedical from './Observations/ObservationBiomedical';
 import ObservationVC, { calculateVCValues } from './Observations/ObservationVC';
+import { calculateSRFValues, createSRFRows, getSRFTableConfig } from './Observations/ObservationSRF';
+import { calculateSTDFValues, createSTDFRows, getSTDFTableConfig } from './Observations/ObservationSTDF';
 import ObservationAPG, { calculateAPGValues, createAPGRows, getAPGTableConfig } from './Observations/ObservationAPG';
 import ObservationUTM, { calculateUTMValues } from './Observations/ObservationUTM';
 import ObservationAUTM from './Observations/ObservationAUTM';
@@ -1030,7 +1032,7 @@ const CalibrateStep3 = () => {
 
     // Determine the highest nominal value row for specific templates
     let maxNominalRowIndex = -1;
-    if (['observationmt', 'observationctg', 'observationfg', 'observationmsr', 'observationexm', 'observationvc', 'observationhg'].includes(selectedTableData.id)) {
+    if (['observationmt', 'observationctg', 'observationfg', 'observationmsr', 'observationexm', 'observationvc', 'observationhg', 'observationsrf', 'observationstdf'].includes(selectedTableData.id)) {
       let maxNominal = -Infinity;
       selectedTableData.staticRows.forEach((row, rowIndex) => {
         const nominalKey = `${rowIndex}-1`;
@@ -1078,7 +1080,7 @@ const CalibrateStep3 = () => {
             if (!isValid) newErrors[key] = error;
           }
         }
-      } else if (selectedTableData.id === 'observationexm' || selectedTableData.id === 'observationvc') {
+      } else if (selectedTableData.id === 'observationexm' || selectedTableData.id === 'observationvc' || selectedTableData.id === 'observationsrf' || selectedTableData.id === 'observationstdf') {
         // Nominal value (column 1) is required
         const nominalKey = `${rowIndex}-1`;
         const nominalValue = tableInputValues[nominalKey] ?? (row[1]?.toString() || '');
@@ -1091,7 +1093,7 @@ const CalibrateStep3 = () => {
         for (let col = 2; col <= 6; col++) {
           const key = `${rowIndex}-${col}`;
           const value = tableInputValues[key] ?? (row[col]?.toString() || '');
-          const isOptional = (col === 5 || col === 6) && !isLastRow;
+          const isOptional = (col === 5 || col === 6) && !isLastRow && !(Number(observations?.[rowIndex]?.repeatable_cycle) === 5);
 
           if (!value.trim() && !isOptional) {
             newErrors[key] = 'This field is required';
@@ -1856,7 +1858,16 @@ const CalibrateStep3 = () => {
             } else {
               setObservations([]);
             }
-          } else if (observationTemplate === 'observationexm') {
+          } else if (observationTemplate === 'observationsrf' || observationTemplate === 'observationstdf') {
+          // Backend feThermalObservation: {status, data:[points], thermal_coefficients:{uuc, master}}
+          const thermalPoints = Array.isArray(observationData) ? observationData : (Array.isArray(response.data?.data) ? response.data.data : []);
+          setObservations(thermalPoints);
+          seedTableInputsFromPoints(thermalPoints);
+          const thermalSrc = response.data?.thermal_coefficients || response.data?.thermal_coeff;
+          if (thermalSrc) {
+            setThermalCoeff((prev) => ({ ...prev, uuc: thermalSrc.uuc ?? '', master: thermalSrc.master ?? '', thickness_of_graduation: '' }));
+          }
+        } else if (observationTemplate === 'observationexm') {
 
             // EXM structure is similar to HG but thermal coefficients are directly uuc/master
             if (observationData.calibration_points && Array.isArray(observationData.calibration_points)) {
@@ -3182,6 +3193,12 @@ const CalibrateStep3 = () => {
     else if (template === 'observationvc') {
       Object.assign(result, calculateVCValues(rowData));
     }
+    else if (template === 'observationsrf') {
+      Object.assign(result, calculateSRFValues(rowData));
+    }
+    else if (template === 'observationstdf') {
+      Object.assign(result, calculateSTDFValues(rowData));
+    }
     else if (template === 'observationexm') {
       Object.assign(result, calculateEXMValues(rowData, rowIndex, selectedTableData, leastCountData, observations));
     }
@@ -3533,6 +3550,12 @@ const CalibrateStep3 = () => {
     }
     else if (template === 'observationes') {
       return createESRows(dataArray);
+    }
+    else if (template === 'observationsrf') {
+      return createSRFRows(dataArray);
+    }
+    else if (template === 'observationstdf') {
+      return createSTDFRows(dataArray);
     }
     else if (template === 'observationexm' || template === 'observationvc') {
       dataArray.forEach((point) => {
@@ -4156,6 +4179,8 @@ const CalibrateStep3 = () => {
     getDUTMTableConfig(observations),
     getEXTENTableConfig(observations),
     getLMSTableConfig(observations),
+    getSRFTableConfig(observations),
+    getSTDFTableConfig(observations),
     getLSTableConfig(observations), {
       id: 'observationexm',
       name: 'Observation EXM',
@@ -4461,7 +4486,7 @@ const CalibrateStep3 = () => {
         leastCount = typeof lcInfo === 'object' ? (lcInfo?.master ?? 0.01) : (parseFloat(lcInfo) || 0.01);
       } else if (selectedTableData?.id === 'observationmt') {
         // Handled in dedicated real-time validation block below
-      } else if (selectedTableData?.id === 'observationvc' || selectedTableData?.id === 'observationfg' || selectedTableData?.id === 'observationctg' || selectedTableData?.id === 'observationit' || selectedTableData?.id === 'observationth') {
+      } else if (selectedTableData?.id === 'observationvc' || selectedTableData?.id === 'observationsrf' || selectedTableData?.id === 'observationstdf' || selectedTableData?.id === 'observationfg' || selectedTableData?.id === 'observationctg' || selectedTableData?.id === 'observationit' || selectedTableData?.id === 'observationth') {
         leastCount = typeof lcInfo === 'object' ? (lcInfo?.master ?? lcInfo?.uuc ?? 0.001) : (parseFloat(lcInfo) || 0.001);
       } else if (selectedTableData?.id === 'observationmm') {
         leastCount = typeof lcInfo === 'object' ? (lcInfo?.master ?? lcInfo?.uuc ?? 2) : (parseFloat(lcInfo) || 2);
@@ -5112,7 +5137,7 @@ const CalibrateStep3 = () => {
         newValues[`${rowIndex}-7`] = calculated.average;
         newValues[`${rowIndex}-8`] = calculated.error;
       }
-      else if (selectedTableData.id === 'observationexm' || selectedTableData.id === 'observationvc') {
+      else if (selectedTableData.id === 'observationexm' || selectedTableData.id === 'observationvc' || selectedTableData.id === 'observationsrf' || selectedTableData.id === 'observationstdf') {
         newValues[`${rowIndex}-7`] = calculated.average;
         newValues[`${rowIndex}-8`] = calculated.error;
       }
@@ -7002,6 +7027,49 @@ const CalibrateStep3 = () => {
           [`${rowIndex}-8`]: calculated.error || '0',
         }));
       }
+    } else if (selectedTableData.id === 'observationsrf' || selectedTableData.id === 'observationstdf') {
+      // SRF: readings on UUC. STDF: nominal saved as uuc r0, readings on MASTER (backend feThermalObservation)
+      const isStdf = selectedTableData.id === 'observationstdf';
+      let type;
+      let repeatable = '0';
+
+      if (colIndex === 1) {
+        if (!isStdf) return; // SRF nominal is the calibration point itself, nothing to save
+        type = 'uuc';
+      } else if (colIndex >= 2 && colIndex <= 6) {
+        type = isStdf ? 'master' : 'uuc';
+        repeatable = (colIndex - 2).toString();
+      } else {
+        return;
+      }
+
+      payloads.push({
+        inwardid: inwardId,
+        instid: instId,
+        calibrationpoint: calibrationPointId,
+        type: type,
+        repeatable: repeatable,
+        value: value || '0',
+      });
+
+      if (colIndex >= 2 && colIndex <= 6) {
+        payloads.push({
+          inwardid: inwardId,
+          instid: instId,
+          calibrationpoint: calibrationPointId,
+          type: isStdf ? 'averagemaster' : 'averageuuc',
+          repeatable: '0',
+          value: calculated.average || '0',
+        });
+        payloads.push({
+          inwardid: inwardId,
+          instid: instId,
+          calibrationpoint: calibrationPointId,
+          type: 'error',
+          repeatable: '0',
+          value: calculated.error || '0',
+        });
+      }
     } else if (selectedTableData.id === 'observationexm' || selectedTableData.id === 'observationvc') {
       let type = 'uuc';
       let repeatable = '0';
@@ -7877,6 +7945,8 @@ const CalibrateStep3 = () => {
       selectedTableData?.id !== 'observationhg' &&
       selectedTableData?.id !== 'observationexm' &&
       selectedTableData?.id !== 'observationvc' &&
+      selectedTableData?.id !== 'observationsrf' &&
+      selectedTableData?.id !== 'observationstdf' &&
       selectedTableData?.id !== 'observationdg' &&
       selectedTableData?.id !== 'observationts' &&
       selectedTableData?.id !== 'observationmsr' &&
@@ -8200,6 +8270,15 @@ const CalibrateStep3 = () => {
             }
           } else {
             setObservations([]);
+          }
+        } else if (observationTemplate === 'observationsrf' || observationTemplate === 'observationstdf') {
+          // Backend feThermalObservation: {status, data:[points], thermal_coefficients:{uuc, master}}
+          const thermalPoints = Array.isArray(observationData) ? observationData : (Array.isArray(response.data?.data) ? response.data.data : []);
+          setObservations(thermalPoints);
+          seedTableInputsFromPoints(thermalPoints);
+          const thermalSrc = response.data?.thermal_coefficients || response.data?.thermal_coeff;
+          if (thermalSrc) {
+            setThermalCoeff((prev) => ({ ...prev, uuc: thermalSrc.uuc ?? '', master: thermalSrc.master ?? '', thickness_of_graduation: '' }));
           }
         } else if (observationTemplate === 'observationexm') {
 
@@ -8869,6 +8948,47 @@ const CalibrateStep3 = () => {
         type: 'hysterisis',
         repeatable: '0',
         value: calculated.hysteresis || '0',
+      });
+    } else if (selectedTableData.id === 'observationsrf' || selectedTableData.id === 'observationstdf') {
+      const isStdf = selectedTableData.id === 'observationstdf';
+      if (isStdf) {
+        payloads.push({
+          inwardid: inwardId,
+          instid: instId,
+          calibrationpoint: calibrationPointId,
+          type: 'uuc',
+          repeatable: '0',
+          value: rowData[1] || '0',
+        });
+      }
+
+      [2, 3, 4, 5, 6].forEach((colIndex, obsIndex) => {
+        payloads.push({
+          inwardid: inwardId,
+          instid: instId,
+          calibrationpoint: calibrationPointId,
+          type: isStdf ? 'master' : 'uuc',
+          repeatable: obsIndex.toString(),
+          value: rowData[colIndex] || '0',
+        });
+      });
+
+      payloads.push({
+        inwardid: inwardId,
+        instid: instId,
+        calibrationpoint: calibrationPointId,
+        type: isStdf ? 'averagemaster' : 'averageuuc',
+        repeatable: '0',
+        value: calculated.average || '0',
+      });
+
+      payloads.push({
+        inwardid: inwardId,
+        instid: instId,
+        calibrationpoint: calibrationPointId,
+        type: 'error',
+        repeatable: '0',
+        value: calculated.error || '0',
       });
     } else if (selectedTableData.id === 'observationexm' || selectedTableData.id === 'observationvc') {
       payloads.push({
@@ -10038,13 +10158,15 @@ const CalibrateStep3 = () => {
     const values = [];
 
     const firstRowCalibPointId = selectedTableData.hiddenInputs?.calibrationPoints?.[0] || instId;
-    const thermalCalibrationPointId = (selectedTableData.id === 'observationmt' || selectedTableData.id === 'observationts') ? instId : firstRowCalibPointId;
+    const thermalCalibrationPointId = (selectedTableData.id === 'observationmt' || selectedTableData.id === 'observationts' || selectedTableData.id === 'observationsrf' || selectedTableData.id === 'observationstdf') ? instId : firstRowCalibPointId;
 
     // Add thermal coefficients for applicable observation types
     if (selectedTableData.id === 'observationctg' ||
       selectedTableData.id === 'observationit' ||
       selectedTableData.id === 'observationmt' ||
       selectedTableData.id === 'observationexm' ||
+      selectedTableData.id === 'observationsrf' ||
+      selectedTableData.id === 'observationstdf' ||
       selectedTableData.id === 'observationfg' ||
       selectedTableData.id === 'observationhg' ||
       selectedTableData.id === 'observationdg' ||
@@ -10882,6 +11004,34 @@ const CalibrateStep3 = () => {
 
         calibrationPoints.push(calibPointId);
         types.push('averageuuc');
+        repeatables.push('0');
+        values.push(calculated.average || '0');
+
+        calibrationPoints.push(calibPointId);
+        types.push('error');
+        repeatables.push('0');
+        values.push(calculated.error || '0');
+      }
+
+      // 9a. observationsrf (readings on UUC) & observationstdf (nominal as uuc r0, readings on MASTER)
+      else if (selectedTableData.id === 'observationsrf' || selectedTableData.id === 'observationstdf') {
+        const isStdf = selectedTableData.id === 'observationstdf';
+        if (isStdf) {
+          calibrationPoints.push(calibPointId);
+          types.push('uuc');
+          repeatables.push('0');
+          values.push(rowData[1] || '0');
+        }
+
+        [2, 3, 4, 5, 6].forEach((colIndex, obsIndex) => {
+          calibrationPoints.push(calibPointId);
+          types.push(isStdf ? 'master' : 'uuc');
+          repeatables.push(obsIndex.toString());
+          values.push(rowData[colIndex] || '0');
+        });
+
+        calibrationPoints.push(calibPointId);
+        types.push(isStdf ? 'averagemaster' : 'averageuuc');
         repeatables.push('0');
         values.push(calculated.average || '0');
 
@@ -11782,7 +11932,7 @@ const CalibrateStep3 = () => {
                   </div>
                 )}
 
-                {selectedTableData && (tableStructure || selectedTableData.id === 'observationdw' || selectedTableData.id === 'observationwb' || selectedTableData.id === 'observationbiomedical' || selectedTableData.id === 'observationvc' || selectedTableData.id === 'observationapg' || selectedTableData.id === 'observationutm' || selectedTableData.id === 'observationautm' || selectedTableData.id === 'observationvolnl' || selectedTableData.id === 'observationvol' || selectedTableData.id === 'observationvht' || selectedTableData.id === 'observationbht' || selectedTableData.id === 'observationes' || selectedTableData.id === 'observationdutm' || selectedTableData.id === 'observationexten' || selectedTableData.id === 'observationlms' || selectedTableData.id === 'observationls' || selectedTableData.id === 'observationcustom' || selectedTableData.id === 'observationexm' || selectedTableData.id === 'observationgtm' || selectedTableData.id === 'observationpr' || selectedTableData.id === 'observationupload') && (
+                {selectedTableData && (tableStructure || selectedTableData.id === 'observationdw' || selectedTableData.id === 'observationwb' || selectedTableData.id === 'observationbiomedical' || selectedTableData.id === 'observationvc' || selectedTableData.id === 'observationsrf' || selectedTableData.id === 'observationstdf' || selectedTableData.id === 'observationapg' || selectedTableData.id === 'observationutm' || selectedTableData.id === 'observationautm' || selectedTableData.id === 'observationvolnl' || selectedTableData.id === 'observationvol' || selectedTableData.id === 'observationvht' || selectedTableData.id === 'observationbht' || selectedTableData.id === 'observationes' || selectedTableData.id === 'observationdutm' || selectedTableData.id === 'observationexten' || selectedTableData.id === 'observationlms' || selectedTableData.id === 'observationls' || selectedTableData.id === 'observationcustom' || selectedTableData.id === 'observationexm' || selectedTableData.id === 'observationgtm' || selectedTableData.id === 'observationpr' || selectedTableData.id === 'observationupload') && (
                   <div className="space-y-6">
                     {selectedTableData.id === 'observationupload' ? (
                       <ObservationUpload
@@ -11826,7 +11976,7 @@ const CalibrateStep3 = () => {
                         observationErrors={observationErrors}
                         setObservationErrors={setObservationErrors}
                       />
-                    ) : selectedTableData.id === 'observationvc' ? (
+                    ) : (selectedTableData.id === 'observationvc' || selectedTableData.id === 'observationsrf' || selectedTableData.id === 'observationstdf') ? (
                       <ObservationVC
                         selectedTableData={selectedTableData}
                         tableInputValues={tableInputValues}
