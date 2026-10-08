@@ -51,6 +51,20 @@ import {
 } from './Observations/ObservationDG';
 import { calculateRTDWIValues, createRTDWIRows, getRTDWITableConfig } from './Observations/ObservationRTDWI';
 import {
+  RTDWOI_COLS,
+  calculateRTDWOIValues,
+  calculateRTDWOIPoint,
+  createRTDWOIRows,
+  extractRTDWOIPoints,
+  getRTDWOIFieldType,
+  getRTDWOIRowType,
+  getRTDWOITableConfig,
+  isRTDWOICellEditable,
+  validateRTDWOIRow,
+  deriveRTDWOISensitivity,
+  isPt100OutOfRange,
+} from './Observations/ObservationRTDWOI';
+import {
   TSWOI_COLS,
   calculateTSWOIValues,
   calculateTSWOIPoint,
@@ -61,6 +75,7 @@ import {
   getTSWOITableConfig,
   isTSWOICellEditable,
   validateTSWOIRow,
+  deriveTSWOISensitivity,
 } from './Observations/ObservationTSWOI';
 import {
   TSWI_COLS,
@@ -185,6 +200,8 @@ const CalibrateStep3 = () => {
     pressureend: '',
     stabilizationtime: '',
   });
+
+  const [manuallyEditedSensitivity, setManuallyEditedSensitivity] = useState({});
 
   const seedTableInputsFromPoints = (points) => {
     if (!Array.isArray(points) || points.length === 0) return;
@@ -1438,6 +1455,9 @@ const CalibrateStep3 = () => {
             newErrors[avgCKey] = 'This field is required';
           }
         }
+      } else if (selectedTableData.id === 'observationrtdwoi') {
+        const rowData = row.map((cell, idx) => tableInputValues[`${rowIndex}-${idx}`] ?? (cell?.toString() || ''));
+        Object.assign(newErrors, validateRTDWOIRow(rowData, rowIndex));
       } else if (selectedTableData.id === 'observationtswoi') {
         // PHP: required,number on every editable numeric input; no least-count check
         const rowData = row.map((cell, idx) => tableInputValues[`${rowIndex}-${idx}`] ?? (cell?.toString() || ''));
@@ -3018,6 +3038,56 @@ const CalibrateStep3 = () => {
     });
   };
 
+  // RTDWOI: both rows of the point that rowIndex belongs to (UUC row, then Master row)
+  const getRTDWOIPointRows = (rowIndex, values = tableInputValues) => {
+    const staticRows = selectedTableData?.staticRows || [];
+    const uucIndex = getRTDWOIRowType(staticRows[rowIndex]) === 'uuc' ? rowIndex : rowIndex - 1;
+    const masterIndex = uucIndex + 1;
+    const buildRow = (idx) => (staticRows[idx] || []).map((cell, c) => values[`${idx}-${c}`] ?? (cell?.toString() || ''));
+    return { uucIndex, masterIndex, uucRow: buildRow(uucIndex), masterRow: buildRow(masterIndex) };
+  };
+
+  const getRTDWOICussetError = (rowIndex) => observations?.[Math.floor(rowIndex / 2)]?.cusset_error;
+
+  // RTDWOI: recalculate point and auto-derive sensitivity coefficient from points 0 & 1
+  const applyRTDWOICalculations = (values, rowIndex) => {
+    const staticRows = selectedTableData?.staticRows || [];
+    const totalPoints = Math.floor(staticRows.length / 2);
+
+    // Auto-derive sensitivity coefficient from first two points if not manually edited
+    if (totalPoints >= 2) {
+      const pt0 = getRTDWOIPointRows(0, values);
+      const pt1 = getRTDWOIPointRows(2, values);
+      const t1 = pt0.uucRow[RTDWOI_COLS.SET_POINT];
+      const t2 = pt1.uucRow[RTDWOI_COLS.SET_POINT];
+      const r1Readings = pt0.uucRow.slice(RTDWOI_COLS.OBS_START, RTDWOI_COLS.OBS_END + 1).map(Number).filter(v => !isNaN(v));
+      const r2Readings = pt1.uucRow.slice(RTDWOI_COLS.OBS_START, RTDWOI_COLS.OBS_END + 1).map(Number).filter(v => !isNaN(v));
+      if (r1Readings.length === 5 && r2Readings.length === 5) {
+        const r1 = r1Readings.reduce((a, b) => a + b, 0) / 5;
+        const r2 = r2Readings.reduce((a, b) => a + b, 0) / 5;
+        const derivedS = deriveRTDWOISensitivity(t1, t2, r1, r2);
+        if (derivedS) {
+          for (let p = 0; p < totalPoints; p++) {
+            const uucIdx = p * 2;
+            if (!manuallyEditedSensitivity[`observationrtdwoi-${uucIdx}`]) {
+              values[`${uucIdx}-${RTDWOI_COLS.SENSITIVITY}`] = derivedS;
+            }
+          }
+        }
+      }
+    }
+
+    const { uucIndex, masterIndex, uucRow, masterRow } = getRTDWOIPointRows(rowIndex, values);
+    const calc = calculateRTDWOIPoint(uucRow, masterRow, selectedTableData?.rowMeta?.[rowIndex], getRTDWOICussetError(rowIndex));
+    values[`${uucIndex}-${RTDWOI_COLS.AVERAGE}`] = calc.uuc.average;
+    values[`${masterIndex}-${RTDWOI_COLS.AVERAGE}`] = calc.master.average;
+    values[`${masterIndex}-${RTDWOI_COLS.CORRECTED_AVERAGE}`] = calc.master.correctedAverage;
+    values[`${masterIndex}-${RTDWOI_COLS.CONVERTED_AVERAGE}`] = calc.master.convertedAverage;
+    values[`${uucIndex}-${RTDWOI_COLS.CONVERTED_AVERAGE}`] = calc.uuc.convertedAverage;
+    values[`${uucIndex}-${RTDWOI_COLS.DEVIATION}`] = calc.error;
+    return { uucIndex, masterIndex, calc };
+  };
+
   // TSWOI: both rows of the point that rowIndex belongs to (UUC row, then Master row),
   // with current input values applied over the static rows
   const getTSWOIPointRows = (rowIndex, values = tableInputValues) => {
@@ -3033,6 +3103,32 @@ const CalibrateStep3 = () => {
 
   // TSWOI: recalculate a whole point and write its calculated cells into values
   const applyTSWOICalculations = (values, rowIndex) => {
+    const staticRows = selectedTableData?.staticRows || [];
+    const totalPoints = Math.floor(staticRows.length / 2);
+
+    // Auto-derive sensitivity coefficient from first two points if not manually edited
+    if (totalPoints >= 2) {
+      const pt0 = getTSWOIPointRows(0, values);
+      const pt1 = getTSWOIPointRows(2, values);
+      const t1 = pt0.uucRow[TSWOI_COLS.SET_POINT];
+      const t2 = pt1.uucRow[TSWOI_COLS.SET_POINT];
+      const v1Readings = pt0.uucRow.slice(TSWOI_COLS.OBS_START, TSWOI_COLS.OBS_END + 1).map(Number).filter(v => !isNaN(v));
+      const v2Readings = pt1.uucRow.slice(TSWOI_COLS.OBS_START, TSWOI_COLS.OBS_END + 1).map(Number).filter(v => !isNaN(v));
+      if (v1Readings.length === 5 && v2Readings.length === 5) {
+        const v1 = v1Readings.reduce((a, b) => a + b, 0) / 5;
+        const v2 = v2Readings.reduce((a, b) => a + b, 0) / 5;
+        const derivedS = deriveTSWOISensitivity(t1, t2, v1, v2);
+        if (derivedS) {
+          for (let p = 0; p < totalPoints; p++) {
+            const uucIdx = p * 2;
+            if (!manuallyEditedSensitivity[`observationtswoi-${uucIdx}`]) {
+              values[`${uucIdx}-${TSWOI_COLS.SENSITIVITY}`] = derivedS;
+            }
+          }
+        }
+      }
+    }
+
     const { uucIndex, masterIndex, uucRow, masterRow } = getTSWOIPointRows(rowIndex, values);
     const calc = calculateTSWOIPoint(uucRow, masterRow, getTSWOICussetError(rowIndex));
     values[`${uucIndex}-${TSWOI_COLS.AVERAGE}`] = calc.uuc.average;
@@ -3204,6 +3300,11 @@ const CalibrateStep3 = () => {
     }
     else if (template === 'observationrtdwi') {
       Object.assign(result, calculateRTDWIValues(rowData));
+    }
+    else if (template === 'observationrtdwoi') {
+      const { uucIndex, uucRow, masterRow } = getRTDWOIPointRows(rowIndex);
+      const pairRow = rowIndex === uucIndex ? masterRow : uucRow;
+      Object.assign(result, calculateRTDWOIValues(rowData, pairRow, selectedTableData?.rowMeta?.[rowIndex], getRTDWOICussetError(rowIndex)));
     }
     else if (template === 'observationtswoi') {
       // Deviation spans the point's UUC and Master rows, so pass the other row too
@@ -3502,6 +3603,8 @@ const CalibrateStep3 = () => {
     }
     else if (observationTemplate === 'observationrtdwi' || template === 'observationrtdwi') {
       return createRTDWIRows(dataArray, observationData);
+    } else if (template === 'observationrtdwoi') {
+      return createRTDWOIRows(dataArray);
     } else if (template === 'observationtswoi') {
       return createTSWOIRows(dataArray);
     } else if (template === 'observationtswi') {
@@ -4128,6 +4231,7 @@ const CalibrateStep3 = () => {
 
     getMSRTableConfig(observations),
     getRTDWITableConfig(observations),
+    getRTDWOITableConfig(observations),
     getTSWOITableConfig(observations),
     getTSWITableConfig(observations),
     getSWTableConfig(observations),
@@ -5052,8 +5156,16 @@ const CalibrateStep3 = () => {
           }
         }
       }
+      else if (selectedTableData.id === 'observationrtdwoi') {
+        if (colIndex === RTDWOI_COLS.SENSITIVITY) {
+          setManuallyEditedSensitivity(prev => ({ ...prev, [`observationrtdwoi-${rowIndex}`]: true }));
+        }
+        applyRTDWOICalculations(newValues, rowIndex);
+      }
       else if (selectedTableData.id === 'observationtswoi') {
-        // Averages, corrected averages and the deviation (on the UUC row) for this point
+        if (colIndex === TSWOI_COLS.SENSITIVITY) {
+          setManuallyEditedSensitivity(prev => ({ ...prev, [`observationtswoi-${rowIndex}`]: true }));
+        }
         applyTSWOICalculations(newValues, rowIndex);
       }
       else if (selectedTableData.id === 'observationtswi') {
@@ -6314,6 +6426,67 @@ const CalibrateStep3 = () => {
           repeatable: calcField.repeatable,
           value: values[`${calcRow}-${calcCol}`],
         });
+      });
+
+      if (calcCells.length) {
+        setTableInputValues(prev => {
+          const next = { ...prev };
+          calcCells.forEach(([calcRow, calcCol]) => {
+            next[`${calcRow}-${calcCol}`] = values[`${calcRow}-${calcCol}`];
+          });
+          return next;
+        });
+      }
+    }
+    else if (selectedTableData.id === 'observationrtdwoi') {
+      const rowType = getRTDWOIRowType(rowData);
+      const field = getRTDWOIFieldType(rowType, colIndex);
+      if (!field || !isRTDWOICellEditable(rowType, colIndex)) return;
+
+      const cellValue = value !== undefined && value !== null ? value.toString().trim() : '';
+      payloads.push({
+        inwardid: inwardId,
+        instid: instId,
+        calibrationpoint: calibrationPointId,
+        type: field.type,
+        repeatable: field.repeatable,
+        value: cellValue,
+      });
+
+      const isReading = colIndex >= RTDWOI_COLS.OBS_START && colIndex <= RTDWOI_COLS.OBS_END;
+      const values = { ...tableInputValues, [`${rowIndex}-${colIndex}`]: cellValue };
+      const { uucIndex, masterIndex } = applyRTDWOICalculations(values, rowIndex);
+      const calcCells = [];
+      if (isReading || colIndex === RTDWOI_COLS.AMBIENT || colIndex === RTDWOI_COLS.CONVERTED_AVERAGE) {
+        calcCells.push(
+          [uucIndex, RTDWOI_COLS.AVERAGE],
+          [masterIndex, RTDWOI_COLS.AVERAGE],
+          [masterIndex, RTDWOI_COLS.CORRECTED_AVERAGE],
+          [masterIndex, RTDWOI_COLS.CONVERTED_AVERAGE],
+          [uucIndex, RTDWOI_COLS.CONVERTED_AVERAGE],
+          [uucIndex, RTDWOI_COLS.DEVIATION],
+        );
+      }
+      if (colIndex === RTDWOI_COLS.SENSITIVITY) {
+        calcCells.push(
+          [uucIndex, RTDWOI_COLS.CONVERTED_AVERAGE],
+          [masterIndex, RTDWOI_COLS.CONVERTED_AVERAGE],
+          [uucIndex, RTDWOI_COLS.DEVIATION],
+        );
+      }
+
+      calcCells.forEach(([calcRow, calcCol]) => {
+        const calcField = getRTDWOIFieldType(calcRow === uucIndex ? 'uuc' : 'master', calcCol);
+        if (calcField) {
+          payloads.push({
+            inwardid: inwardId,
+            instid: instId,
+            calibrationpoint: calibrationPointId,
+            type: calcField.type,
+            repeatable: calcField.repeatable,
+            value: values[`${calcRow}-${calcCol}`],
+          });
+        }
       });
 
       if (calcCells.length) {
@@ -8154,6 +8327,10 @@ const CalibrateStep3 = () => {
           } else {
             // DON'T clear observations - keep existing data to prevent table disappearing
           }
+        }
+        else if (observationTemplate === 'observationrtdwoi') {
+          const rtdwoiPoints = extractRTDWOIPoints(response.data);
+          if (rtdwoiPoints) setObservations(rtdwoiPoints);
         }
         else if (observationTemplate === 'observationtswoi') {
           // Keep existing data when the response has no points, as RTDWI does
@@ -10490,6 +10667,24 @@ const CalibrateStep3 = () => {
           values.push(cellValue || '0');
         });
       }
+      else if (selectedTableData.id === 'observationrtdwoi') {
+        const rowType = getRTDWOIRowType(rowData);
+        const calculatedCells = {
+          [RTDWOI_COLS.AVERAGE]: calculated.average,
+          [RTDWOI_COLS.CORRECTED_AVERAGE]: calculated.correctedAverage,
+          [RTDWOI_COLS.CONVERTED_AVERAGE]: calculated.convertedAverage,
+          [RTDWOI_COLS.DEVIATION]: calculated.error,
+        };
+        rowData.forEach((cell, colIndex) => {
+          const field = getRTDWOIFieldType(rowType, colIndex);
+          if (!field) return;
+          const cellValue = colIndex in calculatedCells ? calculatedCells[colIndex] : cell;
+          calibrationPoints.push(calibPointId);
+          types.push(field.type);
+          repeatables.push(field.repeatable);
+          values.push(cellValue || '0');
+        });
+      }
       else if (selectedTableData.id === 'observationtswoi') {
         // Every PHP field of the row; calculated cells use freshly calculated values
         const rowType = getTSWOIRowType(rowData);
@@ -12601,25 +12796,124 @@ const CalibrateStep3 = () => {
                                       }
 
                                       const isEditable = isTSWOICellEditable(rowType, colIndex);
+                                      const isSensitivityCol = colIndex === TSWOI_COLS.SENSITIVITY && rowType === 'uuc';
+                                      const isManuallyEdited = isSensitivityCol && manuallyEditedSensitivity?.[`observationtswoi-${rowIndex}`];
+
                                       return (
                                         <td key={colIndex} {...tdProps}>
-                                          <input
-                                            type="text"
-                                            className={`w-full min-w-[70px] px-2 py-1 border rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-600 text-gray-900 dark:text-white ${isEditable ? '' : 'cursor-not-allowed'} ${observationErrors[key] ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
-                                            value={currentValue}
-                                            onChange={(e) => {
-                                              if (!isEditable) return;
-                                              handleInputChange(rowIndex, colIndex, e.target.value);
-                                            }}
-                                            onBlur={(e) => {
-                                              if (!isEditable) return;
-                                              handleObservationBlur(rowIndex, colIndex, e.target.value);
-                                            }}
-                                            disabled={!isEditable}
-                                          />
-                                          {observationErrors[key] && (
-                                            <div className="text-red-500 text-xs mt-1">{observationErrors[key]}</div>
-                                          )}
+                                          <div className="flex flex-col">
+                                            <div className="flex items-center space-x-1">
+                                              <input
+                                                type="text"
+                                                className={`w-full min-w-[70px] px-2 py-1 border rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-600 text-gray-900 dark:text-white ${isEditable ? '' : 'cursor-not-allowed bg-gray-50 dark:bg-gray-700'} ${observationErrors[key] ? 'border-red-500' : 'border-gray-200 dark:border-gray-600'}`}
+                                                value={currentValue}
+                                                onChange={(e) => {
+                                                  if (!isEditable) return;
+                                                  handleInputChange(rowIndex, colIndex, e.target.value);
+                                                }}
+                                                onBlur={(e) => {
+                                                  if (!isEditable) return;
+                                                  handleObservationBlur(rowIndex, colIndex, e.target.value);
+                                                }}
+                                                disabled={!isEditable}
+                                              />
+                                              {isManuallyEdited && (
+                                                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold px-1 py-0.5 bg-amber-50 dark:bg-amber-900/30 rounded" title="Manually edited">
+                                                  (edited)
+                                                </span>
+                                              )}
+                                            </div>
+                                            {observationErrors[key] && (
+                                              <div className="text-red-500 text-xs mt-1">{observationErrors[key]}</div>
+                                            )}
+                                          </div>
+                                        </td>
+                                      );
+                                    }
+
+                                    // RTDWOI: all cells handled here (paired UUC/Master rows, unit selects, rowspans)
+                                    if (selectedTableData.id === 'observationrtdwoi') {
+                                      const rowType = getRTDWOIRowType(row);
+                                      const spansBothRows = selectedTableData.rowSpanColumns?.includes(colIndex);
+                                      // Sr. No., Set Point and Deviation are merged into the UUC row (PHP rowspan="2")
+                                      if (spansBothRows && rowType !== 'uuc') return null;
+                                      const tdProps = {
+                                        rowSpan: spansBothRows ? 2 : undefined,
+                                        className: 'px-3 py-2 whitespace-nowrap text-sm border-r border-gray-200 dark:border-gray-600 last:border-r-0 align-middle',
+                                      };
+
+                                      if (colIndex === RTDWOI_COLS.UNIT) {
+                                        return (
+                                          <td key={colIndex} {...tdProps}>
+                                            <Select
+                                              options={unitsList}
+                                              className="w-full min-w-[140px] text-sm"
+                                              classNamePrefix="select"
+                                              placeholder="Select unit..."
+                                              value={unitsList.find(u => String(u.value) === String(currentValue) || u.label === currentValue) || null}
+                                              styles={{
+                                                control: (base) => ({
+                                                  ...base,
+                                                  minHeight: '32px',
+                                                  fontSize: '0.875rem'
+                                                })
+                                              }}
+                                              onChange={(selected) => {
+                                                const unitId = selected?.value?.toString() || '';
+                                                handleInputChange(rowIndex, colIndex, unitId, 'text');
+                                                handleObservationBlur(rowIndex, colIndex, unitId);
+                                              }}
+                                            />
+                                          </td>
+                                        );
+                                      }
+
+                                      if (colIndex === RTDWOI_COLS.SR_NO || colIndex === RTDWOI_COLS.VALUE_OF || cell === '-') {
+                                        return (
+                                          <td key={colIndex} {...tdProps} className={`${tdProps.className} text-center font-medium`}>
+                                            {cell}
+                                          </td>
+                                        );
+                                      }
+
+                                      const isEditable = isRTDWOICellEditable(rowType, colIndex);
+                                      const isSensitivityCol = colIndex === RTDWOI_COLS.SENSITIVITY && rowType === 'uuc';
+                                      const isManuallyEdited = isSensitivityCol && manuallyEditedSensitivity?.[`observationrtdwoi-${rowIndex}`];
+                                      const isOutOfRange = isSensitivityCol && isPt100OutOfRange && isPt100OutOfRange(currentValue);
+
+                                      return (
+                                        <td key={colIndex} {...tdProps}>
+                                          <div className="flex flex-col">
+                                            <div className="flex items-center space-x-1">
+                                              <input
+                                                type="text"
+                                                className={`w-full min-w-[70px] px-2 py-1 border rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-600 text-gray-900 dark:text-white ${isEditable ? '' : 'cursor-not-allowed bg-gray-50 dark:bg-gray-700'} ${observationErrors[key] ? 'border-red-500' : isOutOfRange ? 'border-amber-500' : 'border-gray-200 dark:border-gray-600'}`}
+                                                value={currentValue}
+                                                onChange={(e) => {
+                                                  if (!isEditable) return;
+                                                  handleInputChange(rowIndex, colIndex, e.target.value);
+                                                }}
+                                                onBlur={(e) => {
+                                                  if (!isEditable) return;
+                                                  handleObservationBlur(rowIndex, colIndex, e.target.value);
+                                                }}
+                                                disabled={!isEditable}
+                                              />
+                                              {isManuallyEdited && (
+                                                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold px-1 py-0.5 bg-amber-50 dark:bg-amber-900/30 rounded" title="Manually edited">
+                                                  (edited)
+                                                </span>
+                                              )}
+                                            </div>
+                                            {isOutOfRange && (
+                                              <span className="text-[10px] text-amber-500 mt-0.5" title="Expected ~2.3 - 2.8 °C/Ω for Pt100">
+                                                Pt100 typ. 2.3-2.8
+                                              </span>
+                                            )}
+                                            {observationErrors[key] && (
+                                              <div className="text-red-500 text-xs mt-1">{observationErrors[key]}</div>
+                                            )}
+                                          </div>
                                         </td>
                                       );
                                     }

@@ -75,12 +75,31 @@ const mean = (rowData) => {
   return readings.length ? readings.reduce((sum, val) => sum + val, 0) / readings.length : NaN;
 };
 
+export const deriveRTDWOISensitivity = (t1, t2, r1, r2) => {
+  const t1Num = toNumber(t1);
+  const t2Num = toNumber(t2);
+  const r1Num = toNumber(r1);
+  const r2Num = toNumber(r2);
+  if (isNaN(t1Num) || isNaN(t2Num) || isNaN(r1Num) || isNaN(r2Num)) return null;
+  if (Math.abs(t2Num - t1Num) < 1) return null;
+  const dr = r2Num - r1Num;
+  if (Math.abs(dr) < 1e-9) return null;
+  const s = (t2Num - t1Num) / dr;
+  if (!Number.isFinite(s) || s <= 0) return null;
+  return formatUnrounded(Number(s.toFixed(4)));
+};
+
+export const isPt100OutOfRange = (sensitivity) => {
+  const s = toNumber(sensitivity);
+  return !isNaN(s) && s > 0 && (s < 2.3 || s > 2.8);
+};
+
 /**
  * All calculated cells of one point (both rows) at once.
  * meta is the point's rowMeta entry ({ errorDecimals }).
- * PHP: averageavg(uuc…, 'averageuuc', 'NA'), averageavg(master…, 'averagemaster', 'NA'),
- * plusadd('ambientmaster', 'averagemaster', 'saveragemaster', 'NA'),
- * substractminus(caverageuuc, caveragemaster) — reversed for cusset error "stduuc".
+ * Uses difference method with Sensitivity Coefficient S (degC/ohm):
+ * Error = (UUC avg - Master avg) * S (reversed if cusset error "stduuc").
+ * Converted UUC = Converted Master + Error.
  */
 export const calculateRTDWOIPoint = (uucRowData, masterRowData, meta, cussetError) => {
   const uucRow = uucRowData || [];
@@ -94,30 +113,56 @@ export const calculateRTDWOIPoint = (uucRowData, masterRowData, meta, cussetErro
   const masterAverage = formatUnrounded(masterMean);
   const correctedAverage = formatUnrounded(masterMean + (isNaN(ambient) ? 0 : ambient));
 
-  const uucConverted = toNumber(uucRow[RTDWOI_COLS.CONVERTED_AVERAGE]);
-  const masterConverted = toNumber(masterRow[RTDWOI_COLS.CONVERTED_AVERAGE]);
-  const error = isNaN(uucConverted) || isNaN(masterConverted)
-    ? ''
-    : formatDecimals(cussetError === 'stduuc' ? masterConverted - uucConverted : uucConverted - masterConverted, meta?.errorDecimals);
+  const sensitivity = toNumber(uucRow[RTDWOI_COLS.SENSITIVITY]);
+
+  let masterConverted = masterRow[RTDWOI_COLS.CONVERTED_AVERAGE];
+  if (isBlank(masterConverted)) {
+    const sp = uucRow[RTDWOI_COLS.SET_POINT];
+    if (!isBlank(sp) && !isNaN(toNumber(sp))) {
+      masterConverted = sp;
+    } else if (!isBlank(correctedAverage)) {
+      masterConverted = correctedAverage;
+    }
+  }
+
+  let error = '';
+  let uucConverted = uucRow[RTDWOI_COLS.CONVERTED_AVERAGE];
+
+  if (!isNaN(sensitivity) && sensitivity !== 0 && !isNaN(uucMean) && !isNaN(masterMean)) {
+    const diff = cussetError === 'stduuc' ? (masterMean - uucMean) : (uucMean - masterMean);
+    const calculatedError = diff * sensitivity;
+    error = formatDecimals(calculatedError, meta?.errorDecimals);
+
+    const mConvNum = toNumber(masterConverted);
+    if (!isNaN(mConvNum)) {
+      uucConverted = formatDecimals(cussetError === 'stduuc' ? mConvNum - calculatedError : mConvNum + calculatedError, meta?.errorDecimals);
+    }
+  } else {
+    const uucConvNum = toNumber(uucConverted);
+    const masterConvNum = toNumber(masterConverted);
+    if (!isNaN(uucConvNum) && !isNaN(masterConvNum)) {
+      error = formatDecimals(cussetError === 'stduuc' ? masterConvNum - uucConvNum : uucConvNum - masterConvNum, meta?.errorDecimals);
+    }
+  }
 
   return {
-    uuc: { average: uucAverage },
-    master: { average: masterAverage, correctedAverage },
+    uuc: { average: uucAverage, convertedAverage: uucConverted },
+    master: { average: masterAverage, correctedAverage, convertedAverage: masterConverted },
     error,
   };
 };
 
 /**
  * Calculation logic for one RTDWOI row; pairRowData is the other row of the same point.
- * Returns { average, correctedAverage, error } for this row.
+ * Returns { average, correctedAverage, convertedAverage, error } for this row.
  */
 export const calculateRTDWOIValues = (rowData, pairRowData, meta, cussetError) => {
   if (!rowData || !Array.isArray(rowData)) return {};
   const isUUC = getRTDWOIRowType(rowData) === 'uuc';
   const calc = calculateRTDWOIPoint(isUUC ? rowData : pairRowData, isUUC ? pairRowData : rowData, meta, cussetError);
   return isUUC
-    ? { average: calc.uuc.average, correctedAverage: '', error: calc.error }
-    : { average: calc.master.average, correctedAverage: calc.master.correctedAverage, error: calc.error };
+    ? { average: calc.uuc.average, correctedAverage: '', convertedAverage: calc.uuc.convertedAverage, error: calc.error }
+    : { average: calc.master.average, correctedAverage: calc.master.correctedAverage, convertedAverage: calc.master.convertedAverage, error: calc.error };
 };
 
 /**
@@ -153,31 +198,30 @@ export const getRTDWOIFieldType = (rowType, colIndex) => {
 
 /**
  * Cells the user types into.
- * UUC row: unit, sensitivity, 5 readings, caverageuuc.
+ * UUC row: unit, sensitivity, 5 readings.
  * Master row: unit, 5 readings, ambientmaster, caveragemaster.
+ * caverageuuc and deviation are calculated.
  */
 export const isRTDWOICellEditable = (rowType, colIndex) => {
   const isReading = colIndex >= RTDWOI_COLS.OBS_START && colIndex <= RTDWOI_COLS.OBS_END;
-  if (isReading || colIndex === RTDWOI_COLS.UNIT || colIndex === RTDWOI_COLS.CONVERTED_AVERAGE) return true;
+  if (isReading || colIndex === RTDWOI_COLS.UNIT) return true;
   if (rowType === 'uuc') {
     return colIndex === RTDWOI_COLS.SENSITIVITY;
   } else {
-    return colIndex === RTDWOI_COLS.AMBIENT;
+    return colIndex === RTDWOI_COLS.AMBIENT || colIndex === RTDWOI_COLS.CONVERTED_AVERAGE;
   }
 };
 
 /**
  * Least count the UUC readings are checked against (PHP inleastcount/divisibleby).
- * Wait, in PHP snippet provided there is no divisibleby check on readings!
- * So we return null.
+ * In PHP there is no divisibleby check on readings.
  */
 export const getRTDWOIReadingLeastCount = () => {
   return null;
 };
 
 /**
- * Submit-time validation for one row: PHP marks every editable numeric input
- * "required,number".
+ * Submit-time validation for one row: marks editable numeric inputs required.
  */
 export const validateRTDWOIRow = (rowData, rowIndex) => {
   const errors = {};
@@ -194,6 +238,9 @@ export const validateRTDWOIRow = (rowData, rowIndex) => {
     if (isNaN(toNumber(cell))) {
       errors[key] = 'Please enter a valid number';
       return;
+    }
+    if (colIndex === RTDWOI_COLS.SENSITIVITY && toNumber(cell) <= 0) {
+      errors[key] = 'Sensitivity coefficient must be greater than 0';
     }
   });
 
@@ -296,6 +343,15 @@ export const createRTDWOIRows = (dataArray) => {
       pick(master, 'converted_average', 'c_average', 'caverage') || pick(point, 'caveragemaster', 'c_average_master'),
       '-',
     ];
+
+    const calc = calculateRTDWOIPoint(uucRow, masterRow, meta, point.cusset_error);
+    const useCalculated = (row, col, val) => { if (!isBlank(val)) row[col] = val; };
+    useCalculated(uucRow, RTDWOI_COLS.AVERAGE, calc.uuc.average);
+    useCalculated(masterRow, RTDWOI_COLS.AVERAGE, calc.master.average);
+    useCalculated(masterRow, RTDWOI_COLS.CORRECTED_AVERAGE, calc.master.correctedAverage);
+    useCalculated(masterRow, RTDWOI_COLS.CONVERTED_AVERAGE, calc.master.convertedAverage);
+    useCalculated(uucRow, RTDWOI_COLS.CONVERTED_AVERAGE, calc.uuc.convertedAverage);
+    useCalculated(uucRow, RTDWOI_COLS.DEVIATION, calc.error);
 
     [uucRow, masterRow].forEach((row, rowOffset) => {
       rows.push(row);

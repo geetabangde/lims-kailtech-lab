@@ -51,9 +51,23 @@ const formatUnrounded = (num) => (Number.isFinite(num) ? String(Number(num.toFix
 
 export const getTSWOIRowType = (rowData) => (rowData?.[TSWOI_COLS.VALUE_OF] === 'Master' ? 'master' : 'uuc');
 
+export const deriveTSWOISensitivity = (t1, t2, v1, v2) => {
+  const t1Num = toNumber(t1);
+  const t2Num = toNumber(t2);
+  const v1Num = toNumber(v1);
+  const v2Num = toNumber(v2);
+  if (isNaN(t1Num) || isNaN(t2Num) || isNaN(v1Num) || isNaN(v2Num)) return null;
+  if (Math.abs(t2Num - t1Num) < 1) return null;
+  const dv = v2Num - v1Num;
+  if (Math.abs(dv) < 1e-9) return null;
+  const s = (t2Num - t1Num) / dv;
+  if (!Number.isFinite(s) || s <= 0) return null;
+  return formatUnrounded(Number(s.toFixed(4)));
+};
+
 /**
  * Average of the filled observations, "Average with corrected mv" (ambient + average)
- * and "Average (unit)" (corrected average / sensitivity coefficient) for one row.
+ * and "Average (unit)" (converted to degC using sensitivity coefficient) for one row.
  * PHP: averageavg(obs, 'average…', 'NA') and plusadd('ambient…', 'average…', 'saverage…', 'NA').
  */
 const calculateRowAverages = (rowData, sensitivity) => {
@@ -67,10 +81,19 @@ const calculateRowAverages = (rowData, sensitivity) => {
   const average = readings.reduce((sum, val) => sum + val, 0) / readings.length;
   const ambient = toNumber(rowData[TSWOI_COLS.AMBIENT]);
   const corrected = average + (isNaN(ambient) ? 0 : ambient);
+
+  let converted = '';
+  if (!isNaN(sensitivity) && sensitivity !== 0) {
+    // If sensitivity > 1 it is degC/mV (multiply); if <= 1 it is mV/degC (divide)
+    converted = sensitivity > 1
+      ? formatUnrounded(corrected * sensitivity)
+      : formatUnrounded(corrected / sensitivity);
+  }
+
   return {
     average: formatUnrounded(average),
     correctedAverage: formatUnrounded(corrected),
-    convertedAverage: isNaN(sensitivity) || sensitivity === 0 ? '' : formatUnrounded(corrected / sensitivity),
+    convertedAverage: converted,
   };
 };
 
