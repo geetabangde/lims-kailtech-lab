@@ -11,6 +11,7 @@ import {
   getObservationCustomStructure,
   getDGViewStructure,
   BiomedicalTable,
+  parseBiomedicalDynamicData,
   UCTable,
   TMTable,
   WeighingBalanceTable,
@@ -427,6 +428,18 @@ export default function CalibrationReport() {
             const dynObsResult = await fetchDynamicObservations(resolvedTemplate);
             dynEnv = dynObsResult?.environment || dynObsResult?.data?.environment;
             await fetchObservationData(resolvedTemplate);
+
+            if (resolvedTemplate === 'observationbiomedical' && observation_data) {
+              setBiomedicalRawData(observation_data);
+              const processedBio = parseBiomedicalDynamicData(observation_data);
+              if (Array.isArray(processedBio) && processedBio.length > 0) {
+                setDynamicObservations(processedBio);
+                const selectedTable = observationTables.find(table => table.id === resolvedTemplate);
+                if (selectedTable) {
+                  setTableStructure(prev => prev || generateTableStructure(selectedTable));
+                }
+              }
+            }
 
             if (observation_data?.observations) {
               const obsList = observation_data.observations || observation_data.data?.observations;
@@ -849,13 +862,14 @@ export default function CalibrationReport() {
   };
   const isYes = (val) => String(val || '').trim().toLowerCase() === 'yes';
   const biomedicalConfig = biomedicalRawData?.config || {};
-  const isBiomedicalActive = isYes(biomedicalConfig.biomedical ?? 'Yes');
-  const hasBiomedicalContent = observationTemplate === 'observationbiomedical' && isBiomedicalActive && (
-    (isYes(biomedicalConfig.show_visual_test) && biomedicalRawData?.visual_test?.length > 0) ||
-    (isYes(biomedicalConfig.show_basic_safety) && biomedicalRawData?.basic_safety?.length > 0) ||
-    (isYes(biomedicalConfig.show_electrical_safety) && (biomedicalRawData?.electrical_safety?.measure?.length > 0 || biomedicalRawData?.electrical_safety?.source?.length > 0)) ||
-    (isYes(biomedicalConfig.show_performance ?? biomedicalConfig.show_performance_test) && (biomedicalRawData?.performance_test?.measure?.length > 0 || biomedicalRawData?.performance_test?.source?.length > 0)) ||
-    (observationRows?.rows?.length || 0) > 0
+  const hasBiomedicalContent = observationTemplate === 'observationbiomedical' && (
+    (biomedicalRawData?.visual_test?.length > 0) ||
+    (biomedicalRawData?.basic_safety?.length > 0) ||
+    (biomedicalRawData?.electrical_safety?.measure?.length > 0 || biomedicalRawData?.electrical_safety?.source?.length > 0) ||
+    (biomedicalRawData?.performance_test?.measure?.length > 0 || biomedicalRawData?.performance_test?.source?.length > 0) ||
+    isYes(biomedicalConfig.show_performance ?? biomedicalConfig.show_performance_test) ||
+    (observationRows?.rows?.length || 0) > 0 ||
+    (dynamicObservations?.length || 0) > 0
   );
 
   return (

@@ -6,10 +6,23 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations }) => {
   const config = biomedicalRawData?.config || {};
   const isBiomedical = isYes(config.biomedical ?? 'Yes');
 
-  const showVisualTest = isBiomedical && isYes(config.show_visual_test) && (biomedicalRawData?.visual_test?.length > 0);
-  const showBasicSafety = isBiomedical && isYes(config.show_basic_safety) && (biomedicalRawData?.basic_safety?.length > 0);
-  const showElectricalSafety = isBiomedical && isYes(config.show_electrical_safety);
-  const showPerformanceTest = isBiomedical && isYes(config.show_performance ?? config.show_performance_test);
+  const hasVisualData = Array.isArray(biomedicalRawData?.visual_test) && biomedicalRawData.visual_test.length > 0;
+  const hasBasicData = Array.isArray(biomedicalRawData?.basic_safety) && biomedicalRawData.basic_safety.length > 0;
+  const hasElectricalData = Boolean(
+    (biomedicalRawData?.electrical_safety?.measure?.length > 0) ||
+    (biomedicalRawData?.electrical_safety?.source?.length > 0) ||
+    (dynamicObservations || []).some((p) => p.biomedical_section === 'Electrical Safety')
+  );
+  const hasPerformanceData = Boolean(
+    (biomedicalRawData?.performance_test?.measure?.length > 0) ||
+    (biomedicalRawData?.performance_test?.source?.length > 0) ||
+    (dynamicObservations || []).some((p) => p.biomedical_section === 'Performance Test')
+  );
+
+  const showVisualTest = hasVisualData || (isBiomedical && isYes(config.show_visual_test));
+  const showBasicSafety = hasBasicData || (isBiomedical && isYes(config.show_basic_safety));
+  const showElectricalSafety = hasElectricalData || isYes(config.show_electrical_safety);
+  const showPerformanceTest = hasPerformanceData || isYes(config.show_performance ?? config.show_performance_test);
 
   const visualTests = showVisualTest ? (biomedicalRawData?.visual_test || []) : [];
   const basicSafety = showBasicSafety ? (biomedicalRawData?.basic_safety || []) : [];
