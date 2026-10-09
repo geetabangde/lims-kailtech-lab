@@ -188,6 +188,11 @@ export default function AddCreditNote() {
       sgstper: invoiceMeta.sgstper ?? 0,
       igstper: invoiceMeta.igstper ?? 0,
       potype: invoiceMeta.potype || "Normal",
+      subtotal: invoiceMeta.subtotal_limit ?? prev.subtotal,
+      freight: invoiceMeta.freight_limit ?? prev.freight,
+      mobilisation: invoiceMeta.mobilisation_limit ?? prev.mobilisation,
+      samplehandling: invoiceMeta.samplehandling_limit ?? prev.samplehandling,
+      sampleprep: invoiceMeta.sampleprep_limit ?? prev.sampleprep,
     }, items));
   }, [invoiceMeta, items, recalculate]);
 
