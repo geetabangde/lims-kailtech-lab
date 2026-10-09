@@ -191,19 +191,10 @@ function InvoicePrintTemplate({
   );
   const stateLabel = inv.statename ?? matchedState?.state ?? statecode ?? "";
   const finalTotal = parseFloat(inv.finaltotal ?? 0);
-  const isFoc = inv.invoiceno === "FOC";
   const isNormalPo = inv.potype === "Normal";
   const hasMeter = items.some((it) => it.meter_option == 1);
   const status = Number(inv.status);
   const safeQrUrl = qrUrl && qrUrl.startsWith("data:") ? qrUrl : qrUrl;
-
-  const totalQty = items.reduce((s, it) => s + (parseFloat(it.qty) || 0), 0);
-  const otherCharges =
-    (parseFloat(inv.witnesscharges) || 0) +
-    (parseFloat(inv.samplehandling) || 0) +
-    (parseFloat(inv.sampleprep) || 0) +
-    (parseFloat(inv.freight) || 0) +
-    (parseFloat(inv.mobilisation) || 0);
 
   const HeaderSection = () => (
     <>
@@ -399,20 +390,7 @@ function InvoicePrintTemplate({
             {items.map((item, idx) => {
               const computedQtyForAmount = item.meter_option == 1 ? parseFloat(item.meter || 0) : parseFloat(item.qty || 0);
               const fallbackAmount = (parseFloat(item.rate || 0) * computedQtyForAmount) || 0;
-              let displayAmount = f2(parseFloat(item.amount) || fallbackAmount);
-              if (!isFoc && isNormalPo) {
-                const itemAmountOld = parseFloat(item.amount) || fallbackAmount;
-                const itemOtherCharge =
-                  otherCharges > 0 && totalQty > 0
-                    ? parseFloat(
-                      (
-                        (otherCharges / totalQty) *
-                        parseFloat(item.qty || 0)
-                      ).toFixed(2),
-                    )
-                    : 0;
-                displayAmount = f2(itemAmountOld + itemOtherCharge);
-              }
+              const displayAmount = f2(parseFloat(item.base_amount ?? item.amount) || fallbackAmount);
               return (
                 <tr key={item.id ?? idx} style={{ backgroundColor: "#fff" }}>
                   <td className="center">{idx + 1}</td>
@@ -1027,6 +1005,7 @@ export default function ViewCalibrationInvoice() {
       (parseFloat(invoice.igstper) || 0);
     return {
       ...item,
+      itemBaseAmount: itemAmountOld,
       itemOtherCharge,
       itemAmount,
       itemDiscount,
@@ -1530,7 +1509,7 @@ export default function ViewCalibrationInvoice() {
                         {item.rate}
                       </td>
                       <td className="dark:border-dark-500 border border-gray-400 px-2 py-1.5 text-right">
-                        {f2(item.itemAmount)}
+                        {f2(item.itemBaseAmount)}
                       </td>
                     </>
                   )}

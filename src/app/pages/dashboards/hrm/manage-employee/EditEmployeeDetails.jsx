@@ -89,8 +89,8 @@ export default function EditEmployeeDetails() {
             uanno: d.uanno || "",
           });
           setPreviewImages({
-            thumb_image: d.thumb_image || "",
-            sign_image: d.sign_image || "",
+            thumb_image: d.thumb_image_url || "",
+            sign_image: d.sign_image_url || "",
           });
           setOptions({
             gender: result.data.gender || [],
