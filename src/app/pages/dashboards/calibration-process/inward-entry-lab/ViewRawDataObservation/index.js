@@ -72,7 +72,7 @@ export {
   dgTableConfig, createDGRows, parseDGDynamicData, getDGViewStructure,
   tsTableConfig, createTSRows,
   wbTableConfig, wbnTableConfig, createWBRows, ViewObservationWBN,
-  biomedicalTableConfig, createBiomedicalRows,
+  biomedicalTableConfig, createBiomedicalRows, parseBiomedicalDynamicData,
   getObservationCustomStructure, createCustomRows,
   gtmTableConfig, createGTMRows, parseGTMDynamicData,
   ViewObservationAUTM, autmTableConfig, createAUTMRows, parseAUTMDynamicData,
