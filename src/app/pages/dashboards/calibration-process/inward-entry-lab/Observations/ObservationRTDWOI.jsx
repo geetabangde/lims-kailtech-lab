@@ -370,13 +370,22 @@ export const createRTDWOIRows = (dataArray) => {
  * Points array from a get-observation response, or null when none is found.
  */
 export const extractRTDWOIPoints = (observationData) => {
+  if (!observationData) return null;
   const root = observationData?.data && !Array.isArray(observationData.data) ? observationData.data : observationData;
-  const points = [root, observationData?.data, root?.calibration_points, root?.calibration_data, root?.points]
-    .find(Array.isArray);
+  const points = [
+    root?.calibration_points,
+    root?.calibration_data,
+    root?.points,
+    observationData?.calibration_points,
+    observationData?.calibration_data,
+    observationData?.points,
+    observationData?.data,
+    root,
+  ].find(Array.isArray);
   if (!points) return null;
 
   const cussetError = root?.cusset_error ?? observationData?.cusset_error;
-  const unitLabel = root?.unit_label ?? root?.set_point_unit;
+  const unitLabel = root?.unit_label ?? root?.set_point_unit ?? observationData?.unit_label;
   return points.map((point) => (point && typeof point === 'object'
     ? { ...point, cusset_error: point.cusset_error ?? cussetError, unit_label: point.unit_label ?? unitLabel }
     : point));
@@ -406,7 +415,7 @@ export const getRTDWOITableConfig = (observations, unitLabel) => {
       subHeaders: {
         'Observation': ['1', '2', '3', '4', '5']
       },
-      remainingHeaders: ['Average', 'mV generated On ambient', 'Average with corrected mv', `Average${suffix}`, `Deviation${suffix}`]
+      remainingHeaders: ['Average (Ω)', 'Ambient', 'Corrected Average (Ω)', `Average${suffix}`, `Deviation${suffix}`]
     },
     staticRows: rows,
     hiddenInputs: hiddenInputs,

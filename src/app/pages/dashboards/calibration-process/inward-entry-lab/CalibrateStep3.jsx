@@ -412,8 +412,8 @@ const CalibrateStep3 = () => {
       }
     };
 
-    // ✅ CHANGED: Fetch units for both RTD WI and GTM
-    if (observationTemplate === 'observationrtdwi' || observationTemplate === 'observationgtm' || observationTemplate === 'observationtswoi' || observationTemplate === 'observationtswi') {
+    // ✅ CHANGED: Fetch units for RTD WI, GTM, TSWOI, TSWI, RTDWOI
+    if (observationTemplate === 'observationrtdwi' || observationTemplate === 'observationgtm' || observationTemplate === 'observationtswoi' || observationTemplate === 'observationtswi' || observationTemplate === 'observationrtdwoi') {
       fetchUnits();
     }
   }, [observationTemplate]);
@@ -1605,7 +1605,8 @@ const CalibrateStep3 = () => {
           }
         }
       }
-      else if (selectedTableData.id === 'observationcustom') {
+      else if (selectedTableData.id === 'observationcustom' ||
+                                              selectedTableData.id === 'observationuc') {
         const layout = getCustomLayoutIndices(instrument);
         if (layout) {
           const requiredCols = [];
@@ -1682,7 +1683,7 @@ const CalibrateStep3 = () => {
           return;
         }
 
-        if (isSuccess && (response.data.data || response.data.calibration_points || observationTemplate === 'observationbiomedical')) {
+        if (isSuccess && (response.data.data || response.data.calibration_points || response.data.calibration_data || observationTemplate === 'observationbiomedical' || observationTemplate === 'observationrtdwoi')) {
           const observationData = observationTemplate === 'observationbiomedical' ? response.data : (response.data.data || response.data);
 
           if (observationTemplate === 'observationmt' && observationData.thermal_coeff) {
@@ -1832,6 +1833,9 @@ const CalibrateStep3 = () => {
             } else {
               setObservations([]);
             }
+          }
+          else if (observationTemplate === 'observationrtdwoi') {
+            setObservations(extractRTDWOIPoints(response.data) || extractRTDWOIPoints(observationData) || []);
           }
           else if (observationTemplate === 'observationtswoi') {
             setObservations(extractTSWOIPoints(response.data) || []);
@@ -8217,10 +8221,10 @@ const CalibrateStep3 = () => {
         }
       );
 
-      const isSuccess = response.data.status === true || response.data.staus === true;
+      const isSuccess = response.data.status === true || response.data.staus === true || response.data.success === true;
 
-      if (isSuccess && (response.data.data || response.data.calibration_points)) {
-        const observationData = response.data.data;
+      if (isSuccess && (response.data.data || response.data.calibration_points || response.data.calibration_data || observationTemplate === 'observationrtdwoi')) {
+        const observationData = response.data.data || response.data;
 
         // ✅ ADD OBSERVATIONAVG CASE HERE
         if (observationTemplate === 'observationavg') {
@@ -8329,7 +8333,7 @@ const CalibrateStep3 = () => {
           }
         }
         else if (observationTemplate === 'observationrtdwoi') {
-          const rtdwoiPoints = extractRTDWOIPoints(response.data);
+          const rtdwoiPoints = extractRTDWOIPoints(response.data) || extractRTDWOIPoints(observationData);
           if (rtdwoiPoints) setObservations(rtdwoiPoints);
         }
         else if (observationTemplate === 'observationtswoi') {
@@ -8810,8 +8814,39 @@ const CalibrateStep3 = () => {
             : (observationData?.data || observationData?.calibration_points || observationData?.observations || []);
           setObservations(Array.isArray(points) ? points : []);
         }
+        else if (observationTemplate === 'observationuc') {
+          const ucData = observationData.data || observationData;
+
+          if (ucData.measure_data || ucData.source_data) {
+            const combined = [];
+            if (Array.isArray(ucData.measure_data)) {
+              combined.push(...ucData.measure_data.map(p => ({ ...p, mode: 'Measure', cusset_error: p.cusset_error ?? ucData.cusset_error })));
+            }
+            if (Array.isArray(ucData.source_data)) {
+              combined.push(...ucData.source_data.map(p => ({ ...p, mode: 'Source', cusset_error: p.cusset_error ?? ucData.cusset_error })));
+            }
+
+            const leastCountMap = {};
+            combined.forEach(point => {
+              const calibPointId = point.point_id?.toString() || point.calibration_point_id?.toString() || point.id?.toString();
+              if (!calibPointId) return;
+              const obsLc = point.mode === 'Measure'
+                ? (point.leastcount ?? point.least_count)
+                : (point.master_leastcount ?? point.masterleastcount);
+              leastCountMap[calibPointId] = { obs: obsLc != null ? String(obsLc).trim() : null };
+            });
+            setLeastCountData(prev => ({ ...prev, ...leastCountMap }));
+            setObservations(combined);
+          } else if (Array.isArray(ucData)) {
+            setObservations(ucData);
+          } else if (ucData.calibration_points && Array.isArray(ucData.calibration_points)) {
+            setObservations(ucData.calibration_points);
+          } else if (ucData.points && Array.isArray(ucData.points)) {
+            setObservations(ucData.points);
+          }
+        }
         else {
-          setObservations([]);
+          // Keep existing observations to prevent table disappearing on refetch
         }
       }
     } catch (error) {

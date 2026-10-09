@@ -220,8 +220,8 @@ export const createPRRows = (dataArray = []) => {
         );
 
         const factor = safeGetValue(
-            point.factor ??
-            calcs.factor
+            calcs.factor ||
+            point.factor
         );
 
         const row = [
@@ -724,9 +724,10 @@ const ObservationPR = ({
                                                 `factor${pointId}`,
                                                 getVal(
                                                     `${currentRowIndex}-7`,
-                                                    point.factor ??
-                                                    point.observations?.find?.((o) => o.type === 'factor')?.value ??
-                                                    calculated.factor
+                                                    calculated.factor ||
+                                                    point.factor ||
+                                                    point.observations?.find?.((o) => o.type === 'factor')?.value ||
+                                                    ''
                                                 )
                                             )
                                         );

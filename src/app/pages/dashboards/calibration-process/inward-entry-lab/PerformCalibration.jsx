@@ -131,6 +131,7 @@ const PerformCalibration = () => {
     const [revisionReason, setRevisionReason] = useState('');
     const [revisionRemark, setRevisionRemark] = useState('');
     const [revisionAttachment, setRevisionAttachment] = useState(null);
+    const [currentRevisionItem, setCurrentRevisionItem] = useState(null);
     const [showAllotModal, setShowAllotModal] = useState(false);
     const [selectedPerson, setSelectedPerson] = useState('');
     const [showApproveModal, setShowApproveModal] = useState(false);
@@ -364,6 +365,7 @@ const PerformCalibration = () => {
                 setShowCancelModal(true);
                 break;
             case 'requestRevision':
+                setCurrentRevisionItem(item);
                 setShowRevisionModal(true);
                 break;
             case 'editDetailsForRevision':
@@ -903,9 +905,12 @@ const PerformCalibration = () => {
             const formData = new FormData();
             formData.append('inwardid', inwardId);
 
-            // Use the first selected item's ID as instid (or modify logic as needed)
-            // If you want to send multiple items, you might need to loop
-            formData.append('instid', selectedItems[0]); // Using first selected item
+            const targetItemId = currentRevisionItem?.id || (selectedItems.length > 0 ? selectedItems[0] : null);
+            if (!targetItemId) {
+                toast.error("Please select an instrument to request revision.");
+                return;
+            }
+            formData.append('instid', targetItemId);
 
             formData.append('reason', revisionReason);
             formData.append('remark', revisionRemark);
@@ -939,6 +944,7 @@ const PerformCalibration = () => {
             setRevisionReason('');
             setRevisionRemark('');
             setRevisionAttachment(null);
+            setCurrentRevisionItem(null);
             setShowRevisionModal(false);
 
         } catch (error) {
@@ -1135,6 +1141,7 @@ const PerformCalibration = () => {
         setRevisionReason('');
         setRevisionRemark('');
         setRevisionAttachment(null);
+        setCurrentRevisionItem(null);
     };
 
     const handleCloseAllotModal = () => {

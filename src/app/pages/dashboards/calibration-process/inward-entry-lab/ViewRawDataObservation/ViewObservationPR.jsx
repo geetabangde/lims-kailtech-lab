@@ -199,7 +199,7 @@ export const createPRRows = (observations = [], instrument = {}) => {
             const calculated = calculatePRValues(setpoint, [obs0, obs1, obs2]);
             const finalMean = mean || calculated.mean;
             const finalRepeatability = repeatability || calculated.repeatability;
-            const finalFactor = factor || calculated.factor;
+            const finalFactor = calculated.factor || factor;
 
             const row = [
                 srNo.toString(),
