@@ -155,7 +155,9 @@ export default function ExportPoToPdf() {
           customer: {
             ...customerData,
             gstno: customerData.gst_number || customerData.gstno,
-            panno: customerData.pan_no,
+            // Fall back to deriving PAN from the GSTIN (chars 3-12) only if the
+            // backend ever omits pan_number again.
+            panno: customerData.pan_number || customerData.pan_no || (customerData.gst_number || customerData.gstno || "").slice(2, 12),
             address: customerData.full_address || customerData.address,
             stateName: fetchedStateName
           },
@@ -352,7 +354,7 @@ export default function ExportPoToPdf() {
                     </td>
                     <td style="width:50%;">
                       <b>State code : </b>${stateCode}<br>
-                      <b>PAN: </b>${company.panno || ''}
+                      <b>PAN: </b>${customer.panno || ''}
                     </td>
                   </tr>
                 </table>
