@@ -402,6 +402,7 @@ export default function ReviewByHodDetail() {
 
   // PHP: $specs==1 → show SPECIFICATIONS column
   const hasSpecs = Number(trf_product?.specification_flag) === 2 ? false : (Number(trf_product?.specification_flag) === 1 || Number(trf_product?.specification) === 1 || test_results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—"));
+  const hasSplitSpecs = hasSpecs && test_results.some((r) => r.specification && String(r.specification).includes("|"));
 
   // PHP: nabl==1 → nabltest.png, nabl==3 → qai.jpeg
   const nablLogo = nablObj?.logo || (
@@ -571,9 +572,20 @@ export default function ReviewByHodDetail() {
                       ))}
                       {/* PHP: if ($specs==1) */}
                       {hasSpecs && (
-                        <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
-                          SPECIFICATIONS
-                        </th>
+                        hasSplitSpecs ? (
+                          <>
+                            <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
+                              Requirement
+                            </th>
+                            <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
+                              Permissible
+                            </th>
+                          </>
+                        ) : (
+                          <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
+                            SPECIFICATIONS
+                          </th>
+                        )
                       )}
                       {/* PHP: if(perm 180||181) && $reportstatus<9 */}
                       {showActionsColumn && (
@@ -586,7 +598,7 @@ export default function ReviewByHodDetail() {
                   <tbody>
                     {test_results.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-xs text-gray-400">
+                        <td colSpan={hasSpecs ? (hasSplitSpecs ? 8 : 7) : 6} className="py-8 text-center text-xs text-gray-400">
                           No test results found.
                         </td>
                       </tr>
@@ -634,9 +646,24 @@ export default function ReviewByHodDetail() {
                               {methodName}
                             </td>
                             {hasSpecs && (
-                              <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
-                                {renderVal(row.specification)}
-                              </td>
+                              hasSplitSpecs ? (
+                                <>
+                                  <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                                    {row.specification && String(row.specification).includes("|")
+                                      ? String(row.specification).split("|")[0].trim() || "—"
+                                      : renderVal(row.specification)}
+                                  </td>
+                                  <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                                    {row.specification && String(row.specification).includes("|")
+                                      ? String(row.specification).split("|")[1].trim() || "—"
+                                      : "—"}
+                                  </td>
+                                </>
+                              ) : (
+                                <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                                  {renderVal(row.specification)}
+                                </td>
+                              )
                             )}
                             {showActionsColumn && (
                               <td className="px-3 py-2 text-center no-print">

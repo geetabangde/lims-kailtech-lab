@@ -283,6 +283,7 @@ export default function ReviewByQaDetail() {
 
   // PHP: if ($specs==1)
   const hasSpecs = Number(trfProduct?.specification_flag) === 2 ? false : (Number(trfProduct?.specification_flag) === 1 || Number(trfProduct?.specification) === 1 || test_results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—"));
+  const hasSplitSpecs = hasSpecs && test_results.some((r) => r.specification && String(r.specification).includes("|"));
 
   let nablLogo = null;
   if (nablObj?.is_nabl || nablStatus === 1) {
@@ -433,9 +434,20 @@ export default function ReviewByQaDetail() {
                         </th>
                       ))}
                       {hasSpecs && (
-                        <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
-                          SPECIFICATIONS
-                        </th>
+                        hasSplitSpecs ? (
+                          <>
+                            <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                              Requirement
+                            </th>
+                            <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                              Permissible
+                            </th>
+                          </>
+                        ) : (
+                          <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                            SPECIFICATIONS
+                          </th>
+                        )
                       )}
                       {showActionsColumn && (
                         <th className="no-print border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
@@ -447,7 +459,7 @@ export default function ReviewByQaDetail() {
                   <tbody>
                     {test_results.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-xs text-gray-400">No test results found.</td>
+                        <td colSpan={hasSpecs ? (hasSplitSpecs ? 8 : 7) : 6} className="py-8 text-center text-xs text-gray-400">No test results found.</td>
                       </tr>
                     ) : (
                       test_results.map((row, idx) => {
@@ -478,7 +490,22 @@ export default function ReviewByQaDetail() {
                             <td className="px-3 py-2 text-center" style={cellStyle}>{displayResult}</td>
                             <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{methodName}</td>
                             {hasSpecs && (
-                              <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{renderVal(row.specification)}</td>
+                              hasSplitSpecs ? (
+                                <>
+                                  <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                                    {row.specification && String(row.specification).includes("|")
+                                      ? String(row.specification).split("|")[0].trim() || "—"
+                                      : renderVal(row.specification)}
+                                  </td>
+                                  <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                                    {row.specification && String(row.specification).includes("|")
+                                      ? String(row.specification).split("|")[1].trim() || "—"
+                                      : "—"}
+                                  </td>
+                                </>
+                              ) : (
+                                <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{renderVal(row.specification)}</td>
+                              )
                             )}
                             {showActionsColumn && (
                               <td className="no-print px-3 py-2 text-center">

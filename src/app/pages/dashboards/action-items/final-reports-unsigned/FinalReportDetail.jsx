@@ -107,6 +107,7 @@ export default function FinalReportDetail() {
   const remarks = report.remarks ?? {};
   const nablStatus = report.nabl?.status ?? 0;
   const hasSpecs = Number(trfProduct?.specification_flag) === 2 ? false : (Number(trfProduct?.specification_flag) === 1 || Number(trfProduct?.specification) === 1 || testResults.some((r) => r.specification && r.specification !== "—" && r.specification !== "-"));
+  const hasSplitSpecs = hasSpecs && testResults.some((r) => r.specification && String(r.specification).includes("|"));
   const reportStatus = report.report_status?.code ?? 0;
   // "brand" key from trf_product — shown after Grade in Sample Particulars
   const brandValue = trfProduct.brand ?? "";
@@ -238,7 +239,14 @@ export default function FinalReportDetail() {
                     <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">RESULTS</th>
                     <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">TEST METHOD</th>
                     {hasSpecs && (
-                      <th className="border-b border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">SPECIFICATIONS</th>
+                      hasSplitSpecs ? (
+                        <>
+                          <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">Requirement</th>
+                          <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">Permissible</th>
+                        </>
+                      ) : (
+                        <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">SPECIFICATIONS</th>
+                      )
                     )}
                     {reportStatus < 9 && (
                       <th className="border-b border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">ACTIONS</th>
@@ -248,7 +256,7 @@ export default function FinalReportDetail() {
                 <tbody>
                   {testResults.length === 0 ? (
                     <tr>
-                      <td colSpan={hasSpecs ? 6 : 5} className="py-8 text-center text-sm text-gray-400">
+                      <td colSpan={hasSpecs ? (hasSplitSpecs ? 7 : 6) : 5} className="py-8 text-center text-sm text-gray-400">
                         No test results found.
                       </td>
                     </tr>
@@ -296,7 +304,22 @@ export default function FinalReportDetail() {
                           </td>
                           <td className="border-r border-gray-200 px-3 py-2 text-center text-sm dark:border-dark-500">{methodName}</td>
                           {hasSpecs && (
-                            <td className="border-r border-gray-200 px-3 py-2 text-center text-sm dark:border-dark-500">{row.specification ?? "—"}</td>
+                            hasSplitSpecs ? (
+                              <>
+                                <td className="border-r border-gray-200 px-3 py-2 text-center text-sm dark:border-dark-500">
+                                  {row.specification && String(row.specification).includes("|")
+                                    ? String(row.specification).split("|")[0].trim() || "—"
+                                    : (row.specification ?? "—")}
+                                </td>
+                                <td className="border-r border-gray-200 px-3 py-2 text-center text-sm dark:border-dark-500">
+                                  {row.specification && String(row.specification).includes("|")
+                                    ? String(row.specification).split("|")[1].trim() || "—"
+                                    : "—"}
+                                </td>
+                              </>
+                            ) : (
+                              <td className="border-r border-gray-200 px-3 py-2 text-center text-sm dark:border-dark-500">{row.specification ?? "—"}</td>
+                            )
                           )}
                           {reportStatus < 9 && (
                             <td className="px-3 py-2 text-center text-sm">
