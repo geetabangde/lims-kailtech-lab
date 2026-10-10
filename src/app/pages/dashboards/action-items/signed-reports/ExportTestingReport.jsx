@@ -281,25 +281,36 @@ export function HtmlResultsTable({ data }) {
   const hasSplitSpecs = hasSpecs && test_results.some(r => r.specification && String(r.specification).includes('|'));
 
   return (
+    <>
     <table style={SS.rTable}>
       <thead style={SS.thead}>
-        <tr>
-          <th style={{ ...SS.th, width: '5%' }}>S.NO</th>
-          <th style={{ ...SS.th, width: hasSplitSpecs ? '26%' : '30%', textAlign: 'left' }}>PARAMETER</th>
-          <th style={{ ...SS.th, width: '8%' }}>UNIT</th>
-          <th style={{ ...SS.th, width: hasSplitSpecs ? '12%' : '14%' }}>RESULTS</th>
-          <th style={{ ...SS.th, width: hasSplitSpecs ? '23%' : '25%' }}>TEST METHOD</th>
-          {hasSpecs && (
-            hasSplitSpecs ? (
-              <>
-                <th style={{ ...SS.th, width: '13%' }}>Requirement</th>
-                <th style={{ ...SS.th, width: '13%' }}>Permissible</th>
-              </>
-            ) : (
+        {hasSpecs && hasSplitSpecs ? (
+          <>
+            <tr>
+              <th rowSpan={2} style={{ ...SS.th, width: '5%' }}>S.NO</th>
+              <th rowSpan={2} style={{ ...SS.th, width: '24%', textAlign: 'left' }}>PARAMETER</th>
+              <th rowSpan={2} style={{ ...SS.th, width: '8%' }}>UNIT</th>
+              <th rowSpan={2} style={{ ...SS.th, width: '13%' }}>RESULTS</th>
+              <th rowSpan={2} style={{ ...SS.th, width: '22%' }}>TEST METHOD</th>
+              <th colSpan={2} style={{ ...SS.th, width: '28%' }}>Requirement</th>
+            </tr>
+            <tr>
+              <th style={{ ...SS.th, width: '14%' }}>Acceptable Limit</th>
+              <th style={{ ...SS.th, width: '14%' }}>Permissible Limit</th>
+            </tr>
+          </>
+        ) : (
+          <tr>
+            <th style={{ ...SS.th, width: '5%' }}>S.NO</th>
+            <th style={{ ...SS.th, width: '30%', textAlign: 'left' }}>PARAMETER</th>
+            <th style={{ ...SS.th, width: '8%' }}>UNIT</th>
+            <th style={{ ...SS.th, width: '14%' }}>RESULTS</th>
+            <th style={{ ...SS.th, width: '25%' }}>TEST METHOD</th>
+            {hasSpecs && (
               <th style={{ ...SS.th, width: '18%' }}>SPECIFICATIONS</th>
-            )
-          )}
-        </tr>
+            )}
+          </tr>
+        )}
       </thead>
       <tbody>
         {test_results.length === 0 ? (
@@ -374,6 +385,12 @@ export function HtmlResultsTable({ data }) {
         )}
       </tbody>
     </table>
+    {hasSplitSpecs && (
+      <div style={{ marginTop: '5px', fontSize: '11px', textAlign: 'left', fontWeight: 'bold' }}>
+        Abbreviation : BDL – Below detection limit
+      </div>
+    )}
+    </>
   );
 }
 

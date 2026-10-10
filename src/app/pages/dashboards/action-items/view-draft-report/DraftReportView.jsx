@@ -553,10 +553,10 @@ export default function DraftReportView() {
   // NABL Search logic for BDL/ADL Remarks
   const hasBDL = results.some(r => r.nabl_bdl);
   const hasADL = results.some(r => r.nabl_adl);
-  if (hasBDL) remarkLines.push("BDL : Below Detection Limit");
-  if (hasADL) remarkLines.push("ADL : Above Detection Limit");
   const hasSpecs = Number(typeof trf_product !== "undefined" ? trf_product?.specification_flag : null) === 2 ? false : ((typeof trf_product !== "undefined" && Number(trf_product?.specification_flag) === 1) || results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—"));
   const hasSplitSpecs = hasSpecs && results.some((r) => r.specification && String(r.specification).includes("|"));
+  if (hasBDL && !hasSplitSpecs) remarkLines.push("BDL : Below Detection Limit");
+  if (hasADL) remarkLines.push("ADL : Above Detection Limit");
 
   return (
     <Page title={`Draft Report — ${lrn ?? id}`}>
@@ -715,43 +715,76 @@ export default function DraftReportView() {
               <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
                 <table className="w-full text-xs">
                   <thead className="dark:bg-dark-700 bg-gray-100">
-                    <tr>
-                      {[
-                        "S.NO",
-                        "PARAMETER",
-                        "UNIT",
-                        "RESULTS",
-                        "TEST METHOD",
-                      ].map((h) => (
-                        <th
-                          key={h}
-                          className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                      {hasSpecs && (
-                        hasSplitSpecs ? (
-                          <>
-                            <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
-                              Requirement
+                    {hasSpecs && hasSplitSpecs ? (
+                      <>
+                        <tr>
+                          {[
+                            "S.NO",
+                            "PARAMETER",
+                            "UNIT",
+                            "RESULTS",
+                            "TEST METHOD",
+                          ].map((h) => (
+                            <th
+                              key={h}
+                              rowSpan={2}
+                              className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300"
+                            >
+                              {h}
                             </th>
-                            <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
-                              Permissible
+                          ))}
+                          <th
+                            colSpan={2}
+                            className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300"
+                          >
+                            Requirement
+                          </th>
+                          {showActionsColumn && (
+                            <th
+                              rowSpan={2}
+                              className="no-print border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300"
+                            >
+                              Actions
                             </th>
-                          </>
-                        ) : (
+                          )}
+                        </tr>
+                        <tr>
+                          <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                            Acceptable Limit
+                          </th>
+                          <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                            Permissible Limit
+                          </th>
+                        </tr>
+                      </>
+                    ) : (
+                      <tr>
+                        {[
+                          "S.NO",
+                          "PARAMETER",
+                          "UNIT",
+                          "RESULTS",
+                          "TEST METHOD",
+                        ].map((h) => (
+                          <th
+                            key={h}
+                            className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                        {hasSpecs && (
                           <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
                             SPECIFICATIONS
                           </th>
-                        )
-                      )}
-                      {showActionsColumn && (
-                        <th className="no-print border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
-                          Actions
-                        </th>
-                      )}
-                    </tr>
+                        )}
+                        {showActionsColumn && (
+                          <th className="no-print border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                            Actions
+                          </th>
+                        )}
+                      </tr>
+                    )}
                   </thead>
                   <tbody>
                     {results.length === 0 ? (
@@ -843,6 +876,11 @@ export default function DraftReportView() {
                   </tbody>
                 </table>
               </div>
+              {hasSplitSpecs && (
+                <div className="mt-2 text-xs font-bold text-gray-800 dark:text-gray-200">
+                  Abbreviation : BDL – Below detection limit
+                </div>
+              )}
             </div>
 
             {/* ── Remarks ────────────────────────────────────────── */}

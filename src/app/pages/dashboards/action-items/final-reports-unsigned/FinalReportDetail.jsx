@@ -231,27 +231,39 @@ export default function FinalReportDetail() {
             <h4 className="mb-2 text-sm font-bold">TEST RESULTS</h4>
             <div className="mb-5 overflow-x-auto rounded-lg border border-gray-300 dark:border-dark-500">
               <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-gray-100 dark:bg-dark-700">
-                    <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">S.NO</th>
-                    <th className="border-b border-r border-gray-300 px-3 py-2 text-left   text-sm dark:border-dark-500">PARAMETER</th>
-                    <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">UNIT</th>
-                    <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">RESULTS</th>
-                    <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">TEST METHOD</th>
-                    {hasSpecs && (
-                      hasSplitSpecs ? (
-                        <>
-                          <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">Requirement</th>
-                          <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">Permissible</th>
-                        </>
-                      ) : (
+                  {hasSpecs && hasSplitSpecs ? (
+                    <>
+                      <tr className="bg-gray-100 dark:bg-dark-700">
+                        <th rowSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">S.NO</th>
+                        <th rowSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-left   text-sm dark:border-dark-500">PARAMETER</th>
+                        <th rowSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">UNIT</th>
+                        <th rowSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">RESULTS</th>
+                        <th rowSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">TEST METHOD</th>
+                        <th colSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">Requirement</th>
+                        {reportStatus < 9 && (
+                          <th rowSpan={2} className="border-b border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">ACTIONS</th>
+                        )}
+                      </tr>
+                      <tr className="bg-gray-100 dark:bg-dark-700">
+                        <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">Acceptable Limit</th>
+                        <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">Permissible Limit</th>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr className="bg-gray-100 dark:bg-dark-700">
+                      <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">S.NO</th>
+                      <th className="border-b border-r border-gray-300 px-3 py-2 text-left   text-sm dark:border-dark-500">PARAMETER</th>
+                      <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">UNIT</th>
+                      <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">RESULTS</th>
+                      <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">TEST METHOD</th>
+                      {hasSpecs && (
                         <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">SPECIFICATIONS</th>
-                      )
-                    )}
-                    {reportStatus < 9 && (
-                      <th className="border-b border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">ACTIONS</th>
-                    )}
-                  </tr>
+                      )}
+                      {reportStatus < 9 && (
+                        <th className="border-b border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">ACTIONS</th>
+                      )}
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {testResults.length === 0 ? (
@@ -341,6 +353,11 @@ export default function FinalReportDetail() {
                 </tbody>
               </table>
             </div>
+            {hasSplitSpecs && (
+              <div className="mb-4 text-xs font-bold text-gray-800 dark:text-gray-200">
+                Abbreviation : BDL – Below detection limit
+              </div>
+            )}
 
             {/* ── Remarks ──────────────────────────────────────────────── */}
             <RemarkSection remarks={remarks} report={report} />

@@ -564,36 +564,51 @@ export default function ReviewByHodDetail() {
               <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
                 <table className="w-full text-xs">
                   <thead className="bg-gray-100 dark:bg-dark-700">
-                    <tr>
-                      {["S.NO", "PARAMETER", "UNIT", "RESULTS", "TEST METHOD"].map((h) => (
-                        <th key={h} className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
-                          {h}
-                        </th>
-                      ))}
-                      {/* PHP: if ($specs==1) */}
-                      {hasSpecs && (
-                        hasSplitSpecs ? (
-                          <>
-                            <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
-                              Requirement
+                    {hasSpecs && hasSplitSpecs ? (
+                      <>
+                        <tr>
+                          {["S.NO", "PARAMETER", "UNIT", "RESULTS", "TEST METHOD"].map((h) => (
+                            <th key={h} rowSpan={2} className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
+                              {h}
                             </th>
-                            <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
-                              Permissible
+                          ))}
+                          <th colSpan={2} className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
+                            Requirement
+                          </th>
+                          {showActionsColumn && (
+                            <th rowSpan={2} className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300 no-print">
+                              Actions
                             </th>
-                          </>
-                        ) : (
+                          )}
+                        </tr>
+                        <tr>
+                          <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
+                            Acceptable Limit
+                          </th>
+                          <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
+                            Permissible Limit
+                          </th>
+                        </tr>
+                      </>
+                    ) : (
+                      <tr>
+                        {["S.NO", "PARAMETER", "UNIT", "RESULTS", "TEST METHOD"].map((h) => (
+                          <th key={h} className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
+                            {h}
+                          </th>
+                        ))}
+                        {hasSpecs && (
                           <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
                             SPECIFICATIONS
                           </th>
-                        )
-                      )}
-                      {/* PHP: if(perm 180||181) && $reportstatus<9 */}
-                      {showActionsColumn && (
-                        <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300 no-print">
-                          Actions
-                        </th>
-                      )}
-                    </tr>
+                        )}
+                        {showActionsColumn && (
+                          <th className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300 no-print">
+                            Actions
+                          </th>
+                        )}
+                      </tr>
+                    )}
                   </thead>
                   <tbody>
                     {test_results.length === 0 ? (
@@ -679,6 +694,11 @@ export default function ReviewByHodDetail() {
                   </tbody>
                 </table>
               </div>
+              {hasSplitSpecs && (
+                <div className="mt-2 text-xs font-bold text-gray-800 dark:text-gray-200">
+                  Abbreviation : BDL – Below detection limit
+                </div>
+              )}
             </div>
 
             {/* ── Remarks ───────────────────────────────────────────────── */}
