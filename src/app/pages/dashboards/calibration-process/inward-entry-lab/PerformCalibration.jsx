@@ -369,7 +369,7 @@ const PerformCalibration = () => {
                 setShowRevisionModal(true);
                 break;
             case 'editDetailsForRevision':
-                navigate(`${baseUrl}/edit-details-revision/${inwardId}/${item.id}${params}`);
+                navigate(`${baseUrl}/edit-instrumental-crf/${inwardId}/${item.id}${params}`);
                 break;
             case 'calibrateStep1':
                 navigate(`${baseUrl}/calibrate-step1/${inwardId}/${item.id}${params}`);

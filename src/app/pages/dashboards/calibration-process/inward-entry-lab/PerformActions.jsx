@@ -347,7 +347,12 @@ export function PerformActions({ item, onAction, inwardId, caliblocation, caliba
       : [];
 
   const status = Number(item.status);
-  const isAllotedOrAdmin = Boolean(item.allotedto && (userId == item.allotedto || userId == 1));
+  const isHeadOrManager = Boolean(
+    permissions.includes(102) || permissions.includes(105) || permissions.includes(115) || permissions.includes(278)
+  );
+  const isAllotedOrAdmin = Boolean(
+    item.allotedto && (userId == item.allotedto || userId == 1 || isHeadOrManager)
+  );
   const isNabl = Boolean(item.accreditation?.toLowerCase() === "nabl");
 
   const performActions = [];
@@ -743,7 +748,6 @@ export function PerformActions({ item, onAction, inwardId, caliblocation, caliba
     if (isAllotedOrAdmin) {
       performActions.push({
         label: "Edit Details for revision",
-        permission: 105,
         action: "editDetailsForRevision",
         icon: PencilIcon,
         color: "text-yellow-600",
@@ -751,7 +755,89 @@ export function PerformActions({ item, onAction, inwardId, caliblocation, caliba
         bgColor: "bg-yellow-50",
         borderColor: "border-yellow-200",
       });
+      performActions.push({
+        label: "Calibrate Step 1",
+        permission: 103,
+        action: "calibrateStep1",
+        icon: WrenchScrewdriverIcon,
+        color: "text-teal-600",
+        hoverColor: "hover:bg-teal-50 hover:text-teal-700",
+        bgColor: "bg-teal-50",
+        borderColor: "border-teal-200",
+      });
+      performActions.push({
+        label: "Calibrate Step 2",
+        permission: 103,
+        action: "calibrateStep2",
+        icon: WrenchScrewdriverIcon,
+        color: "text-teal-700",
+        hoverColor: "hover:bg-teal-50 hover:text-teal-800",
+        bgColor: "bg-teal-50",
+        borderColor: "border-teal-200",
+      });
+      performActions.push({
+        label: "Calibrate Step 3",
+        permission: 103,
+        action: "calibrateStep3",
+        icon: WrenchScrewdriverIcon,
+        color: "text-teal-800",
+        hoverColor: "hover:bg-teal-50 hover:text-teal-900",
+        bgColor: "bg-teal-50",
+        borderColor: "border-teal-200",
+      });
     }
+
+    performActions.push({
+      label: "View Rawdata",
+      action: "viewRawdata",
+      icon: EyeIcon,
+      color: "text-cyan-600",
+      hoverColor: "hover:bg-cyan-50 hover:text-cyan-700",
+      bgColor: "bg-cyan-50",
+      borderColor: "border-cyan-200",
+    });
+
+    performActions.push({
+      label: "View Certificate",
+      action: "viewCertificate",
+      icon: CertificateIcon,
+      color: "text-cyan-600",
+      hoverColor: "hover:bg-cyan-50 hover:text-cyan-700",
+      bgColor: "bg-cyan-50",
+      borderColor: "border-cyan-200",
+    });
+
+    performActions.push({
+      label: "View Certificate with l/h",
+      action: "viewCertificateWithLH",
+      icon: CertificateIcon,
+      color: "text-cyan-800",
+      hoverColor: "hover:bg-cyan-50 hover:text-cyan-900",
+      bgColor: "bg-cyan-50",
+      borderColor: "border-cyan-200",
+    });
+
+    if (isNabl) {
+      performActions.push({
+        label: "View CMC Calculation",
+        action: "viewCMCCalculation",
+        icon: CalculatorIcon,
+        color: "text-cyan-600",
+        hoverColor: "hover:bg-cyan-50 hover:text-cyan-700",
+        bgColor: "bg-cyan-50",
+        borderColor: "border-cyan-200",
+      });
+    }
+
+    performActions.push({
+      label: "View Traceability",
+      action: "viewTraceability",
+      icon: DocumentTextIcon,
+      color: "text-teal-600",
+      hoverColor: "hover:bg-teal-50 hover:text-teal-700",
+      bgColor: "bg-teal-50",
+      borderColor: "border-teal-200",
+    });
   }
 
   if (status === 82) {
@@ -826,7 +912,7 @@ export function PerformActions({ item, onAction, inwardId, caliblocation, caliba
       case "editInstrumentDetail":
         return `${baseUrl}/edit-instrumental-crf/${resolvedInwardId}/${item.id}${params}`;
       case "editDetailsForRevision":
-        return `${baseUrl}/edit-details-revision/${resolvedInwardId}/${item.id}${params}`;
+        return `${baseUrl}/edit-instrumental-crf/${resolvedInwardId}/${item.id}${params}`;
       case "calibrateStep1":
       case "backToStep1":
         return `${baseUrl}/calibrate-step1/${resolvedInwardId}/${item.id}${params}`;
