@@ -332,6 +332,9 @@ export default function ApproveSignatureReport() {
     Number(trf_product?.specification) === 1 ||
     test_results.some((r) => r.specification && r.specification !== "—");
 
+  const hasSplitSpecs =
+    hasSpecs && test_results.some((r) => r.specification && String(r.specification).includes("|"));
+
   const { start_date, end_date } = dates;
 
   // PHP: $hodremark, $witness, $wdetail, $remark (BDL), $remark1 (ADL)
@@ -539,9 +542,20 @@ export default function ApproveSignatureReport() {
                       ))}
                       {/* PHP: if ($specs == 1) */}
                       {hasSpecs && (
-                        <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
-                          SPECIFICATIONS
-                        </th>
+                        hasSplitSpecs ? (
+                          <>
+                            <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                              Requirement
+                            </th>
+                            <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                              Permissible
+                            </th>
+                          </>
+                        ) : (
+                          <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
+                            SPECIFICATIONS
+                          </th>
+                        )
                       )}
                       {/* PHP: if (in_array(180,$perms) || in_array(181,$perms)) && $reportstatus < 9 */}
                       {showActionsCol && (
@@ -554,7 +568,7 @@ export default function ApproveSignatureReport() {
                   <tbody>
                     {test_results.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-xs text-gray-400">
+                        <td colSpan={hasSpecs ? (hasSplitSpecs ? 8 : 7) : 6} className="py-8 text-center text-xs text-gray-400">
                           No test results found.
                         </td>
                       </tr>
@@ -593,6 +607,20 @@ export default function ApproveSignatureReport() {
                         const unitDisplay = row.unit?.description ?? row.unit?.name ?? "—";
                         // PHP: methods.name where id=tmethod
                         const methodName = row.method?.name ?? "—";
+
+                        let reqVal = "—";
+                        let permVal = "—";
+                        if (row.specification) {
+                          const specStr = String(row.specification);
+                          if (specStr.includes("|")) {
+                            const parts = specStr.split("|");
+                            reqVal = parts[0]?.trim() || "—";
+                            permVal = parts[1]?.trim() || "—";
+                          } else {
+                            reqVal = specStr.trim() || "—";
+                          }
+                        }
+
                         return (
                           <tr key={row.id ?? idx} className="border-b border-gray-100 last:border-0 dark:border-gray-700">
                             <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
@@ -606,9 +634,20 @@ export default function ApproveSignatureReport() {
                             <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{methodName}</td>
                             {/* PHP: if ($specs == 1) */}
                             {hasSpecs && (
-                              <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
-                                {row.specification ?? "—"}
-                              </td>
+                              hasSplitSpecs ? (
+                                <>
+                                  <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                                    {reqVal}
+                                  </td>
+                                  <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                                    {permVal}
+                                  </td>
+                                </>
+                              ) : (
+                                <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
+                                  {row.specification ?? "—"}
+                                </td>
+                              )
                             )}
                             {/* PHP: <button onclick="view($rows['id'], 'catid', 'requestretest.php', ...)">Request Re-test</button> */}
                             {showActionsCol && (

@@ -278,22 +278,33 @@ export function HtmlSampleRows({ data }) {
 
 export function HtmlResultsTable({ data }) {
   const { test_results, hasSpecs } = data;
+  const hasSplitSpecs = hasSpecs && test_results.some(r => r.specification && String(r.specification).includes('|'));
+
   return (
     <table style={SS.rTable}>
       <thead style={SS.thead}>
         <tr>
           <th style={{ ...SS.th, width: '5%' }}>S.NO</th>
-          <th style={{ ...SS.th, width: '30%', textAlign: 'left' }}>PARAMETER</th>
+          <th style={{ ...SS.th, width: hasSplitSpecs ? '26%' : '30%', textAlign: 'left' }}>PARAMETER</th>
           <th style={{ ...SS.th, width: '8%' }}>UNIT</th>
-          <th style={{ ...SS.th, width: '14%' }}>RESULTS</th>
-          <th style={{ ...SS.th, width: '25%' }}>TEST METHOD</th>
-          {hasSpecs && <th style={{ ...SS.th, width: '18%' }}>SPECIFICATIONS</th>}
+          <th style={{ ...SS.th, width: hasSplitSpecs ? '12%' : '14%' }}>RESULTS</th>
+          <th style={{ ...SS.th, width: hasSplitSpecs ? '23%' : '25%' }}>TEST METHOD</th>
+          {hasSpecs && (
+            hasSplitSpecs ? (
+              <>
+                <th style={{ ...SS.th, width: '13%' }}>Requirement</th>
+                <th style={{ ...SS.th, width: '13%' }}>Permissible</th>
+              </>
+            ) : (
+              <th style={{ ...SS.th, width: '18%' }}>SPECIFICATIONS</th>
+            )
+          )}
         </tr>
       </thead>
       <tbody>
         {test_results.length === 0 ? (
           <tr>
-            <td colSpan={hasSpecs ? 6 : 5} style={{ padding: '6px', fontSize: '11.5px', textAlign: 'center', border: `1px solid ${BC}` }}>No test results found.</td>
+            <td colSpan={hasSpecs ? (hasSplitSpecs ? 7 : 6) : 5} style={{ padding: '6px', fontSize: '11.5px', textAlign: 'center', border: `1px solid ${BC}` }}>No test results found.</td>
           </tr>
         ) : (
           test_results.map((row, idx) => {
@@ -327,14 +338,36 @@ export function HtmlResultsTable({ data }) {
             const methodName = row.method?.name ?? row.method ?? '—';
             const resultStyles = { ...SS.td };
 
+            let reqVal = '—';
+            let permVal = '—';
+            if (row.specification) {
+              const specStr = String(row.specification);
+              if (specStr.includes('|')) {
+                const parts = specStr.split('|');
+                reqVal = parts[0]?.trim() || '—';
+                permVal = parts[1]?.trim() || '—';
+              } else {
+                reqVal = specStr.trim() || '—';
+              }
+            }
+
             return (
               <tr key={row.id ?? idx} style={{ pageBreakInside: 'avoid' }}>
                 <td style={{ ...SS.td, width: '5%' }}>{row.sno ?? idx + 1}</td>
-                <td style={{ ...SS.td, width: '30%', textAlign: 'left' }}>{row.parameter_name ?? ''}</td>
+                <td style={{ ...SS.td, width: hasSplitSpecs ? '26%' : '30%', textAlign: 'left' }}>{row.parameter_name ?? ''}</td>
                 <td style={{ ...SS.td, width: '8%' }}>{unitDisplay}</td>
                 <td style={resultStyles}>{displayResult}</td>
-                <td style={{ ...SS.td, width: '25%' }}>{methodName}</td>
-                {hasSpecs && <td style={{ ...SS.td, width: '18%' }}>{row.specification ?? '—'}</td>}
+                <td style={{ ...SS.td, width: hasSplitSpecs ? '23%' : '25%' }}>{methodName}</td>
+                {hasSpecs && (
+                  hasSplitSpecs ? (
+                    <>
+                      <td style={{ ...SS.td, width: '13%' }}>{reqVal}</td>
+                      <td style={{ ...SS.td, width: '13%' }}>{permVal}</td>
+                    </>
+                  ) : (
+                    <td style={{ ...SS.td, width: '18%' }}>{row.specification ?? '—'}</td>
+                  )
+                )}
               </tr>
             );
           })
