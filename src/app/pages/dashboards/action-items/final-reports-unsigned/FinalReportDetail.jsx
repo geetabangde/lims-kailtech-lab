@@ -231,6 +231,7 @@ export default function FinalReportDetail() {
             <h4 className="mb-2 text-sm font-bold">TEST RESULTS</h4>
             <div className="mb-5 overflow-x-auto rounded-lg border border-gray-300 dark:border-dark-500">
               <table className="w-full border-collapse text-sm">
+                <thead>
                   {hasSpecs && hasSplitSpecs ? (
                     <>
                       <tr className="bg-gray-100 dark:bg-dark-700">
