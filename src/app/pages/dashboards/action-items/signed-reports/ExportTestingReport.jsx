@@ -292,11 +292,11 @@ export function HtmlResultsTable({ data }) {
               <th rowSpan={2} style={{ ...SS.th, width: '8%' }}>UNIT</th>
               <th rowSpan={2} style={{ ...SS.th, width: '13%' }}>RESULTS</th>
               <th rowSpan={2} style={{ ...SS.th, width: '22%' }}>TEST METHOD</th>
-              <th colSpan={2} style={{ ...SS.th, width: '28%' }}>Requirement</th>
+              <th colSpan={2} style={{ ...SS.th, width: '28%' }}>REQUIREMENT</th>
             </tr>
             <tr>
-              <th style={{ ...SS.th, width: '14%' }}>Acceptable Limit</th>
-              <th style={{ ...SS.th, width: '14%' }}>Permissible Limit</th>
+              <th style={{ ...SS.th, width: '14%' }}>ACCEPTABLE LIMIT</th>
+              <th style={{ ...SS.th, width: '14%' }}>PERMISSIBLE LIMIT</th>
             </tr>
           </>
         ) : (

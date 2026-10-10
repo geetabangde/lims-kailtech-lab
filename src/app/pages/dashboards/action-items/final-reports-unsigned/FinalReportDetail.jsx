@@ -240,14 +240,14 @@ export default function FinalReportDetail() {
                         <th rowSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">UNIT</th>
                         <th rowSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">RESULTS</th>
                         <th rowSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">TEST METHOD</th>
-                        <th colSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">Requirement</th>
+                        <th colSpan={2} className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">REQUIREMENT</th>
                         {reportStatus < 9 && (
                           <th rowSpan={2} className="border-b border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">ACTIONS</th>
                         )}
                       </tr>
                       <tr className="bg-gray-100 dark:bg-dark-700">
-                        <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">Acceptable Limit</th>
-                        <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">Permissible Limit</th>
+                        <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">ACCEPTABLE LIMIT</th>
+                        <th className="border-b border-r border-gray-300 px-3 py-2 text-center text-sm dark:border-dark-500">PERMISSIBLE LIMIT</th>
                       </tr>
                     </>
                   ) : (

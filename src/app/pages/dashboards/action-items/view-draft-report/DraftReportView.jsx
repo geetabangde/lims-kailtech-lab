@@ -737,23 +737,23 @@ export default function DraftReportView() {
                             colSpan={2}
                             className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300"
                           >
-                            Requirement
+                            REQUIREMENT
                           </th>
                           {showActionsColumn && (
                             <th
                               rowSpan={2}
                               className="no-print border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300"
                             >
-                              Actions
+                              ACTIONS
                             </th>
                           )}
                         </tr>
                         <tr>
                           <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
-                            Acceptable Limit
+                            ACCEPTABLE LIMIT
                           </th>
                           <th className="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-gray-700 dark:text-gray-300">
-                            Permissible Limit
+                            PERMISSIBLE LIMIT
                           </th>
                         </tr>
                       </>
