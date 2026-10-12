@@ -368,6 +368,11 @@ const PerformCalibration = () => {
                 setCurrentRevisionItem(item);
                 setShowRevisionModal(true);
                 break;
+            case 'reallotPerson':
+                setSelectedItems([item.id]);
+                setSelectedPerson(item.allotedto ? String(item.allotedto) : "");
+                setShowAllotModal(true);
+                break;
             case 'editDetailsForRevision':
                 navigate(`${baseUrl}/edit-instrumental-crf/${inwardId}/${item.id}${params}`);
                 break;
