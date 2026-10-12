@@ -112,7 +112,28 @@ const getVHTEnteredReadings = (point, tableInputValues, pointId) => {
 };
 
 // Test load (kgf) per master unit id, as in the legacy converthardness(); default 10
-const VHT_LOADS = { 96: 10, 97: 30, 131: 5, 132: 20, 133: 50 };
+const VHT_LOADS = {
+  96: 10,
+  97: 30,
+  131: 5,
+  132: 20,
+  133: 50,
+  10: 10,
+  30: 30,
+  5: 5,
+  20: 20,
+  50: 50,
+  'HV 10': 10,
+  'HV 30': 30,
+  'HV 5': 5,
+  'HV 20': 20,
+  'HV 50': 50,
+  'HV10': 10,
+  'HV30': 30,
+  'HV5': 5,
+  'HV20': 20,
+  'HV50': 50,
+};
 
 /**
  * Legacy converthardness(value, master, masterunit, target, lc):
@@ -123,7 +144,13 @@ export const convertHardness = (value, master, masterUnit, lc) => {
   if (value === undefined || value === null || String(value).trim() === '') return '';
   const d = Number(String(value).trim());
   if (!Number.isFinite(d) || d === 0) return '';
-  const load = VHT_LOADS[String(masterUnit ?? '').trim()] ?? 10;
+  const unitStr = String(masterUnit ?? '').trim();
+  let load = VHT_LOADS[unitStr];
+  if (!load && unitStr) {
+    const match = unitStr.match(/\b(5|10|20|30|50)\b/);
+    if (match) load = Number(match[1]);
+  }
+  if (!load) load = 10;
   const result = (1.854 * load) / (d * d);
   if (isNA(lc)) return String(Number(result.toFixed(10)));
   return result.toFixed(Number(lc));
@@ -296,7 +323,7 @@ const ObservationVHT = ({
               const uucLc = point.least_count ?? point.leastcount ?? 'NA';
               // converthardness gets $lc: decimal places, or "NA" for no rounding
               const lc = isNA(uucLc) ? 'NA' : getDecimalPlaces(uucLc);
-              const masterUnit = point.master_unit ?? point.masterunit ?? '';
+              const masterUnit = point.master_unit ?? point.masterunit ?? point.unit ?? point.unit_description ?? point.master_unit_description ?? '';
 
               // Nominal/Set Value: stored master reading, falling back to the
               // calibration point itself, exactly as the PHP does.
