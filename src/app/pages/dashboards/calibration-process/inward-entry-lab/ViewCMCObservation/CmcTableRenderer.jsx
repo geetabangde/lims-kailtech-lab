@@ -53,6 +53,8 @@ export const CmcTableRenderer = ({ suffix, customLayout, data, electricSafetyDat
     case "ctg":
       return <CtgCmcTable data={data} />;
     case "dpg":
+    case "apg":
+    case "observationapg":
       return <DpgCmcTable data={data} />;
     case "mm":
     case "sw":
@@ -78,6 +80,8 @@ export const CmcTableRenderer = ({ suffix, customLayout, data, electricSafetyDat
     case "exm":
       return <ExmCmcTable data={data} />;
     case "rtdwi":
+    case "rtdwoi":
+    case "observationrtdwoi":
       return <RtdwiCmcTable data={data} />;
     case "tswoi":
       return <TswoiCmcTable data={data} />;

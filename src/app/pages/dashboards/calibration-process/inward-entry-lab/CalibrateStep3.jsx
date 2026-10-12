@@ -903,7 +903,8 @@ const CalibrateStep3 = () => {
     if (selectedTableData.id === 'observationbht') {
       const bhtErrors = validateBHTPoints(
         selectedTableData.calibration_points?.length ? selectedTableData.calibration_points : observations,
-        tableInputValues
+        tableInputValues,
+        validateLeastCount
       );
       setObservationErrors(bhtErrors);
       const bhtErrorKeys = Object.keys(bhtErrors);

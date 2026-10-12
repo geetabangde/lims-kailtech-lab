@@ -257,8 +257,8 @@ export default function ViewCMCCalculation() {
           } else if (instrumentSuffix === "mt" || instrumentSuffix === "fg") {
             // For MT and FG, data is inside uncertainty.data array
             apiData = response.data.data?.uncertainty?.data || [];
-          } else if (instrumentSuffix === "it" || instrumentSuffix === "hg" || instrumentSuffix === "avg" || instrumentSuffix === "msr" || instrumentSuffix === "mg" || instrumentSuffix === "exm" || instrumentSuffix === "rtdwi" || instrumentSuffix === "ppg" || instrumentSuffix === "gtm" || instrumentSuffix === "dg" || instrumentSuffix === "vc" || instrumentSuffix === "th" || instrumentSuffix === "ts") {
-            // For IT, HG, AVG, MSR, MG, EXM, RTDWI, PPG, GTM, DG, VC, TH, and TS, data is direct array
+          } else if (instrumentSuffix === "it" || instrumentSuffix === "hg" || instrumentSuffix === "avg" || instrumentSuffix === "msr" || instrumentSuffix === "mg" || instrumentSuffix === "exm" || instrumentSuffix === "rtdwi" || instrumentSuffix === "rtdwoi" || instrumentSuffix === "ppg" || instrumentSuffix === "apg" || instrumentSuffix === "gtm" || instrumentSuffix === "dg" || instrumentSuffix === "vc" || instrumentSuffix === "srf" || instrumentSuffix === "stdf" || instrumentSuffix === "th" || instrumentSuffix === "ts") {
+            // For IT, HG, AVG, MSR, MG, EXM, RTDWI, RTDWOI, PPG, APG, GTM, DG, VC, SRF, STDF, TH, and TS, data is direct array
             apiData = response.data.data?.uncertainty || [];
           } else if (instrumentSuffix === "sw") {
             // For SW (Stop Watch), data is inside uncertainty.original.data
@@ -607,7 +607,7 @@ export default function ViewCMCCalculation() {
               masterUnit: item.units?.master_unit || "bar"
             })) || [];
             setData(mappedData);
-          } else if (instrumentSuffix === "dpg") {
+          } else if (instrumentSuffix === "dpg" || instrumentSuffix === "apg") {
 
             const mappedData = apiData.map((item) => ({
               srNo: item.sr_no,
@@ -1325,6 +1325,82 @@ export default function ViewCMCCalculation() {
             // The AUTM endpoint already returns every computed figure under the
             // names AutmCmcTable reads, so pass the rows straight through.
             setData(Array.isArray(apiData) ? apiData : []);
+          } else if (instrumentSuffix === "rtdwoi") {
+            const mappedData = (Array.isArray(apiData) ? apiData : []).map((item) => ({
+              srNo: item.sr_no || item.srNo,
+              values: item.uuc || [item.uuc_0, item.uuc_1, item.uuc_2, item.uuc_3, item.uuc_4],
+              unit: item.unit,
+              calibrationPoint: item.calibration_point ?? item.point,
+              average: item.average_uuc ?? item.average ?? 0,
+              stdDeviation: item.std_deviation ?? item.repeatability ?? 0,
+              typeA: item.type_a ?? 0,
+              uncertaintyMaster1: item.uncertainty_master_1_sensor ?? item.masterunc ?? 0,
+              uncertaintyMaster2Value: item.uncertainty_master_2_dmm_value ?? item.masterunc2 ?? 0,
+              sensitivityCoefficient: item.sensitivity_coefficient ?? item.sensitivitycoefient ?? 1,
+              uncertaintyMaster2Celsius: item.uncertainty_master_2_celsius ?? 0,
+              stabilityBath: item.stability_bath ?? item.stability ?? 0,
+              uniformityBath: item.uniformity_bath ?? item.uniformity ?? 0,
+              driftMaster: item.drift_master ?? item.drift ?? 0,
+              leastCountUuc: item.least_count_uuc ?? item.least_count ?? 0,
+              combinedUncertainty: item.combined_uncertainty ?? item.comuncer ?? 0,
+              degreeOfFreedom: item.degree_of_freedom ?? item.dof ?? "-",
+              coverageFactor: item.coverage_factor ?? item.coveragefactor ?? 2,
+              expandedUncertaintyValue: item.expanded_uncertainty ?? item.expandeduncertainty ?? 0,
+              cmcTaken: item.cmc_taken ?? item.cmcuncertainty ?? item.expanded_uncertainty ?? 0,
+            }));
+            setData(mappedData);
+          } else if (instrumentSuffix === "srf") {
+            const mappedData = (Array.isArray(apiData) ? apiData : []).map((item) => ({
+              srNo: item.sr_no || item.srNo,
+              typeOfMeasurement: item.type_of_measurement || item.matrixtype || "Surface Roughness",
+              values: item.uuc || [item.uuc_0, item.uuc_1, item.uuc_2, item.uuc_3, item.uuc_4],
+              unit: item.unit,
+              calibrationPoint: item.calibration_point ?? item.point,
+              average: item.average_uuc ?? item.average ?? 0,
+              stdDeviation: item.std_deviation ?? 0,
+              typeA: item.type_a ?? 0,
+              uncertaintyMaster: item.uncertainty_master ?? item.master_uncertainty ?? 0,
+              leastCountUuc: item.least_count_uuc ?? item.least_count ?? 0,
+              thermalCoeffMaster: item.thermal_coefficient_master ?? item.thermal_coeff_master ?? 0,
+              thermalCoeffUuc: item.thermal_coefficient_uuc ?? item.thermal_coeff_uuc ?? 0,
+              uncTempDevice: item.uncertainty_temperature_device ?? item.uncertainty_temp_device ?? 0,
+              stdUncTher20: item.uncertainty_thermal_coefficient_20 ?? item.std_unc_thermal_coeff ?? 0,
+              stdUncDiff: item.uncertainty_temperature_difference ?? item.std_unc_diff_temp ?? 0,
+              uncError: item.uncertainty_master_error ?? item.uncertainty_error ?? 0,
+              combinedUnc: item.combined_uncertainty ?? 0,
+              dof: item.degree_of_freedom ?? item.degrees_of_freedom ?? "-",
+              coverageFactor: item.coverage_factor ?? 2,
+              expandedUnc: item.expanded_uncertainty ?? 0,
+              expandedUncPercent: item.expanded_uncertainty_percent ?? 0,
+              cmc: item.cmc_taken ?? item.cmc_uncertainty ?? 0,
+              cmc_scope: item.cmc_scope ?? 0,
+            }));
+            setData(mappedData);
+          } else if (instrumentSuffix === "stdf") {
+            const mappedData = (Array.isArray(apiData) ? apiData : []).map((item) => ({
+              srNo: item.sr_no || item.srNo,
+              typeOfMeasurement: item.type_of_measurement || item.matrixtype || "Standard Foil",
+              values: item.master || [item.master_0, item.master_1, item.master_2, item.master_3, item.master_4],
+              unit: item.unit,
+              calibrationPoint: item.calibration_point ?? item.point,
+              average: item.average_master ?? item.average ?? 0,
+              stdDeviation: item.std_deviation ?? 0,
+              typeA: item.type_a ?? 0,
+              uncertaintyDialGauge: item.uncertainty_dial_gauge ?? 0,
+              flatnessComparatorStand: item.flatness_comparator_stand ?? 0,
+              leastCountMaster: item.least_count_master ?? item.least_count ?? 0,
+              thermalCoeffMaster: item.thermal_coefficient_master ?? item.thermal_coeff_master ?? 0,
+              thermalCoeffUuc: item.thermal_coefficient_uuc ?? item.thermal_coeff_uuc ?? 0,
+              uncTempDevice: item.uncertainty_temperature_device ?? item.uncertainty_temp_device ?? 0,
+              stdUncTher20: item.uncertainty_thermal_coefficient_20 ?? item.std_unc_thermal_coeff ?? 0,
+              stdUncDiff: item.uncertainty_temperature_difference ?? item.std_unc_diff_temp ?? 0,
+              combinedUnc: item.combined_uncertainty ?? 0,
+              dof: item.degree_of_freedom ?? item.degrees_of_freedom ?? "-",
+              coverageFactor: item.coverage_factor ?? 2,
+              expandedUnc: item.expanded_uncertainty ?? 0,
+              cmc: item.cmc_taken ?? item.cmc_uncertainty ?? 0,
+            }));
+            setData(mappedData);
           } else if (instrumentSuffix === "tm") {
             const mappedData = apiData.map((item) => {
               const testpoint = parseFloat(item.calibration_point || item.point || 0);

@@ -130,17 +130,24 @@ const getEnteredReadings = (point, tableInputValues, pointId, direct) => {
     tableInputValues[readingKey(pointId, direct, i)] ?? valueOf(stored, i));
 };
 
-/** PHP: every UUC reading input is "required,number". */
-export const validateBHTPoints = (points, tableInputValues = {}) => {
+/** PHP: every UUC reading input is "required,number", and direct Rockwell readings respect least count. */
+export const validateBHTPoints = (points, tableInputValues = {}, validateLeastCount = null) => {
   const errors = {};
   (Array.isArray(points) ? points : []).forEach((point, pointIndex) => {
     if (!point) return;
     const pointId = getPointId(point) || `pt-${pointIndex}`;
     const direct = isBHTDirectUnit(getUnitId(point));
+    const lc = point.least_count ?? point.leastcount;
     getEnteredReadings(point, tableInputValues, pointId, direct).forEach((v, i) => {
       const key = readingKey(pointId, direct, i);
-      if (isBlank(v)) errors[key] = 'This field is required';
-      else if (isNaN(Number(String(v).trim()))) errors[key] = 'Please enter a valid number';
+      if (isBlank(v)) {
+        errors[key] = 'This field is required';
+      } else if (isNaN(Number(String(v).trim()))) {
+        errors[key] = 'Please enter a valid number';
+      } else if (direct && lc && !isNaN(parseFloat(lc)) && typeof validateLeastCount === 'function') {
+        const { isValid, error } = validateLeastCount(String(v).trim(), lc);
+        if (!isValid) errors[key] = error;
+      }
     });
   });
   return errors;

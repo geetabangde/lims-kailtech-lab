@@ -49,6 +49,12 @@ import { bhtTableConfig, createBHTViewRows, BHT_ROWSPAN_COLUMNS } from './ViewOb
 import { vhtTableConfig, createVHTViewRows, VHT_ROWSPAN_COLUMNS } from './ViewObservationVHT';
 import { dutmTableConfig, createDUTMViewRows, parseDUTMDynamicData } from './ViewObservationDUTM';
 import { sutmTableConfig, createSUTMViewRows, parseSUTMDynamicData } from './ViewObservationSUTM';
+import { srfTableConfig, createSRFViewRows } from './ViewObservationSRF';
+import { stdfTableConfig, createSTDFViewRows } from './ViewObservationSTDF';
+import { volTableConfig, createVOLViewRows } from './ViewObservationVOL';
+import { volnlTableConfig, createVOLNLViewRows } from './ViewObservationVOLNL';
+import { extenTableConfig, createEXTENViewRows } from './ViewObservationEXTEN';
+import { uploadTableConfig, createUploadViewRows } from './ViewObservationUpload';
 
 export {
   dpgTableConfig, createDPGRows,
@@ -84,6 +90,12 @@ export {
   vhtTableConfig, createVHTViewRows, VHT_ROWSPAN_COLUMNS,
   dutmTableConfig, createDUTMViewRows, parseDUTMDynamicData,
   sutmTableConfig, createSUTMViewRows, parseSUTMDynamicData,
+  srfTableConfig, createSRFViewRows,
+  stdfTableConfig, createSTDFViewRows,
+  volTableConfig, createVOLViewRows,
+  volnlTableConfig, createVOLNLViewRows,
+  extenTableConfig, createEXTENViewRows,
+  uploadTableConfig, createUploadViewRows,
 };
 
 /**
@@ -284,6 +296,12 @@ export const getViewObservationTables = (rawdata) => [
   vhtTableConfig,
   sutmTableConfig,
   dutmTableConfig,
+  srfTableConfig,
+  stdfTableConfig,
+  volTableConfig,
+  volnlTableConfig,
+  extenTableConfig,
+  uploadTableConfig,
 ];
 
 /**
@@ -665,6 +683,18 @@ export const createViewObservationRows = (observationData, template, currentRawd
     rows = createVHTViewRows(dataArray);
   } else if (template === 'observationdutm') {
     rows = createDUTMViewRows(dataArray);
+  } else if (template === 'observationsrf') {
+    rows = createSRFViewRows(dataArray);
+  } else if (template === 'observationstdf') {
+    rows = createSTDFViewRows(dataArray);
+  } else if (template === 'observationvol') {
+    rows = createVOLViewRows(dataArray);
+  } else if (template === 'observationvolnl') {
+    rows = createVOLNLViewRows(dataArray);
+  } else if (template === 'observationexten') {
+    rows = createEXTENViewRows(dataArray);
+  } else if (template === 'observationupload') {
+    rows = createUploadViewRows(dataArray);
   }
 
   return {
