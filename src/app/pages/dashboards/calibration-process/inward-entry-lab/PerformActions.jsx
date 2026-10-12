@@ -838,6 +838,28 @@ export function PerformActions({ item, onAction, inwardId, caliblocation, caliba
       bgColor: "bg-teal-50",
       borderColor: "border-teal-200",
     });
+
+    performActions.push({
+      label: "Review",
+      permission: [277, 115],
+      action: "review",
+      icon: ClipboardDocumentCheckIcon,
+      color: "text-blue-700",
+      hoverColor: "hover:bg-blue-50 hover:text-blue-800",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
+    });
+
+    performActions.push({
+      label: "Approve",
+      permission: [278, 105],
+      action: "approve",
+      icon: CheckIcon,
+      color: "text-green-700",
+      hoverColor: "hover:bg-green-50 hover:text-green-800",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+    });
   }
 
   if (status === 82) {
