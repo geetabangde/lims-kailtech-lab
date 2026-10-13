@@ -81,8 +81,6 @@ const Edit = () => {
 
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [subcategoryOptions, setSubcategoryOptions] = useState([]);
-  // Product Type is locked on edit; only a legacy record whose type is EMPTY may pick one (backend ignores it otherwise)
-  const [productTypeEditable, setProductTypeEditable] = useState(false);
   const [verticalOptions, setVerticalOptions] = useState([]);
 
   const allowedForOptions = [
@@ -116,8 +114,9 @@ const Edit = () => {
         console.log('📥 Starting data load for instrument:', instrumentId);
 
         // Step 1: Load dropdown options FIRST (parallel)
-        const [categoriesRes, verticalsRes, instrumentRes] = await Promise.all([
+        const [categoriesRes, subcategoriesRes, verticalsRes, instrumentRes] = await Promise.all([
           axios.get('/inventory/category-list'),
+          axios.get('/inventory/subcategory-list'),
           axios.get('/master/vertical-list'),
           axios.get(`/material/get-mm-instrument-byid?id=${instrumentId}`)
         ]);
@@ -131,6 +130,16 @@ const Edit = () => {
         setCategoryOptions(mappedCategories);
         console.log('✅ Categories loaded:', mappedCategories.length);
 
+        // Map subcategories
+        const subcategories = subcategoriesRes.data?.data || [];
+        const mappedSubcategories = subcategories.map(sub => ({
+          value: String(sub.id),
+          label: sub.name || sub.subcategory_name,
+          category: String(sub.category || '')
+        }));
+        setSubcategoryOptions(mappedSubcategories);
+        console.log('✅ Subcategories loaded:', mappedSubcategories.length);
+
         // Map verticals
         const verticals = verticalsRes.data?.data || [];
         const mappedVerticals = verticals.map(vertical => ({
@@ -143,22 +152,6 @@ const Edit = () => {
         // ✅ FIXED: Access nested instrument data
         const instrumentData = instrumentRes.data?.data?.instrument || instrumentRes.data?.instrument || {};
         console.log('✅ Instrument data received:', instrumentData);
-
-        // Step 2: Load subcategories if category exists
-        if (instrumentData.category) {
-          const subcategoriesRes = await axios.get('/inventory/subcategory-list');
-          const subcategories = subcategoriesRes.data?.data || [];
-
-          const mappedSubcategories = subcategories.map(sub => ({
-            value: String(sub.id),
-            label: sub.name || sub.subcategory_name,
-            category: String(sub.category || '')
-          }));
-          setSubcategoryOptions(mappedSubcategories);
-          console.log('✅ Subcategories loaded:', mappedSubcategories.length);
-        }
-
-        setProductTypeEditable(!instrumentData.type || String(instrumentData.type) === '0');
 
         // Step 3: Set form data with proper field mapping
         setFormData({
@@ -211,6 +204,18 @@ const Edit = () => {
       loadAllData();
     }
   }, [instrumentId]);
+
+  const handleCategoryChange = (opt) => {
+    const newCategory = opt ? String(opt.value) : '';
+    setFormData(prev => ({
+      ...prev,
+      category: newCategory,
+      productType: ''
+    }));
+    if (errors.category) {
+      setErrors(prev => ({ ...prev, category: '' }));
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -296,9 +301,9 @@ const Edit = () => {
         nickname: formData.nickName || '',
         idno: formData.idNo,
         serialno: formData.serialNo,
-        category: parseInt(formData.category),
-        type: parseInt(formData.productType),
-        department: parseInt(formData.vertical),
+        category: formData.category ? parseInt(formData.category) : '',
+        type: formData.productType ? parseInt(formData.productType) : 0,
+        department: formData.vertical ? parseInt(formData.vertical) : '',
         make: formData.make || '',
         model: formData.model || '',
         manufacturer: formData.manufacturerDetails || '',
@@ -451,7 +456,7 @@ const Edit = () => {
           <div className="p-6">
             <div className="space-y-6">
 
-              {/* Category - Disabled */}
+              {/* Category */}
               <div className="grid grid-cols-12 gap-4 items-start">
                 <label className="col-span-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300 pt-2">
                   Category <span className="text-red-500">*</span>
@@ -461,9 +466,9 @@ const Edit = () => {
                     styles={customSelectStyles}
                     options={categoryOptions}
                     value={categoryOptions.find(opt => String(opt.value) === String(formData.category)) || null}
-                    onChange={(opt) => handleInputChange({ target: { name: 'category', value: opt ? opt.value : '' } })}
+                    onChange={handleCategoryChange}
                     placeholder="Select Category"
-                    isDisabled={true}
+                    isSearchable
                     menuPortalTarget={document.body}
                     menuPosition="fixed"
                   />
@@ -471,19 +476,19 @@ const Edit = () => {
                 </div>
               </div>
 
-              {/* Product Type - Disabled */}
+              {/* Product Type / Subcategory */}
               <div className="grid grid-cols-12 gap-4 items-start">
                 <label className="col-span-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300 pt-2">
-                  Product Type / Subcategory <span className="text-red-500">*</span>
+                  Product Type / Subcategory
                 </label>
                 <div className="col-span-9">
                   <Select
                     styles={customSelectStyles}
-                    options={productTypeEditable ? subcategoryOptions.filter(opt => !opt.category || opt.category === String(formData.category)) : subcategoryOptions}
+                    options={formData.category ? subcategoryOptions.filter(opt => !opt.category || opt.category === String(formData.category)) : subcategoryOptions}
                     value={subcategoryOptions.find(opt => String(opt.value) === String(formData.productType)) || null}
                     onChange={(opt) => handleInputChange({ target: { name: 'productType', value: opt ? opt.value : '' } })}
                     placeholder="Select Product Type"
-                    isDisabled={!productTypeEditable}
+                    isSearchable
                     menuPortalTarget={document.body}
                     menuPosition="fixed"
                   />
