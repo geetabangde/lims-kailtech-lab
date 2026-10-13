@@ -551,6 +551,9 @@ export default function AddInwardEntry() {
         String(res.data.status) === "true" ||
         String(res.data.status) === "1"
       ) {
+        if (res.data.upload_warning) {
+          toast.warning(res.data.upload_warning);
+        }
         toast.success("Inward Entry Saved ✅");
         if (
           String(res.data.status) === "true" ||

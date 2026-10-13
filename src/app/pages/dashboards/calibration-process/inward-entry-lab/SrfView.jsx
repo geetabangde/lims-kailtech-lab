@@ -62,7 +62,26 @@ export default function ViewInwardEntrySrf() {
 
   if (!entryData) return null;
 
-  const { entry, customer_name, report_address, report_name, billing_name, billing_address, mode_of_receipt, reviewed_by, tech_accepted_by, added_by, transfer_by, technical_acceptance, samples } = entryData;
+  const {
+    entry,
+    customer_name,
+    report_address,
+    report_name,
+    billing_name,
+    billing_address,
+    mode_of_receipt,
+    reviewed_by,
+    tech_accepted_by,
+    added_by,
+    transfer_by,
+    technical_acceptance,
+    samples,
+    work_order_url,
+    receipt_doc_url,
+  } = entryData;
+
+  const workOrderUrl = work_order_url || entry?.work_order_url || entry?.wupload_url || null;
+  const receiptDocUrl = receipt_doc_url || entry?.receipt_doc_url || entry?.rupload_url || null;
 
   // Format date helper
   const formatDate = (date, inputFormat, outputFormat) => {
@@ -145,8 +164,18 @@ export default function ViewInwardEntrySrf() {
                   {[
                     { label: "Customer Name (If new then make the Customer code first)", value: customer_name ?? '-' },
                     { label: "Address (Factory Address for BIS Pertaining)", value: report_address ?? '-' },
-                    { label: "Work Order No./Date", value: `${entry?.ponumber ?? '-'} / ${formatDate(entry?.inwarddate, "Y-m-d", "d/m/Y") || '-'}` },
-                    { label: "Mode of Receipt", value: mode_of_receipt ?? '-', rowspan: true },
+                    {
+                      label: "Work Order No./Date",
+                      value: `${entry?.ponumber ?? '-'} / ${formatDate(entry?.inwarddate, "Y-m-d", "d/m/Y") || '-'}`,
+                      link: workOrderUrl,
+                      linkText: "View Work order"
+                    },
+                    {
+                      label: "Mode of Receipt",
+                      value: mode_of_receipt ?? '-',
+                      rowspan: true,
+                      receiptDocLink: receiptDocUrl,
+                    },
                     { label: "Report in Whose Name", value: report_name ?? '-' },
                     { label: "Billing in Whose name", value: `${billing_name ?? '-'}<br>${billing_address ?? '-'}` },
                     { label: "Witness (Required/Not Required)", value: entry?.witness ?? '-' },
@@ -163,7 +192,19 @@ export default function ViewInwardEntrySrf() {
                         <tr key={idx}>
                           <td className="p-2 border">{idx + 1}</td>
                           <td className="p-2 border" rowSpan="2">{item.label}</td>
-                          <td className="p-2 border" colSpan="3">{item.value}</td>
+                          <td className="p-2 border" colSpan="3">
+                            <span>{item.value}</span>
+                            {item.receiptDocLink && (
+                              <a
+                                href={item.receiptDocLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block ml-3 px-2 py-0.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm align-middle no-print"
+                              >
+                                View Receipt Doc
+                              </a>
+                            )}
+                          </td>
                         </tr>
                         <tr>
                           <td className="p-2 border">{idx + 2}</td>
@@ -183,7 +224,19 @@ export default function ViewInwardEntrySrf() {
                       <tr key={idx}>
                         <td className="p-2 border">{idx + 1}</td>
                         <td className="p-2 border">{item.label}</td>
-                        <td className="p-2 border" colSpan="3" dangerouslySetInnerHTML={{ __html: item.value }}></td>
+                        <td className="p-2 border" colSpan="3">
+                          <span dangerouslySetInnerHTML={{ __html: item.value }}></span>
+                          {item.link && (
+                            <a
+                              href={item.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-block ml-3 px-2.5 py-0.5 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded shadow-sm align-middle no-print"
+                            >
+                              {item.linkText || "View Document"}
+                            </a>
+                          )}
+                        </td>
                       </tr>
                     )
                   ))}

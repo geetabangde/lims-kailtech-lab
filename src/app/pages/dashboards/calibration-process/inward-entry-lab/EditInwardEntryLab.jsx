@@ -108,6 +108,7 @@ export default function EditInwardEntry() {
   const [promoterOptions, setPromoterOptions] = useState([]);
   const [approvedByOptions, setApprovedByOptions] = useState([]);
   const [choiceOptions, setChoiceOptions] = useState([]);
+  const [existingDocs, setExistingDocs] = useState({ w: null, r: null });
   const [concernPersonOptions, setConcernPersonOptions] = useState([]);
   const [selectedConcernPerson, setSelectedConcernPerson] = useState({
     designation: "",
@@ -294,6 +295,12 @@ export default function EditInwardEntry() {
           `/calibrationprocess/get-inward-entry_byid/${id}`
         );
         const data = res.data.data;
+        if (data) {
+          setExistingDocs({
+            w: data.wupload_url || null,
+            r: data.rupload_url || null,
+          });
+        }
         setFormData({
           inwarddate: data.inwarddate
             ? data.inwarddate.split("-").reverse().join("-")
@@ -610,6 +617,9 @@ export default function EditInwardEntry() {
       );
 
       if (String(res.data.status) === "true" || String(res.data.status) === "1") {
+        if (res.data.upload_warning) {
+          toast.warning(res.data.upload_warning);
+        }
         toast.success("Inward Entry Updated ✅");
         setSuccessMessage(res.data.message || "Inward Entry Updated");
         setShowSuccessModal(true);
@@ -1159,6 +1169,18 @@ export default function EditInwardEntry() {
                     }
                     className="block w-full rounded border px-3 py-2"
                   />
+                  {existingDocs.w && (
+                    <div className="mt-1">
+                      <a
+                        href={existingDocs.w}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 underline"
+                      >
+                        📄 Current Work Order – View
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 <div ref={modeofrecieptRef}>
@@ -1264,6 +1286,18 @@ export default function EditInwardEntry() {
                     }
                     className="block w-full rounded border px-3 py-2"
                   />
+                  {existingDocs.r && (
+                    <div className="mt-1">
+                      <a
+                        href={existingDocs.r}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 underline"
+                      >
+                        📄 Current Receipt Doc – View
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
