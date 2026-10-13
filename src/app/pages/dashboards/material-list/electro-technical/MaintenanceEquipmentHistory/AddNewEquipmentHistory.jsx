@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import axios from 'utils/axios';
 import toast, { Toaster } from 'react-hot-toast';
 import { Button, Input } from 'components/ui';
@@ -35,10 +35,16 @@ const customSelectStyles = {
 
 const AddNewEquipmentHistory = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
 
   const fid = searchParams.get('fid');
   const labId = searchParams.get('labId');
+
+  // Dynamically determine the lab slug (e.g. plastic, electro-technical, mechanical)
+  const pathParts = location.pathname.split('/');
+  const matListIndex = pathParts.indexOf('material-list');
+  const labSlug = (matListIndex !== -1 && pathParts[matListIndex + 1]) ? pathParts[matListIndex + 1] : 'electro-technical';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -49,10 +55,10 @@ const AddNewEquipmentHistory = () => {
     startDate: '',
     endDate: '',
     certificateFile: null,
-    idUse: '',
-    adjustment: '',
+    idUse: 'idno',
+    adjustment: 'No',
     adjustmentRemark: '',
-    meetsAcceptance: '',
+    meetsAcceptance: 'Yes',
     remark: '',
     checklist: {
       1: { yes: true, no: false, remark: '' },
@@ -124,9 +130,9 @@ const AddNewEquipmentHistory = () => {
 
   const handleBackClick = () => {
     if (fid && labId) {
-      navigate(`/dashboards/material-list/electro-technical/maintenance-equipment-history?fid=${fid}&labId=${labId}`);
+      navigate(`/dashboards/material-list/${labSlug}/maintenance-equipment-history?fid=${fid}&labId=${labId}`);
     } else {
-      navigate("/dashboards/material-list/electro-technical/maintenance-equipment-history");
+      navigate(`/dashboards/material-list/${labSlug}/maintenance-equipment-history`);
     }
   };
 
@@ -173,11 +179,11 @@ const AddNewEquipmentHistory = () => {
       apiFormData.append('certificateno', formData.certificateNo);
       apiFormData.append('startdate', formatDateForAPI(formData.startDate));
       apiFormData.append('enddate', formatDateForAPI(formData.endDate));
-      apiFormData.append('iduse', formData.idUse || '');
-      apiFormData.append('adjusment', formData.adjustment || '');
-      apiFormData.append('adjustmentremark', formData.adjustmentRemark || '');
-      apiFormData.append('meetacceptance', formData.meetsAcceptance || '');
-      apiFormData.append('remark', formData.remark || '');
+      apiFormData.append('iduse', formData.idUse || 'idno');
+      apiFormData.append('adjusment', formData.adjustment || 'No');
+      apiFormData.append('adjustmentremark', formData.adjustmentRemark || '-');
+      apiFormData.append('meetacceptance', formData.meetsAcceptance || 'Yes');
+      apiFormData.append('remark', formData.remark || '-');
 
       if (formData.certificateFile) {
         apiFormData.append('file', formData.certificateFile);
@@ -199,43 +205,54 @@ const AddNewEquipmentHistory = () => {
         16: 'kcheckremark', 17: 'acceptablecheckremark'
       };
 
-      Object.keys(formData.checklist).forEach(key => {
-        const item = formData.checklist[key];
-        const checkName = checklistMapping[parseInt(key)];
-        const remarkName = remarkMapping[parseInt(key)];
+      if (formData.typeOfService === 'Calibration') {
+        Object.keys(formData.checklist).forEach(key => {
+          const item = formData.checklist[key];
+          const checkName = checklistMapping[parseInt(key)];
+          const remarkName = remarkMapping[parseInt(key)];
 
-        if (checkName && remarkName) {
-          apiFormData.append(checkName, item.yes ? 'Yes' : 'No');
-          apiFormData.append(remarkName, item.remark || '-');
+          if (checkName && remarkName) {
+            apiFormData.append(checkName, item.yes ? 'Yes' : 'No');
+            apiFormData.append(remarkName, item.remark || '-');
+          }
+        });
+      } else {
+        // For non-calibration (Maintenance, Repair/Modification), checklist is not shown on UI.
+        // Send safe standard defaults to satisfy database NOT NULL constraints.
+        for (let i = 1; i <= 17; i++) {
+          const checkName = checklistMapping[i];
+          const remarkName = remarkMapping[i];
+          if (checkName && remarkName) {
+            apiFormData.append(checkName, 'Yes');
+            apiFormData.append(remarkName, '-');
+          }
         }
-      });
+      }
 
-      const response = await axios.post('/material/add-master-validity', apiFormData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await axios.post('/material/add-master-validity', apiFormData);
 
-      if (response.data.status) {
-        // Extract validity ID from response
-        // const validityId = response.data.id || response.data.validityId || response.data.data?.id;
-        
+      if (response && response.data && response.data.status) {
         toast.success(response.data.message || 'New Validity has been Added');
 
-        // ALWAYS navigate to Add IMC page after successful save
         setTimeout(() => {
           if (fid && labId) {
-      navigate(`/dashboards/material-list/electro-technical/maintenance-equipment-history?fid=${fid}&labId=${labId}`);
-    } else {
-      navigate("/dashboards/material-list/electro-technical/maintenance-equipment-history");
-    }
+            navigate(`/dashboards/material-list/${labSlug}/maintenance-equipment-history?fid=${fid}&labId=${labId}`);
+          } else {
+            navigate(`/dashboards/material-list/${labSlug}/maintenance-equipment-history`);
+          }
         }, 1500);
       } else {
-        toast.error(response.data.message || 'Failed to add validity');
+        toast.error((response && response.data && response.data.message) || 'Failed to add validity');
       }
     } catch (error) {
       console.error('Error saving master validity:', error);
-      toast.error(error.response?.data?.message || 'Failed to save. Please try again.');
+      const errorMsg =
+        (typeof error === 'string' && error) ||
+        error?.message ||
+        error?.error ||
+        error?.response?.data?.message ||
+        'Failed to save. Please try again.';
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -379,13 +396,13 @@ const AddNewEquipmentHistory = () => {
               styles={customSelectStyles}
               options={[
                 { value: 'newidno', label: 'New Id No' },
-                { value: 'oldidno', label: 'Old Id No' },
+                { value: 'idno', label: 'Old Id No' },
               ]}
               value={[
                 { value: 'newidno', label: 'New Id No' },
-                { value: 'oldidno', label: 'Old Id No' },
+                { value: 'idno', label: 'Old Id No' },
               ].find(opt => opt.value === formData.idUse) || null}
-              onChange={(opt) => setFormData({ ...formData, idUse: opt ? opt.value : '' })}
+              onChange={(opt) => setFormData({ ...formData, idUse: opt ? opt.value : 'idno' })}
               placeholder="Select"
               isLoading={isSubmitting}
               isDisabled={isSubmitting}
@@ -402,14 +419,14 @@ const AddNewEquipmentHistory = () => {
             <Select
               styles={customSelectStyles}
               options={[
-                { value: 'yes', label: 'Yes' },
-                { value: 'no', label: 'No' },
+                { value: 'Yes', label: 'Yes' },
+                { value: 'No', label: 'No' },
               ]}
               value={[
-                { value: 'yes', label: 'Yes' },
-                { value: 'no', label: 'No' },
+                { value: 'Yes', label: 'Yes' },
+                { value: 'No', label: 'No' },
               ].find(opt => opt.value === formData.adjustment) || null}
-              onChange={(opt) => setFormData({ ...formData, adjustment: opt ? opt.value : '' })}
+              onChange={(opt) => setFormData({ ...formData, adjustment: opt ? opt.value : 'No' })}
               placeholder="Select"
               isLoading={isSubmitting}
               isDisabled={isSubmitting}
@@ -447,7 +464,7 @@ const AddNewEquipmentHistory = () => {
                 { value: 'Yes', label: 'Yes' },
                 { value: 'No', label: 'No' },
               ].find(opt => opt.value === formData.meetsAcceptance) || null}
-              onChange={(opt) => setFormData({ ...formData, meetsAcceptance: opt ? opt.value : '' })}
+              onChange={(opt) => setFormData({ ...formData, meetsAcceptance: opt ? opt.value : 'Yes' })}
               placeholder="Select"
               isLoading={isSubmitting}
               isDisabled={isSubmitting}
@@ -472,74 +489,87 @@ const AddNewEquipmentHistory = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 border-r">
-                  S.NO.
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 border-r">
-                  CHECK LIST
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 border-r w-32">
-                  Yes or No
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 w-96">
-                  REMARK,IF ANY
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {checklistItems.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-900 border-r">
-                    {item.id}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900 border-r">
-                    {item.text}
-                  </td>
-                  <td className="px-4 py-3 text-center border-r">
-                    <div className="flex items-center justify-center gap-3">
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name={`checklist-${item.id}`}
-                          checked={formData.checklist[item.id].yes}
-                          onChange={() => handleRadioChange(item.id, 'yes')}
-                          className="w-4 h-4 text-blue-600"
-                          disabled={isSubmitting}
-                        />
-                        <span className="ml-1 text-sm">Yes</span>
-                      </label>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name={`checklist-${item.id}`}
-                          checked={formData.checklist[item.id].no}
-                          onChange={() => handleRadioChange(item.id, 'no')}
-                          className="w-4 h-4 text-blue-600"
-                          disabled={isSubmitting}
-                        />
-                        <span className="ml-1 text-sm">No</span>
-                      </label>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <textarea
-                      rows="2"
-                      className="w-full border border-blue-400 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={formData.checklist[item.id].remark}
-                      onChange={(e) => handleRemarkChange(item.id, e.target.value)}
-                      placeholder="Enter remark if any"
-                      disabled={isSubmitting}
-                    />
-                  </td>
+        {formData.typeOfService === 'Calibration' ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 border-r">
+                    S.NO.
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 border-r">
+                    CHECK LIST
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 border-r w-32">
+                    Yes or No
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 w-96">
+                    REMARK,IF ANY
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {checklistItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900 border-r">
+                      {item.id}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 border-r">
+                      {item.text}
+                    </td>
+                    <td className="px-4 py-3 text-center border-r">
+                      <div className="flex items-center justify-center gap-3">
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`checklist-${item.id}`}
+                            checked={formData.checklist[item.id].yes}
+                            onChange={() => handleRadioChange(item.id, 'yes')}
+                            className="w-4 h-4 text-blue-600"
+                            disabled={isSubmitting}
+                          />
+                          <span className="ml-1 text-sm">Yes</span>
+                        </label>
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`checklist-${item.id}`}
+                            checked={formData.checklist[item.id].no}
+                            onChange={() => handleRadioChange(item.id, 'no')}
+                            className="w-4 h-4 text-blue-600"
+                            disabled={isSubmitting}
+                          />
+                          <span className="ml-1 text-sm">No</span>
+                        </label>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <textarea
+                        rows="2"
+                        className="w-full border border-blue-400 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={formData.checklist[item.id].remark}
+                        onChange={(e) => handleRemarkChange(item.id, e.target.value)}
+                        placeholder="Enter remark if any"
+                        disabled={isSubmitting}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-6 bg-blue-50 border-t border-b border-blue-100 flex items-center gap-3">
+            <div className="text-blue-500 flex-shrink-0">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <p className="text-sm text-blue-800">
+              Calibration checklist verification is not required for <strong>{formData.typeOfService}</strong>. Standard service history record will be saved.
+            </p>
+          </div>
+        )}
 
         <div className="p-6 border-t flex justify-end">
           <Button
