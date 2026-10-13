@@ -81,6 +81,8 @@ const Edit = () => {
 
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [subcategoryOptions, setSubcategoryOptions] = useState([]);
+  // Product Type is locked on edit; only a legacy record whose type is EMPTY may pick one (backend ignores it otherwise)
+  const [productTypeEditable, setProductTypeEditable] = useState(false);
   const [verticalOptions, setVerticalOptions] = useState([]);
 
   const allowedForOptions = [
@@ -149,11 +151,14 @@ const Edit = () => {
 
           const mappedSubcategories = subcategories.map(sub => ({
             value: String(sub.id),
-            label: sub.name || sub.subcategory_name
+            label: sub.name || sub.subcategory_name,
+            category: String(sub.category || '')
           }));
           setSubcategoryOptions(mappedSubcategories);
           console.log('✅ Subcategories loaded:', mappedSubcategories.length);
         }
+
+        setProductTypeEditable(!instrumentData.type || String(instrumentData.type) === '0');
 
         // Step 3: Set form data with proper field mapping
         setFormData({
@@ -474,11 +479,11 @@ const Edit = () => {
                 <div className="col-span-9">
                   <Select
                     styles={customSelectStyles}
-                    options={subcategoryOptions}
+                    options={productTypeEditable ? subcategoryOptions.filter(opt => !opt.category || opt.category === String(formData.category)) : subcategoryOptions}
                     value={subcategoryOptions.find(opt => String(opt.value) === String(formData.productType)) || null}
                     onChange={(opt) => handleInputChange({ target: { name: 'productType', value: opt ? opt.value : '' } })}
                     placeholder="Select Product Type"
-                    isDisabled={true}
+                    isDisabled={!productTypeEditable}
                     menuPortalTarget={document.body}
                     menuPosition="fixed"
                   />
