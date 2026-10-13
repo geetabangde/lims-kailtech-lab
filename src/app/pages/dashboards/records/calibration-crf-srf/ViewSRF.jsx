@@ -117,8 +117,8 @@ export default function ViewSRF() {
           <div className="flex border border-gray-300 mb-6">
             <div className="w-1/3 p-4 flex flex-col justify-center">
               <img
-                src="https://kailtech.thehostme.com/2025_05_07/kailtech_new/images/letterhead.jpg"
-                alt="Logo"
+                src="/images/logo.png"
+                alt="Kailtech Logo"
                 className="h-12 mb-2 object-contain self-start"
               />
               <p className="font-bold text-xs leading-tight">

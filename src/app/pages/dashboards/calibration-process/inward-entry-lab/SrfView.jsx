@@ -85,8 +85,9 @@ export default function ViewInwardEntrySrf() {
 
   // Format date helper
   const formatDate = (date, inputFormat, outputFormat) => {
-    if (!date) return "";
+    if (!date || date === "0000-00-00" || date === "0000-00-00 00:00:00") return "";
     const d = new Date(date);
+    if (isNaN(d.getTime())) return "";
     if (outputFormat === "d/m/Y") {
       return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
     }
@@ -117,9 +118,9 @@ export default function ViewInwardEntrySrf() {
             <div className="flex border border-gray-300 bg-white shadow-sm">
               <div className="w-1/3 p-4">
                 <img
-                  src="https://kailtech.thehostme.com/2025_05_07/kailtech_new/images/letterhead.jpg"
-                  alt="Logo"
-                  className="h-10 mb-2 w-auto"
+                  src="/images/logo.png"
+                  alt="Kailtech Logo"
+                  className="h-10 mb-2 w-auto object-contain"
                 />
                 <p className="font-semibold text-sm text-gray-800">
                   Kailtech Test & Research Centre Pvt. Ltd.

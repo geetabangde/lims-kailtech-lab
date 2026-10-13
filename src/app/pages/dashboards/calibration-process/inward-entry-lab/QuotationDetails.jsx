@@ -151,9 +151,9 @@ export default function ViewQuotation() {
             <div className="flex justify-between items-start">
               <div className="flex items-center space-x-4">
                 <img
-                  src="https://kailtech.thehostme.com/2025_05_07/kailtech_new/images/letterhead.jpg"
-                  alt="Logo"
-                  className="h-10 mb-2 w-auto"
+                  src="/images/logo.png"
+                  alt="Kailtech Logo"
+                  className="h-10 mb-2 w-auto object-contain"
                 />
               </div>
               <div className="text-right text-xs">

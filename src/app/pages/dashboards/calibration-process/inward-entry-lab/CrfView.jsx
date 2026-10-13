@@ -89,9 +89,9 @@ export default function ViewInwardEntryCrf() {
           <div className="flex border border-gray-300 bg-white shadow-sm">
             <div className="w-1/3 p-4">
               <img
-                src="https://kailtech.thehostme.com/2025_05_07/kailtech_new/images/letterhead.jpg"
-                alt="Logo"
-                className="h-10 mb-2 w-auto"
+                src="/images/logo.png"
+                alt="Kailtech Logo"
+                className="h-10 mb-2 w-auto object-contain"
               />
               <p className="font-semibold text-sm text-gray-800">
                 Kailtech Test & Research Centre Pvt. Ltd.
