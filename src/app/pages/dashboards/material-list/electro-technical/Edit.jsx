@@ -96,7 +96,7 @@ const Edit = () => {
 
   const requiredFields = {
     category: 'Category',
-    productType: 'Product Type',
+    // productType: 'Product Type', // locked (disabled) on edit and not saved by update_mm_instrument; legacy item 431 has a blank type
     // vertical: 'Vertical',
     instrumentName: 'Instrument Name',
     idNo: 'ID No',
