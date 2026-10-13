@@ -40,12 +40,22 @@ function RootErrorBoundary() {
     return <Component />;
   }
 
+  if (error) {
+    console.error("RootErrorBoundary caught error:", error);
+  }
+
   return (
-    <div className="flex h-screen items-center justify-center flex-col gap-4">
+    <div className="flex h-screen items-center justify-center flex-col gap-4 p-4 text-center">
       <h2 className="text-xl font-semibold text-gray-700">Something went wrong</h2>
+      {error && (
+        <div className="max-w-xl text-left bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 rounded text-xs text-red-600 dark:text-red-300 overflow-auto max-h-48">
+          <p className="font-semibold mb-1">Error Details:</p>
+          <pre className="whitespace-pre-wrap">{error?.stack || error?.message || String(error)}</pre>
+        </div>
+      )}
       <button 
         onClick={() => window.location.reload()} 
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
       >
         Reload Page
       </button>

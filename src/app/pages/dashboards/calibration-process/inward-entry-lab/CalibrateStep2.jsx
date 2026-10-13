@@ -1,6 +1,6 @@
 //-------------------------------moin new code -----------------------------
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, Component } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router';
 // import axios from 'axios';
 import axios from "utils/axios"
@@ -8,6 +8,37 @@ import Select from 'react-select';
 import { Page } from "components/shared/Page";
 import { Button } from "components/ui";
 import { toast } from "sonner";
+
+class TableErrorBoundary extends Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
+    componentDidCatch(error, info) {
+        console.error("TableErrorBoundary caught error:", error, info);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-center my-4">
+                    <p className="text-red-700 dark:text-red-300 font-medium mb-1">A temporary rendering issue occurred in the calibration points table.</p>
+                    <p className="text-xs text-red-500 mb-3">{this.state.error?.message || String(this.state.error)}</p>
+                    <button
+                        type="button"
+                        onClick={() => this.setState({ hasError: false, error: null })}
+                        className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors"
+                    >
+                        Try Recovering
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 const Calibratestep2 = () => {
     const navigate = useNavigate();
@@ -69,8 +100,8 @@ const Calibratestep2 = () => {
     const [filteredMastersList, setFilteredMastersList] = useState([]);
     const [filteredSupportMastersList, setFilteredSupportMastersList] = useState([]);
 
-    // Custom styles for react-select to prevent overlap
-    const customSelectStyles = {
+    // Custom styles for react-select to prevent overlap (memoized for performance and stability)
+    const customSelectStyles = useMemo(() => ({
         control: (provided, state) => ({
             ...provided,
             minHeight: '38px',
@@ -78,7 +109,7 @@ const Calibratestep2 = () => {
             borderColor: state.selectProps.className?.includes('invalid')
                 ? '#EF4444'
                 : (state.isFocused
-                    ? (theme === 'dark' ? '#3B82F6' : '#3B82F6')
+                    ? '#3B82F6'
                     : (theme === 'dark' ? '#4B5563' : '#D1D5DB')),
             boxShadow: state.isFocused ? '0 0 0 2px rgba(59, 130, 246, 0.5)' : 'none',
             '&:hover': {
@@ -96,6 +127,7 @@ const Calibratestep2 = () => {
         menuPortal: (provided) => ({
             ...provided,
             zIndex: 9999,
+            pointerEvents: 'auto'
         }),
         option: (provided, state) => ({
             ...provided,
@@ -127,7 +159,7 @@ const Calibratestep2 = () => {
             ...provided,
             color: theme === 'dark' ? '#F9FAFB' : '#111827'
         })
-    };
+    }), [theme]);
 
     const renderFieldError = (key) => {
         if (!fieldErrors || !fieldErrors[key]) return null;
@@ -419,17 +451,18 @@ const Calibratestep2 = () => {
 
     }, [selectForAllPoint.unit, selectForAllPoint.mode, selectForAllPoint.supportMode, mastersList, supportMastersList]);
 
-    // Individual point filtering functions
-    const getFilteredMastersForPoint = (point) => {
+    // Individual point filtering functions (defensively guarded against undefined / null)
+    const getFilteredMastersForPoint = useCallback((point) => {
+        if (!point || !Array.isArray(mastersList) || mastersList.length === 0) return [];
         let filtered = mastersList;
 
         if (point.masterUnit && mastersList.length > 0) {
-            const unitField = mastersList[0].unit_id !== undefined ? 'unit_id' :
-                mastersList[0].unitid !== undefined ? 'unitid' :
-                    mastersList[0].unit !== undefined ? 'unit' : null;
+            const unitField = mastersList[0]?.unit_id !== undefined ? 'unit_id' :
+                mastersList[0]?.unitid !== undefined ? 'unitid' :
+                    mastersList[0]?.unit !== undefined ? 'unit' : null;
 
             if (unitField) {
-                const unitFiltered = filtered.filter(m => m[unitField] == point.masterUnit);
+                const unitFiltered = filtered.filter(m => m && m[unitField] == point.masterUnit);
                 if (unitFiltered.length > 0) {
                     filtered = unitFiltered;
                 }
@@ -437,30 +470,31 @@ const Calibratestep2 = () => {
         }
 
         if (point.masterMode && point.masterMode !== 'Not Specified' && filtered.length > 0) {
-            const modeField = filtered[0].mode !== undefined ? 'mode' :
-                filtered[0].mastermode !== undefined ? 'mastermode' : null;
+            const modeField = filtered[0]?.mode !== undefined ? 'mode' :
+                filtered[0]?.mastermode !== undefined ? 'mastermode' : null;
 
             if (modeField) {
-                const modeFiltered = filtered.filter(m => m[modeField] === point.masterMode);
+                const modeFiltered = filtered.filter(m => m && m[modeField] === point.masterMode);
                 if (modeFiltered.length > 0) {
                     filtered = modeFiltered;
                 }
             }
         }
 
-        return filtered;
-    };
+        return Array.isArray(filtered) ? filtered : [];
+    }, [mastersList]);
 
-    const getFilteredSupportMastersForPoint = (point) => {
+    const getFilteredSupportMastersForPoint = useCallback((point) => {
+        if (!point || !Array.isArray(supportMastersList) || supportMastersList.length === 0) return [];
         let filtered = supportMastersList;
 
         if (point.masterUnit && supportMastersList.length > 0) {
-            const unitField = supportMastersList[0].unit_id !== undefined ? 'unit_id' :
-                supportMastersList[0].unitid !== undefined ? 'unitid' :
-                    supportMastersList[0].unit !== undefined ? 'unit' : null;
+            const unitField = supportMastersList[0]?.unit_id !== undefined ? 'unit_id' :
+                supportMastersList[0]?.unitid !== undefined ? 'unitid' :
+                    supportMastersList[0]?.unit !== undefined ? 'unit' : null;
 
             if (unitField) {
-                const unitFiltered = filtered.filter(sm => sm[unitField] == point.masterUnit);
+                const unitFiltered = filtered.filter(sm => sm && sm[unitField] == point.masterUnit);
                 if (unitFiltered.length > 0) {
                     filtered = unitFiltered;
                 }
@@ -468,23 +502,23 @@ const Calibratestep2 = () => {
         }
 
         if (point.supportMasterMode && point.supportMasterMode !== 'Not Specified' && filtered.length > 0) {
-            const modeField = filtered[0].mode !== undefined ? 'mode' :
-                filtered[0].supportmastermode !== undefined ? 'supportmastermode' : null;
+            const modeField = filtered[0]?.mode !== undefined ? 'mode' :
+                filtered[0]?.supportmastermode !== undefined ? 'supportmastermode' : null;
 
             if (modeField) {
-                const modeFiltered = filtered.filter(sm => sm[modeField] === point.supportMasterMode);
+                const modeFiltered = filtered.filter(sm => sm && sm[modeField] === point.supportMasterMode);
                 if (modeFiltered.length > 0) {
                     filtered = modeFiltered;
                 }
             }
         }
 
-        return filtered;
-    };
+        return Array.isArray(filtered) ? filtered : [];
+    }, [supportMastersList]);
 
-    const getMatrixOptionsForPoint = (pointId) => {
-        return matrixData[pointId] || [];
-    };
+    const getMatrixOptionsForPoint = useCallback((pointId) => {
+        return Array.isArray(matrixData[pointId]) ? matrixData[pointId] : [];
+    }, [matrixData]);
 
     // Helper functions
     const formatDate = (dateString) => {
@@ -508,6 +542,7 @@ const Calibratestep2 = () => {
     };
 
     const getMasterString = (master) => {
+        if (!master) return '';
         let result = master.name || '';
         const parts = [];
         if (master.idno && master.idno !== 'N.A' && master.idno !== 'N/A') parts.push(master.idno);
@@ -521,25 +556,36 @@ const Calibratestep2 = () => {
         return result;
     };
 
-    const getUnitOptions = () => {
-        return unitsList.map(unit => ({
+    // Memoized dropdown option arrays
+    const unitOptions = useMemo(() => {
+        return (unitsList || []).map(unit => ({
             value: unit.id,
-            label: `(${unit.description}) ${unit.name}`
+            label: `(${unit.description || ''}) ${unit.name || ''}`
         }));
-    };
+    }, [unitsList]);
 
-    const getModeOptions = () => [
+    const modeOptions = useMemo(() => [
         { value: 'Not Specified', label: 'Not Specified' },
-        ...modesList.map(mode => ({ value: mode.name, label: mode.name }))
-    ];
+        ...(modesList || []).map(mode => ({ value: mode.name, label: mode.name }))
+    ], [modesList]);
 
-    const getSupportModeOptions = () => [
+    const supportModeOptions = useMemo(() => [
         { value: 'Not Specified', label: 'Not Specified' },
         { value: 'Measure', label: 'Measure' },
         { value: 'Source', label: 'Source' }
-    ];
+    ], []);
 
-    const getMasterOptions = (masters) => masters.map(master => ({ value: master.id, label: getMasterString(master) }));
+    const getUnitOptions = useCallback(() => unitOptions, [unitOptions]);
+    const getModeOptions = useCallback(() => modeOptions, [modeOptions]);
+    const getSupportModeOptions = useCallback(() => supportModeOptions, [supportModeOptions]);
+
+    const getMasterOptions = useCallback((masters) => {
+        if (!Array.isArray(masters)) return [];
+        return masters.filter(Boolean).map(master => ({
+            value: master.id,
+            label: getMasterString(master)
+        }));
+    }, []);
 
     // Handle Select For All Point changes
     const handleSelectForAllPointChange = (field, selected) => {
@@ -577,11 +623,11 @@ const Calibratestep2 = () => {
         let value;
         const multiFields = ['masters', 'supportMasters', 'matrixMasters'];
         if (multiFields.includes(field)) {
-            value = selected ? selected.map(s => s.value) : [];
+            value = selected ? (Array.isArray(selected) ? selected.map(s => s?.value).filter(v => v !== undefined && v !== null) : (selected.value !== undefined ? [selected.value] : [])) : [];
         } else if (field === 'repeatable') {
             value = selected;
         } else {
-            value = selected ? selected.value : null;
+            value = selected ? (selected.value !== undefined ? selected.value : selected) : null;
         }
 
         console.log(`Updating point ${pointId}, field ${field}, value:`, value);
@@ -1082,6 +1128,7 @@ const Calibratestep2 = () => {
 
                         <form onSubmit={handleSubmit} className="p-6">
                             {/* Table Container with improved overflow handling */}
+                            <TableErrorBoundary>
                             <div className="overflow-x-auto relative">
                                 <table className="w-full border-collapse">
                                     {/* Column Headers */}
@@ -1128,6 +1175,7 @@ const Calibratestep2 = () => {
                                                     className="text-sm"
                                                     styles={customSelectStyles}
                                                     menuPortalTarget={document.body}
+                                                    menuPosition="fixed"
                                                 />
                                             </td>
 
@@ -1143,6 +1191,7 @@ const Calibratestep2 = () => {
                                                     className="text-sm"
                                                     styles={customSelectStyles}
                                                     menuPortalTarget={document.body}
+                                                    menuPosition="fixed"
                                                 />
                                                 {instrumentInfo?.supportmaster === "Yes" && (
                                                     <div className="mt-2">
@@ -1156,6 +1205,7 @@ const Calibratestep2 = () => {
                                                             className="text-sm"
                                                             styles={customSelectStyles}
                                                             menuPortalTarget={document.body}
+                                                            menuPosition="fixed"
                                                         />
                                                     </div>
                                                 )}
@@ -1165,7 +1215,7 @@ const Calibratestep2 = () => {
                                             <td className="p-3 border border-gray-300 dark:border-gray-600">
                                                 <Select
                                                     isMulti={true}
-                                                    value={getMasterOptions(filteredMastersList).filter(opt => selectForAllPoint.masters.includes(opt.value)) || []}
+                                                    value={getMasterOptions(filteredMastersList).filter(opt => Array.isArray(selectForAllPoint.masters) && selectForAllPoint.masters.includes(opt.value)) || []}
                                                     onChange={(selected) => handleSelectForAllPointChange('masters', selected)}
                                                     options={getMasterOptions(filteredMastersList)}
                                                     isSearchable={true}
@@ -1174,12 +1224,13 @@ const Calibratestep2 = () => {
                                                     className="text-sm"
                                                     styles={customSelectStyles}
                                                     menuPortalTarget={document.body}
+                                                    menuPosition="fixed"
                                                 />
                                                 {instrumentInfo?.supportmaster === "Yes" && (
                                                     <div className="mt-2">
                                                         <Select
                                                             isMulti={true}
-                                                            value={getMasterOptions(filteredSupportMastersList).filter(opt => selectForAllPoint.supportMasters.includes(opt.value)) || []}
+                                                            value={getMasterOptions(filteredSupportMastersList).filter(opt => Array.isArray(selectForAllPoint.supportMasters) && selectForAllPoint.supportMasters.includes(opt.value)) || []}
                                                             onChange={(selected) => handleSelectForAllPointChange('supportMasters', selected)}
                                                             options={getMasterOptions(filteredSupportMastersList)}
                                                             isSearchable={true}
@@ -1188,6 +1239,7 @@ const Calibratestep2 = () => {
                                                             className="text-sm"
                                                             styles={customSelectStyles}
                                                             menuPortalTarget={document.body}
+                                                            menuPosition="fixed"
                                                         />
                                                     </div>
                                                 )}
@@ -1210,13 +1262,11 @@ const Calibratestep2 = () => {
                                         </tr>
 
                                         {/* Individual Calibration Points */}
-                                        {calibPointsState.map((point) => {
+                                        {calibPointsState.map((point, index) => {
                                             const filteredMasters = getFilteredMastersForPoint(point);
                                             const filteredSupportMasters = getFilteredSupportMastersForPoint(point);
-                                            // ========== MATRIX CODE - COMMENTED OUT ==========
-                                            // const matrixOptions = getMatrixOptionsForPoint(point.id);
                                             return (
-                                                <tr key={point.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                <tr key={`${point.id || 'p'}_${index}`} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <td className="p-3 border border-gray-300 dark:border-gray-600">
                                                         <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                                             {point.label}
@@ -1235,6 +1285,7 @@ const Calibratestep2 = () => {
                                                             className={`text-sm ${fieldErrors[`unit${point.calibpointid}`] ? 'invalid' : ''}`}
                                                             styles={customSelectStyles}
                                                             menuPortalTarget={document.body}
+                                                            menuPosition="fixed"
                                                         />
                                                         {renderFieldError(`unit${point.calibpointid}`)}
                                                     </td>
@@ -1251,6 +1302,7 @@ const Calibratestep2 = () => {
                                                             className={`text-sm ${fieldErrors[`mastermode${point.calibpointid}`] ? 'invalid' : ''}`}
                                                             styles={customSelectStyles}
                                                             menuPortalTarget={document.body}
+                                                            menuPosition="fixed"
                                                         />
                                                         {renderFieldError(`mastermode${point.calibpointid}`)}
 
@@ -1266,6 +1318,7 @@ const Calibratestep2 = () => {
                                                                     className={`text-sm ${fieldErrors[`supportmastermode${point.calibpointid}`] ? 'invalid' : ''}`}
                                                                     styles={customSelectStyles}
                                                                     menuPortalTarget={document.body}
+                                                                    menuPosition="fixed"
                                                                 />
                                                                 {renderFieldError(`supportmastermode${point.calibpointid}`)}
                                                             </div>
@@ -1276,7 +1329,7 @@ const Calibratestep2 = () => {
                                                     <td className="p-3 border border-gray-300 dark:border-gray-600">
                                                         <Select
                                                             isMulti={true}
-                                                            value={getMasterOptions(filteredMasters).filter(opt => point.masters.includes(opt.value)) || []}
+                                                            value={getMasterOptions(filteredMasters).filter(opt => Array.isArray(point.masters) && point.masters.includes(opt.value)) || []}
                                                             onChange={(selected) => handleCalibPointChange(point.id, 'masters', selected)}
                                                             options={getMasterOptions(filteredMasters)}
                                                             isSearchable={true}
@@ -1285,6 +1338,7 @@ const Calibratestep2 = () => {
                                                             className={`text-sm ${fieldErrors[`mastercalibid${point.calibpointid}`] ? 'invalid' : ''}`}
                                                             styles={customSelectStyles}
                                                             menuPortalTarget={document.body}
+                                                            menuPosition="fixed"
                                                         />
                                                         {renderFieldError(`mastercalibid${point.calibpointid}`)}
 
@@ -1293,7 +1347,7 @@ const Calibratestep2 = () => {
                                                             <div className="mt-2">
                                                                 <Select
                                                                     isMulti={true}
-                                                                    value={getMatrixOptionsForPoint(point.id).filter(opt => (point.matrixMasters || []).includes(opt.value)) || []}
+                                                                    value={getMatrixOptionsForPoint(point.id).filter(opt => Array.isArray(point.matrixMasters) && point.matrixMasters.includes(opt.value)) || []}
                                                                     onChange={(selected) => handleCalibPointChange(point.id, 'matrixMasters', selected)}
                                                                     options={getMatrixOptionsForPoint(point.id)}
                                                                     isSearchable={true}
@@ -1302,6 +1356,7 @@ const Calibratestep2 = () => {
                                                                     className={`text-sm ${fieldErrors[`scopematrix${point.calibpointid}`] ? 'invalid' : ''}`}
                                                                     styles={customSelectStyles}
                                                                     menuPortalTarget={document.body}
+                                                                    menuPosition="fixed"
                                                                 />
                                                                 {renderFieldError(`scopematrix${point.calibpointid}`)}
                                                             </div>
@@ -1311,7 +1366,7 @@ const Calibratestep2 = () => {
                                                             <div className="mt-2">
                                                                 <Select
                                                                     isMulti={true}
-                                                                    value={getMasterOptions(filteredSupportMasters).filter(opt => point.supportMasters.includes(opt.value)) || []}
+                                                                    value={getMasterOptions(filteredSupportMasters).filter(opt => Array.isArray(point.supportMasters) && point.supportMasters.includes(opt.value)) || []}
                                                                     onChange={(selected) => handleCalibPointChange(point.id, 'supportMasters', selected)}
                                                                     options={getMasterOptions(filteredSupportMasters)}
                                                                     isSearchable={true}
@@ -1320,6 +1375,7 @@ const Calibratestep2 = () => {
                                                                     className={`text-sm ${fieldErrors[`supportmastercalibid${point.calibpointid}`] ? 'invalid' : ''}`}
                                                                     styles={customSelectStyles}
                                                                     menuPortalTarget={document.body}
+                                                                    menuPosition="fixed"
                                                                 />
                                                                 {renderFieldError(`supportmastercalibid${point.calibpointid}`)}
                                                             </div>
@@ -1347,6 +1403,7 @@ const Calibratestep2 = () => {
                                     </tbody>
                                 </table>
                             </div>
+                            </TableErrorBoundary>
 
                             {/* General Backend Errors Display */}
                             {generalErrors.length > 0 && (
