@@ -377,6 +377,33 @@ export default function EditCalibrationInvoice() {
   const [inwardOptions, setInwardOptions] = useState([]);
   const [selectedInwards, setSelectedInwards] = useState([]); // string[]
   const [items, setItems] = useState([]);
+  // Items as originally loaded with the invoice, grouped by inwardid.
+  // Backend's get-invoice-item only returns *unbilled* items, so inward ids
+  // already linked to THIS invoice come back empty when re-selected. We
+  // fall back to this cache for those ids instead of re-hitting the API.
+  // Only valid while editing the SAME customer the invoice was loaded with —
+  // get-service-reportforinvoice has been seen to return inward ids that
+  // don't actually belong to the selected customerid, so the cache must not
+  // be reused after a manual customer change (that would silently show
+  // stale data from the original customer instead of calling the API).
+  const originalItemsRef = useRef([]);
+  const originalCustomerIdRef = useRef(null);
+  // Full set of inward ids (as strings) the invoice originally had selected,
+  // and the brnnos string that came with them. Individual items from the
+  // invoice don't reliably carry their own inwardid (backend sometimes omits
+  // it, defaulting to 0), so per-item cache lookups can't be trusted — but
+  // when the CURRENT selection exactly matches this original full set, we
+  // know the full original items list is the right answer without needing
+  // per-item attribution.
+  const originalSelectedInwardsRef = useRef(new Set());
+  const originalBrnnosRef = useRef("");
+  // Rest of the invoice's original state, so re-selecting the invoice's own
+  // customer (e.g. after it was renamed in Customers master) can restore
+  // everything instantly instead of wiping the form and re-fetching.
+  const originalBillingInfoRef = useRef(null);
+  const originalPoRef = useRef("");
+  const originalPonumbersRef = useRef([]);
+  const originalInwardOptionsRef = useRef([]);
 
   const [brnnos, setBrnnos] = useState("");
   const [remark, setRemark] = useState("");
@@ -465,6 +492,7 @@ export default function EditCalibrationInvoice() {
         // Trim selected PO to ensure match
         const initialPo = String(d.selected_po ?? inv.ponumber ?? "").trim();
         setSelectedPo(initialPo);
+        originalPoRef.current = initialPo;
 
         setSelectedInwards(selInw.map(String));
         // invoicedate already in YYYY-MM-DD from this API
@@ -475,14 +503,16 @@ export default function EditCalibrationInvoice() {
         setBrnnos(d.brnnos ?? inv.brnnos ?? "");
 
         // ── Billing info ──
-        setBillingInfo({
+        const billingInfoObj = {
           name: inv.customername ?? cust.name ?? "",
           addressid: inv.addressid ?? 0,
           address: addr,
           statecode: String(inv.statecode ?? cust.statecode ?? ""),
           pan: inv.pan ?? cust.pan ?? "",
           gstno: inv.gstno ?? cust.gstno ?? "",
-        });
+        };
+        setBillingInfo(billingInfoObj);
+        originalBillingInfoRef.current = billingInfoObj;
 
         // ── PO list — po_list is string[] ──
         // Trim to match selectedPo
@@ -493,6 +523,7 @@ export default function EditCalibrationInvoice() {
         }
 
         setPonumbers(poArray);
+        originalPonumbersRef.current = poArray;
 
         // ── Inward options — convert [{id,inwarddate}] → [{id,display}] ──
         // PHP format: "3585(17/05/2025)"
@@ -504,6 +535,7 @@ export default function EditCalibrationInvoice() {
             })`,
         }));
         setInwardOptions(inwardOpts);
+        originalInwardOptionsRef.current = inwardOpts;
 
         // ── Charges from totals ──
         setCharges({
@@ -546,6 +578,10 @@ export default function EditCalibrationInvoice() {
           rate: item.rate ?? 0,
         }));
         setItems(builtItems);
+        originalItemsRef.current = builtItems;
+        originalCustomerIdRef.current = String(inv.customerid ?? cust.id ?? "");
+        originalSelectedInwardsRef.current = new Set(selInw.map(String));
+        originalBrnnosRef.current = d.brnnos ?? inv.brnnos ?? "";
       } catch (e) {
         console.error(e);
         toast.error("Failed to load invoice data");
@@ -616,9 +652,40 @@ export default function EditCalibrationInvoice() {
         setBrnnos("");
         return;
       }
+
+      const isOriginalCustomer =
+        String(customerid) === String(originalCustomerIdRef.current);
+      const originalSet = originalSelectedInwardsRef.current;
+
+      // Split the current selection into ids that were already on this
+      // invoice ("old") vs genuinely new ones. Old ids come back EMPTY from
+      // get-invoice-item (backend only returns unbilled items, and these are
+      // already billed to this very invoice), so we never call the API for
+      // them — we reuse the invoice's original items instead. We can't
+      // subset those precisely per inward id (backend doesn't reliably tag
+      // each item with its own inwardid), so as long as at least one
+      // original id is still selected we show the full original item list
+      // alongside whatever genuinely-new ids were fetched.
+      const oldIds = isOriginalCustomer
+        ? inwards.filter((iw) => originalSet.has(String(iw)))
+        : [];
+      const newIds = isOriginalCustomer
+        ? inwards.filter((iw) => !originalSet.has(String(iw)))
+        : inwards;
+
+      const oldItems = oldIds.length ? originalItemsRef.current : [];
+      const oldBrn = oldIds.length ? originalBrnnosRef.current : "";
+
+      if (!newIds.length) {
+        setItems(oldItems);
+        setBrnnos(oldBrn);
+        if (isOriginalCustomer) setBillingInfo(originalBillingInfoRef.current);
+        return;
+      }
+
       setLoadingItems(true);
       try {
-        const inwardParam = inwards.join(",");
+        const inwardParam = newIds.join(",");
         const [itemsRes, brnRes] = await Promise.all([
           axios.get(
             `/accounts/get-invoice-item?potype=${potype}&customerid=${customerid}&ponumber=${encodeURIComponent(selectedPo)}&inwardid=${inwardParam}&invoiceid=${id}`,
@@ -648,21 +715,23 @@ export default function EditCalibrationInvoice() {
         }
 
         const rawItems = itemsRes.data.items ?? itemsRes.data.data ?? [];
-        setItems(
-          rawItems.map((item, idx) => ({
-            ...item,
-            _key: `item-${idx}-${Date.now()}`,
-            id: item.item_id ?? item.id,
-            invoiceitemid: item.invoiceitemid ?? 0,
-            brnno: item.bookingrefno ?? item.brn_no ?? item.brnno ?? "",
-            idno: item.id_no ?? item.idno ?? "",
-            serialno: item.serial_no ?? item.serialno ?? "",
-            packagename: item.package ?? item.packagename ?? "",
-            packagedesc: item.description ?? item.packagedesc ?? "",
-            rate: item.invoicerate ?? item.rate ?? item.total ?? 0,
-          })),
-        );
-        setBrnnos(brnRes.data.brn_numbers ?? "");
+        const fetchedItems = rawItems.map((item, idx) => ({
+          ...item,
+          _key: `item-${idx}-${Date.now()}`,
+          id: item.item_id ?? item.id,
+          invoiceitemid: item.invoiceitemid ?? 0,
+          brnno: item.bookingrefno ?? item.brn_no ?? item.brnno ?? "",
+          idno: item.id_no ?? item.idno ?? "",
+          serialno: item.serial_no ?? item.serialno ?? "",
+          packagename: item.package ?? item.packagename ?? "",
+          packagedesc: item.description ?? item.packagedesc ?? "",
+          rate: item.invoicerate ?? item.rate ?? item.total ?? 0,
+        }));
+
+        setItems([...oldItems, ...fetchedItems]);
+
+        const fetchedBrn = brnRes.data.brn_numbers ?? "";
+        setBrnnos([oldBrn, fetchedBrn].filter(Boolean).join(","));
       } catch {
         toast.error("Failed to load invoice items");
       } finally {
@@ -864,6 +933,23 @@ export default function EditCalibrationInvoice() {
                   value={customerid}
                   onChange={(cid) => {
                     setCustomerid(cid);
+
+                    if (cid && cid === originalCustomerIdRef.current) {
+                      // Re-selecting the invoice's own customer (e.g. it was
+                      // just renamed in Customers master) — restore the
+                      // invoice's original state instantly instead of
+                      // wiping the form and re-fetching from APIs that only
+                      // return *unbilled* data and would come back empty.
+                      setBillingInfo(originalBillingInfoRef.current);
+                      setSelectedPo(originalPoRef.current);
+                      setPonumbers(originalPonumbersRef.current);
+                      setInwardOptions(originalInwardOptionsRef.current);
+                      setSelectedInwards([...originalSelectedInwardsRef.current]);
+                      setItems(originalItemsRef.current);
+                      setBrnnos(originalBrnnosRef.current);
+                      return;
+                    }
+
                     setSelectedPo("");
                     setInwardOptions([]);
                     setSelectedInwards([]);
