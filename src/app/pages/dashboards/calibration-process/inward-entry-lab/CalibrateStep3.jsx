@@ -49,7 +49,7 @@ import {
   calculateDGValues, createDGRows, getDGTableConfig, getDGLayout, getDGCalculatedCells,
   getDGFieldType, getDGRowEntries, getDGCalculatedEntries, isDGReadingColumn, validateDGRow,
 } from './Observations/ObservationDG';
-import { calculateRTDWIValues, createRTDWIRows, getRTDWITableConfig } from './Observations/ObservationRTDWI';
+import { calculateRTDWIValues, createRTDWIRows, getRTDWITableConfig, computeRTDWICells, RTDWI_COLS } from './Observations/ObservationRTDWI';
 import {
   RTDWOI_COLS,
   calculateRTDWOIValues,
@@ -5183,27 +5183,12 @@ const CalibrateStep3 = () => {
         if (isSUTMInputColumn(colIndex)) applySUTMCalculations(newValues, rowIndex);
       }
       else if (selectedTableData.id === 'observationrtdwi') {
-        const rowType = rowData[2];
-
-        if (rowType === 'UUC') {
-          newValues[`${rowIndex}-13`] = calculated.average || '';
-
-          const masterAvgC = parseFloat(newValues[`${rowIndex + 1}-13`] ?? tableInputValues[`${rowIndex + 1}-13`]);
-          const uucAvg = parseFloat(calculated.average);
-          if (!isNaN(masterAvgC) && !isNaN(uucAvg)) {
-            newValues[`${rowIndex}-14`] = (uucAvg - masterAvgC).toFixed(3);
-          }
-        } else if (rowType === 'Master') {
-          newValues[`${rowIndex}-10`] = calculated.average || '';
-          newValues[`${rowIndex}-12`] = calculated.correctedAverage || '';
-
-          const masterAvgC = colIndex === 13 ? parseFloat(value) : parseFloat(newValues[`${rowIndex}-13`] ?? tableInputValues[`${rowIndex}-13`]);
-          const uucAvg = parseFloat(newValues[`${rowIndex - 1}-13`] ?? tableInputValues[`${rowIndex - 1}-13`]);
-
-          if (!isNaN(masterAvgC) && !isNaN(uucAvg)) {
-            newValues[`${rowIndex - 1}-14`] = (uucAvg - masterAvgC).toFixed(3);
-          }
-        }
+        // Sensitivity coefficient, averages, Average (°C) and deviation are all calculated (read-only)
+        const staticRowsRtdwi = selectedTableData.staticRows || [];
+        Object.assign(newValues, computeRTDWICells(
+          (r, c) => newValues[`${r}-${c}`] ?? tableInputValues[`${r}-${c}`] ?? staticRowsRtdwi[r]?.[c],
+          staticRowsRtdwi.length
+        ));
       } else if (selectedTableData.id === 'observationdg') {
         Object.assign(newValues, getDGCalculatedCells(rowIndex, calculated, selectedTableData.dgLayout || getDGLayout(false)));
       }
@@ -6566,175 +6551,76 @@ const CalibrateStep3 = () => {
     }
     else if (selectedTableData.id === 'observationrtdwi') {
       const rowType = rowData[2];
-      let type = '';
-      let repeatable = '0';
+      const isUuc = rowType === 'UUC';
+      const isMaster = rowType === 'Master';
 
-      if (rowType === 'UUC') {
-        if (colIndex === 1) {
-          type = 'uuc';
-          repeatable = '0';
-        } else if (colIndex === 3) {
-          type = 'unit';
-          repeatable = '0';
-        } else if (colIndex === 4) {
-          type = 'sensitivitycoefficient';
-          repeatable = '0';
-        } else if (colIndex >= 5 && colIndex <= 9) {
-          type = 'uuc';
-          repeatable = (colIndex - 5).toString();
-        } else if (colIndex === 14) {
-          // Allow saving deviation manually if needed
-          type = 'error';
-          repeatable = '0';
-        } else {
-          return;
+      // Cells the user types into: UUC set point/unit/readings, Master unit/readings/ambient mV
+      const fieldFor = () => {
+        if (isUuc) {
+          if (colIndex === RTDWI_COLS.SET_POINT) return { type: 'uuc', repeatable: '0' };
+          if (colIndex === RTDWI_COLS.UNIT) return { type: 'unit', repeatable: '0' };
+          if (colIndex >= RTDWI_COLS.OBS_START && colIndex <= RTDWI_COLS.OBS_END) return { type: 'uuc', repeatable: String(colIndex - RTDWI_COLS.OBS_START) };
+        } else if (isMaster) {
+          if (colIndex >= RTDWI_COLS.OBS_START && colIndex <= RTDWI_COLS.OBS_END) return { type: 'master', repeatable: String(colIndex - RTDWI_COLS.OBS_START) };
+          if (colIndex === RTDWI_COLS.AMBIENT) return { type: 'ambientmaster', repeatable: '0' };
         }
+        return null;
+      };
 
+      if (isMaster && colIndex === RTDWI_COLS.UNIT) {
+        const selectedUnit = unitsList.find(u => u.label === value);
         payloads.push({
           inwardid: inwardId,
           instid: instId,
           calibrationpoint: calibrationPointId,
-          type: type,
-          repeatable: repeatable,
-          value: value || '0',
+          type: 'masterunit',
+          repeatable: '0',
+          value: selectedUnit?.value?.toString() || '0',
         });
+        return;
+      }
 
-        // When observations change (columns 5-9), calculate and save both average and error
-        if (colIndex >= 5 && colIndex <= 9) {
-          const obs1 = parseFloat(rowData[5]) || 0;
-          const obs2 = parseFloat(rowData[6]) || 0;
-          const obs3 = parseFloat(rowData[7]) || 0;
-          const obs4 = parseFloat(rowData[8]) || 0;
-          const obs5 = parseFloat(rowData[9]) || 0;
+      const field = fieldFor();
+      if (!field) return;
+      const cellValue = value !== undefined && value !== null ? value.toString().trim() : '';
+      payloads.push({
+        inwardid: inwardId,
+        instid: instId,
+        calibrationpoint: calibrationPointId,
+        type: field.type,
+        repeatable: field.repeatable,
+        value: cellValue || '0',
+      });
 
-          const validObservations = [obs1, obs2, obs3, obs4, obs5].filter(val => val !== 0);
-
-          const average = validObservations.length
-            ? (validObservations.reduce((sum, val) => sum + val, 0) / validObservations.length).toFixed(3)
-            : '';
-
-          // Save Average (°C)
-          payloads.push({
-            inwardid: inwardId,
-            instid: instId,
-            calibrationpoint: calibrationPointId,
-            type: 'averageuuc',
-            repeatable: '0',
-            value: average || '0',
-          });
-
-          // Save Deviation (°C) - same as average for UUC
-          payloads.push({
-            inwardid: inwardId,
-            instid: instId,
-            calibrationpoint: calibrationPointId,
-            type: 'error',
-            repeatable: '0',
-            value: average || '0',
-          });
-
-          // Update UI immediately
-          setTableInputValues(prev => ({
-            ...prev,
-            [`${rowIndex}-13`]: average || '',
-            [`${rowIndex}-14`]: average || '',
-          }));
-        }
-      } else if (rowType === 'Master') {
-        // Master logic remains the same as before
-        if (colIndex === 3) {
-          const selectedUnit = unitsList.find(u => u.label === value);
-          type = 'masterunit';
-          repeatable = '0';
-
-          payloads.push({
-            inwardid: inwardId,
-            instid: instId,
-            calibrationpoint: calibrationPointId,
-            type: type,
-            repeatable: repeatable,
-            value: selectedUnit?.value?.toString() || '0',
-          });
-          return;
-        } else if (colIndex >= 5 && colIndex <= 9) {
-          type = 'master';
-          repeatable = (colIndex - 5).toString();
-        } else if (colIndex === 10) {
-          type = 'averagemaster';
-          repeatable = '0';
-        } else if (colIndex === 11) {
-          type = 'ambientmaster';
-          repeatable = '0';
-        } else {
-          return;
-        }
-
+      // Any reading / ambient / set point change can move the shared sensitivity coefficient, so
+      // recalculate the whole grid and save every calculated cell that changed
+      const staticRowsRtdwi = selectedTableData.staticRows || [];
+      const getCellRtdwi = (r, c) => (r === rowIndex && c === colIndex ? cellValue : (tableInputValues[`${r}-${c}`] ?? staticRowsRtdwi[r]?.[c]));
+      const calcCells = computeRTDWICells(getCellRtdwi, staticRowsRtdwi.length);
+      const nextCells = {};
+      Object.entries(calcCells).forEach(([key, val]) => {
+        const [r, c] = key.split('-').map(Number);
+        const rType = staticRowsRtdwi[r]?.[2] === 'Master' ? 'master' : 'uuc';
+        const stored = String(tableInputValues[key] ?? staticRowsRtdwi[r]?.[c] ?? '');
+        if (stored === String(val) && !(r === rowIndex)) return;
+        nextCells[key] = val;
+        const types = rType === 'master'
+          ? { [RTDWI_COLS.SENSITIVITY]: 'sensitivitycoefficient', [RTDWI_COLS.AVERAGE]: 'averagemaster', [RTDWI_COLS.CORRECTED_AVERAGE]: 'saveragemaster', [RTDWI_COLS.CONVERTED_AVERAGE]: 'caveragemaster' }
+          : { [RTDWI_COLS.CONVERTED_AVERAGE]: 'averageuuc', [RTDWI_COLS.DEVIATION]: 'error' };
+        const calcType = types[c];
+        const pointId = hiddenInputs?.calibrationPoints?.[r];
+        if (!calcType || !pointId) return;
         payloads.push({
           inwardid: inwardId,
           instid: instId,
-          calibrationpoint: calibrationPointId,
-          type: type,
-          repeatable: repeatable,
-          value: value || '0',
+          calibrationpoint: pointId,
+          type: calcType,
+          repeatable: '0',
+          value: val === '' ? '0' : val,
         });
-
-        if (colIndex >= 5 && colIndex <= 9 || colIndex === 10 || colIndex === 11) {
-          const obs1 = parseFloat(rowData[5]) || 0;
-          const obs2 = parseFloat(rowData[6]) || 0;
-          const obs3 = parseFloat(rowData[7]) || 0;
-          const obs4 = parseFloat(rowData[8]) || 0;
-          const obs5 = parseFloat(rowData[9]) || 0;
-          const ambient = parseFloat(rowData[11]) || 0;
-
-          const manualAverage = parseFloat(rowData[10]) || 0;
-          const validObservations = [obs1, obs2, obs3, obs4, obs5].filter(val => val !== 0);
-
-          const average = manualAverage > 0
-            ? manualAverage.toFixed(3)
-            : (validObservations.length
-              ? (validObservations.reduce((sum, val) => sum + val, 0) / validObservations.length).toFixed(3)
-              : '');
-
-          const correctedAverage = average && ambient
-            ? (parseFloat(average) + ambient).toFixed(3)
-            : average;
-
-          if (colIndex !== 10) {
-            payloads.push({
-              inwardid: inwardId,
-              instid: instId,
-              calibrationpoint: calibrationPointId,
-              type: 'averagemaster',
-              repeatable: '0',
-              value: average || '0',
-            });
-          }
-
-          payloads.push({
-            inwardid: inwardId,
-            instid: instId,
-            calibrationpoint: calibrationPointId,
-            type: 'saveragemaster',  // This is for column 12
-            repeatable: '0',
-            value: correctedAverage || '0',
-          });
-
-          payloads.push({
-            inwardid: inwardId,
-            instid: instId,
-            calibrationpoint: calibrationPointId,
-            type: 'caveragemaster',
-            repeatable: '0',
-            value: average || '0',
-          });
-
-          setTableInputValues(prev => ({
-            ...prev,
-            [`${rowIndex}-10`]: average || '',
-            [`${rowIndex}-12`]: correctedAverage || '',
-            [`${rowIndex}-13`]: average || '',
-          }));
-        }
+      });
+      if (Object.keys(nextCells).length) {
+        setTableInputValues(prev => ({ ...prev, ...nextCells }));
       }
     } else if (selectedTableData.id === 'observationvht') {
       const obsEnd = VHT_COLUMNS.observationStart + VHT_MAX_REPEATABLE - 1;
@@ -10767,15 +10653,16 @@ const CalibrateStep3 = () => {
             values.push(rowData[colIndex] || '0');
           });
 
+          // Average (°C) and Deviation are calculated cells of the grid (see computeRTDWICells)
           calibrationPoints.push(calibPointId);
           types.push('averageuuc');
           repeatables.push('0');
-          values.push(calculated.average || '0');
+          values.push(rowData[RTDWI_COLS.CONVERTED_AVERAGE] || '0');
 
           calibrationPoints.push(calibPointId);
           types.push('error');
           repeatables.push('0');
-          values.push(calculated.error || '0');
+          values.push(rowData[RTDWI_COLS.DEVIATION] || '0');
         } else if (isMasterRow) {
           calibrationPoints.push(calibPointId);
           types.push('masterunit');
@@ -10790,24 +10677,29 @@ const CalibrateStep3 = () => {
           });
 
           calibrationPoints.push(calibPointId);
+          types.push('sensitivitycoefficient');
+          repeatables.push('0');
+          values.push(rowData[RTDWI_COLS.SENSITIVITY] || '0');
+
+          calibrationPoints.push(calibPointId);
           types.push('averagemaster');
           repeatables.push('0');
-          values.push(rowData[10] || calculated.average || '0');
+          values.push(rowData[RTDWI_COLS.AVERAGE] || '0');
 
           calibrationPoints.push(calibPointId);
           types.push('ambientmaster');
           repeatables.push('0');
-          values.push(rowData[11] || '0');
+          values.push(rowData[RTDWI_COLS.AMBIENT] || '0');
 
           calibrationPoints.push(calibPointId);
           types.push('saveragemaster');
           repeatables.push('0');
-          values.push(calculated.correctedAverage || '0');
+          values.push(rowData[RTDWI_COLS.CORRECTED_AVERAGE] || '0');
 
           calibrationPoints.push(calibPointId);
           types.push('caveragemaster');
           repeatables.push('0');
-          values.push(rowData[10] || calculated.average || '0');
+          values.push(rowData[RTDWI_COLS.CONVERTED_AVERAGE] || '0');
         }
       }
       else if (selectedTableData.id === 'observationth') {
@@ -13057,7 +12949,7 @@ const CalibrateStep3 = () => {
                                       if (rowType === 'Master') {
                                         if ([11].includes(colIndex)) {
                                           isDisabled = false;
-                                        } else if ([0, 1, 4, 12, 13, 14].includes(colIndex)) {
+                                        } else if ([0, 1, 4, 10, 12, 13, 14].includes(colIndex)) {
                                           isDisabled = true;
                                         }
                                       }
