@@ -3625,13 +3625,28 @@ const protectedRoutes = {
                 },
                 {
                   path: "environmental-record",
-                  lazy: async () => ({
-                    Component: (
-                      await import(
-                        "app/pages/dashboards/records/environmental-record"
-                      )
-                    ).default,
-                  }),
+                  children: [
+                    {
+                      path: "",
+                      lazy: async () => ({
+                        Component: (
+                          await import(
+                            "app/pages/dashboards/records/environmental-record"
+                          )
+                        ).default,
+                      }),
+                    },
+                    {
+                      path: ":id",
+                      lazy: async () => ({
+                        Component: (
+                          await import(
+                            "app/pages/dashboards/master-data/ManageLabs/EnvironmentalRecord"
+                          )
+                        ).default,
+                      }),
+                    },
+                  ],
                 },
                 {
                   path: "equipment-list",
