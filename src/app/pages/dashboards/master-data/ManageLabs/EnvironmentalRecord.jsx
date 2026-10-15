@@ -3,6 +3,7 @@ import { Button } from "components/ui";
 import { useNavigate, useParams } from "react-router";
 import axios from "utils/axios";
 import { toast } from "sonner";
+import logo from "assets/krtc.jpg";
 
 export default function ViewEnvironmentalRecord() {
   const navigate = useNavigate();
@@ -127,7 +128,7 @@ export default function ViewEnvironmentalRecord() {
             <Button
               variant="outline"
               className="text-white bg-blue-600 hover:bg-blue-700"
-              onClick={() => navigate("/dashboards/master-data/manage-labs")}
+              onClick={() => navigate(-1)}
             >
               Back to List
             </Button>
@@ -146,7 +147,7 @@ export default function ViewEnvironmentalRecord() {
             <Button
               variant="outline"
               className="text-white bg-blue-600 hover:bg-blue-700"
-              onClick={() => navigate("/dashboards/master-data/manage-labs")}
+              onClick={() => navigate(-1)}
             >
               Back to List
             </Button>
@@ -161,15 +162,23 @@ export default function ViewEnvironmentalRecord() {
       <style>
         {`
           @media print {
-            .no-print { display: none !important; }
-            .printable-area { 
-              padding: 0;
-              background: white;
+            body * { visibility: hidden !important; }
+            .no-print, header, nav, aside, .sidebar, .topbar { display: none !important; }
+            .printable-area, .printable-area * { visibility: visible !important; }
+            .printable-area {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
             }
-            body { 
-              print-color-adjust: exact;
-              -webkit-print-color-adjust: exact;
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
+            @page { size: auto; margin: 15mm; }
           }
         `}
       </style>
@@ -204,7 +213,7 @@ export default function ViewEnvironmentalRecord() {
             <Button
               variant="outline"
               className="text-white bg-blue-600 hover:bg-blue-700"
-              onClick={() => navigate("/dashboards/master-data/manage-labs")}
+              onClick={() => navigate(-1)}
             >
               Back to List
             </Button>
@@ -221,7 +230,7 @@ export default function ViewEnvironmentalRecord() {
                 {/* Logo Section */}
                 <div className="w-1/3 p-4">
                   <img
-                    src="https://kailtech.thehostme.com/2025_05_07/kailtech_new/images/letterhead.jpg"
+                    src={logo}
                     alt="Logo"
                     className="h-10 mb-2 w-auto"
                   />
