@@ -163,18 +163,18 @@ export default function CalibrationUnbilledItems() {
     const tableRows = rows
       .map((row, idx) => {
         const d = row.original;
-        const isPending = !d.invoice || d.invoice === "" || d.invoice === "0" || d.invoice === 0;
+        const isPending = String(d.status || "").toLowerCase() !== "billed";
         return `
           <tr style="background:${idx % 2 === 0 ? '#fff' : '#f9fafb'}">
             <td>${idx + 1}</td>
-            <td><b>${d.bookingrefno || '—'}</b></td>
+            <td><b>${d.brn || '—'}</b></td>
             <td>${d.lrn || '—'}</td>
-            <td>${d.inwardid || '—'}</td>
+            <td>${d.inward_no || '—'}</td>
             <td>${d.name || '—'}</td>
-            <td>${d.idno || '—'}</td>
-            <td>${d.serialno || '—'}</td>
-            <td>${d.calibrationmethod || '—'}</td>
-            <td>${d.customername || '—'}</td>
+            <td>${d.id_no || '—'}</td>
+            <td>${d.serial_no || '—'}</td>
+            <td>${d.calibration_method || '—'}</td>
+            <td>${d.customer || '—'}</td>
             <td>
               <span style="padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;
                 background:${isPending ? '#fee2e2' : '#dcfce7'};
@@ -221,8 +221,8 @@ export default function CalibrationUnbilledItems() {
         </p>
         <div class="pills">
           <span class="pill pill-gray">Total: ${rows.length}</span>
-          <span class="pill pill-red">Pending: ${rows.filter(r => { const v = r.original.invoice; return !v || v === '' || v === '0' || v === 0; }).length}</span>
-          <span class="pill pill-green">Billed: ${rows.filter(r => { const v = r.original.invoice; return v && v !== '' && v !== '0' && v !== 0; }).length}</span>
+          <span class="pill pill-red">Pending: ${rows.filter(r => String(r.original.status || '').toLowerCase() !== 'billed').length}</span>
+          <span class="pill pill-green">Billed: ${rows.filter(r => String(r.original.status || '').toLowerCase() === 'billed').length}</span>
         </div>
         <table>
           <thead>
@@ -315,8 +315,7 @@ export default function CalibrationUnbilledItems() {
 
   // ── Summary counts ────────────────────────────────────────────────────
   const pendingCount = items.filter(
-    (r) =>
-      !r.invoice || r.invoice === "" || r.invoice === "0" || r.invoice === 0,
+    (r) => String(r.status || "").toLowerCase() !== "billed",
   ).length;
   const billedCount = items.length - pendingCount;
 

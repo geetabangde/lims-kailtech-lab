@@ -14,9 +14,9 @@ export const columns = [
     cell: (info) => info.row.index + 1,
   }),
 
-  // BRN — PHP: $rowitem['bookingrefno']
-  columnHelper.accessor("bookingrefno", {
-    id: "bookingrefno",
+  // BRN — API: brn
+  columnHelper.accessor("brn", {
+    id: "brn",
     header: "BRN",
     cell: (info) => (
       <span className="font-mono text-xs font-semibold text-blue-700 dark:text-blue-400">
@@ -25,7 +25,7 @@ export const columns = [
     ),
   }),
 
-  // LRN — PHP: $rowitem['lrn']
+  // LRN — API: lrn
   columnHelper.accessor("lrn", {
     id: "lrn",
     header: "LRN",
@@ -36,9 +36,9 @@ export const columns = [
     ),
   }),
 
-  // Inward No — PHP: $rowitem['inwardid']
-  columnHelper.accessor("inwardid", {
-    id: "inwardid",
+  // Inward No — API: inward_no
+  columnHelper.accessor("inward_no", {
+    id: "inward_no",
     header: "Inward No",
     cell: (info) => (
       <span className="dark:text-dark-300 font-mono text-xs text-gray-600">
@@ -47,30 +47,30 @@ export const columns = [
     ),
   }),
 
-  // Name — PHP: $rowitem['name']
+  // Name — API: name
   columnHelper.accessor("name", {
     id: "name",
     header: "Name",
     cell: (info) => info.getValue() || "—",
   }),
 
-  // Id No — PHP: $rowitem['idno']
-  columnHelper.accessor("idno", {
-    id: "idno",
+  // Id No — API: id_no
+  columnHelper.accessor("id_no", {
+    id: "id_no",
     header: "Id No",
     cell: (info) => info.getValue() || "—",
   }),
 
-  // Serial No — PHP: $rowitem['serialno']
-  columnHelper.accessor("serialno", {
-    id: "serialno",
+  // Serial No — API: serial_no
+  columnHelper.accessor("serial_no", {
+    id: "serial_no",
     header: "Serial No",
     cell: (info) => info.getValue() || "—",
   }),
 
-  // Calibration Method — PHP: selectfield("calibrationmethods","name",'id',$rowitem['sop'])
-  columnHelper.accessor("calibrationmethod", {
-    id: "calibrationmethod",
+  // Calibration Method — API: calibration_method
+  columnHelper.accessor("calibration_method", {
+    id: "calibration_method",
     header: "Calibration Method",
     cell: (info) => (
       <span className="dark:text-dark-200 block max-w-xs text-sm leading-snug text-gray-700">
@@ -79,20 +79,20 @@ export const columns = [
     ),
   }),
 
-  // Customer — PHP: selectfield("customers","name",'id',$row['customerid'])
-  columnHelper.accessor("customername", {
-    id: "customername",
+  // Customer — API: customer
+  columnHelper.accessor("customer", {
+    id: "customer",
     header: "Customer",
     cell: (info) => info.getValue() || "—",
   }),
 
-  // Status — PHP: empty($rowitem['invoice']) → Pending | else Billed
-  columnHelper.accessor("invoice", {
-    id: "invoice",
+  // Status — API: status ("Pending" | "Billed")
+  columnHelper.accessor("status", {
+    id: "status",
     header: "Status",
     cell: (info) => {
       const val = info.getValue();
-      const isPending = !val || val === "" || val === "0" || val === 0;
+      const isPending = String(val || "").toLowerCase() !== "billed";
       return isPending ? (
         <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400">
           Pending
