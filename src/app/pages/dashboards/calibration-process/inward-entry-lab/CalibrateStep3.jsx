@@ -13045,9 +13045,8 @@ const CalibrateStep3 = () => {
                                       isObs45Disabled = !isLastRow && (colIndex === 5 || colIndex === 6);
                                     } else if (selectedTableData.id === 'observationgtm') {
                                       isObs45Disabled = !isLastTwoRows && (colIndex === 9 || colIndex === 10);
-                                    } else if (['observationrtdwi'].includes(selectedTableData.id)) {
-                                      isObs45Disabled = !isLastTwoRows && (colIndex === 8 || colIndex === 9);
                                     }
+                                    // observationrtdwi: Observation 1-5 are editable on every row (core PHP observationrtdwi.php has no restriction)
 
                                     if (selectedTableData.id === 'observationrtdwi') {
                                       const rowType = row[2];
