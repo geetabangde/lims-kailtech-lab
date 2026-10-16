@@ -10,6 +10,7 @@ const CloneCertificateDetails = () => {
 
 
   const fid = searchParams.get('fid');
+  const cid = searchParams.get('cid'); // certificate (validity) being cloned from
   const labId = searchParams.get('labId');
 
 
@@ -140,9 +141,11 @@ const CloneCertificateDetails = () => {
       // Prepare FormData for file upload
       const apiFormData = new FormData();
 
-      // Add master ID if available
+      // `id` = the certificate being cloned (the backend copies its matrix / uncertainty rows
+      // into the new validity); `masterid` = the master. Old code sent the master id as `id`,
+      // so nothing was ever cloned.
       if (fid) {
-        apiFormData.append('id', fid);
+        apiFormData.append('id', cid || fid);
         apiFormData.append('masterid', fid);
       }
 
