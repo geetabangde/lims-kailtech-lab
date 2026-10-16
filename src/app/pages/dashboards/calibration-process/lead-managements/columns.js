@@ -1,5 +1,6 @@
 // Import Dependencies
 import { createColumnHelper } from "@tanstack/react-table";
+import { createElement } from "react";
 
 // Local Imports
 import { RowActions } from "./RowActions";
@@ -32,7 +33,23 @@ export const columns = [
   columnHelper.accessor("refEntryNo", {
     id: "refEntryNo",
     header: "Ref Entry No.",
-    cell: (info) => info.getValue() || "-",
+    cell: (info) => {
+      const value = info.getValue();
+      if (!value) return "-";
+      // Show at most 6 entry numbers per line and wrap the rest onto new lines
+      const nos = String(value).split(",").map((n) => n.trim()).filter(Boolean);
+      const lines = [];
+      for (let i = 0; i < nos.length; i += 6) {
+        lines.push(nos.slice(i, i + 6).join(", "));
+      }
+      return createElement(
+        "div",
+        { className: "min-w-[17rem]" },
+        lines.map((line, idx) =>
+          createElement("div", { key: idx }, idx < lines.length - 1 ? `${line},` : line),
+        ),
+      );
+    },
   }),
 
   // No. of Equipment due
