@@ -715,6 +715,16 @@ const CalibrateStep3 = () => {
       }
     }
 
+    // Parallelism of external & internal jaws is mandatory for Vernier Caliper (0 is a valid value)
+    if (selectedTableData?.id === 'observationvc') {
+      ['parallexternal', 'parallinternal'].forEach((key) => {
+        const v = parallelism[key];
+        if (v === undefined || v === null || String(v).trim() === '') {
+          newErrors[key] = 'This field is required';
+        }
+      });
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -13203,13 +13213,17 @@ const CalibrateStep3 = () => {
                           <input
                             type="text"
                             value={parallelism.parallexternal}
-                            onChange={(e) => setParallelism((prev) => ({ ...prev, parallexternal: e.target.value }))}
+                            onChange={(e) => {
+                              setParallelism((prev) => ({ ...prev, parallexternal: e.target.value }));
+                              if (errors.parallexternal) setErrors((prev) => ({ ...prev, parallexternal: '' }));
+                            }}
                             onBlur={(e) => handleParallelismBlur('parallexternal', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                            className={`w-full px-3 py-2 border ${errors.parallexternal || !String(parallelism.parallexternal ?? '').trim() ? 'border-red-400 bg-red-50/30 dark:bg-red-950/20' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white`}
                             placeholder="Enter parallelism of external jaws"
                           />
                           <span className="text-sm text-gray-600 dark:text-gray-300">µm</span>
                         </div>
+                        {errors.parallexternal && <p className="text-red-500 text-xs mt-1">{errors.parallexternal}</p>}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
@@ -13219,13 +13233,17 @@ const CalibrateStep3 = () => {
                           <input
                             type="text"
                             value={parallelism.parallinternal}
-                            onChange={(e) => setParallelism((prev) => ({ ...prev, parallinternal: e.target.value }))}
+                            onChange={(e) => {
+                              setParallelism((prev) => ({ ...prev, parallinternal: e.target.value }));
+                              if (errors.parallinternal) setErrors((prev) => ({ ...prev, parallinternal: '' }));
+                            }}
                             onBlur={(e) => handleParallelismBlur('parallinternal', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                            className={`w-full px-3 py-2 border ${errors.parallinternal || !String(parallelism.parallinternal ?? '').trim() ? 'border-red-400 bg-red-50/30 dark:bg-red-950/20' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white`}
                             placeholder="Enter parallelism of internal jaws"
                           />
                           <span className="text-sm text-gray-600 dark:text-gray-300">µm</span>
                         </div>
+                        {errors.parallinternal && <p className="text-red-500 text-xs mt-1">{errors.parallinternal}</p>}
                       </div>
                     </div>
                   </div>
