@@ -13,6 +13,8 @@ import { EllipsisHorizontalIcon } from "@heroicons/react/20/solid";
 
 //import { useNavigate } from "react-router";
 
+import { toast } from "sonner";
+import axios from "utils/axios";
 import { Button, Input } from "components/ui";
 import { TableConfig } from "./TableConfig";
 import { useBreakpointsContext } from "app/contexts/breakpoint/context";
@@ -22,6 +24,26 @@ import { useBreakpointsContext } from "app/contexts/breakpoint/context";
 
 export function Toolbar({ table }) {
   const { isXs } = useBreakpointsContext();
+
+  // Export the lead list as an Excel-readable CSV (backend: export-leadManagement)
+  const handleExport = async () => {
+    try {
+      const response = await axios.get("/calibrationprocess/export-leadManagement", {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: "text/csv;charset=utf-8;" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `lead-management-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Lead export failed:", err);
+      toast.error("Export failed. Please try again.");
+    }
+  };
   const isFullScreenEnabled = table.getState().tableSettings.enableFullScreen;
 //  const navigate = useNavigate(); 
 
@@ -44,6 +66,13 @@ export function Toolbar({ table }) {
 
           {/* Button */}
           <div>
+          <Button
+            onClick={handleExport}
+            className="h-9 rounded-md px-4 text-sm font-medium"
+            color="primary"
+          >
+            Export in Excel
+          </Button>
           {/* <Button
               onClick={() => navigate("/dashboards/master-data/modes/create")}
               className="h-9 rounded-md px-4 text-sm font-medium"

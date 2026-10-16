@@ -80,10 +80,15 @@ export default function OrdersDatatableV1() {
           idNo: item.idno,
           dueDate: item.duedate,
           invoice: item.invoice,
+          bdName: item.bd_name,
+          refEntryNo: item.ref_entry_no,
+          equipmentCount: item.equipment_count,
+          invoiceNos: item.invoice_nos,
+          invoiceAmount: item.invoice_amount,
         }));
 
-        // Sort by dueDate descending (latest dates first)
-        mappedData.sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate));
+        // Sort by dueDate ascending (nearest due date first)
+        mappedData.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
         setOrders(mappedData); // ✅ set data directly from API
       } else {

@@ -21,6 +21,39 @@ export const columns = [
     cell: (info) => info.getValue() || "-",
   }),
 
+  // Concern BD (BD person of the customer's due inward entries)
+  columnHelper.accessor("bdName", {
+    id: "bdName",
+    header: "Concern BD",
+    cell: (info) => info.getValue() || "-",
+  }),
+
+  // Ref Entry No. (inward numbers of the due items)
+  columnHelper.accessor("refEntryNo", {
+    id: "refEntryNo",
+    header: "Ref Entry No.",
+    cell: (info) => info.getValue() || "-",
+  }),
+
+  // No. of Equipment due
+  columnHelper.accessor("equipmentCount", {
+    id: "equipmentCount",
+    header: "No. of Equipment",
+    cell: (info) => info.getValue() ?? "-",
+  }),
+
+  // Invoice Amount (distinct invoices of the due items, incl. GST)
+  columnHelper.accessor("invoiceAmount", {
+    id: "invoiceAmount",
+    header: "Invoice Amount",
+    cell: (info) => {
+      const v = Number(info.getValue());
+      return Number.isFinite(v) && v > 0
+        ? v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : "-";
+    },
+  }),
+
   // ✅ Due Date (mapped from API's "duedate")
   columnHelper.accessor("dueDate", {
     id: "dueDate",
