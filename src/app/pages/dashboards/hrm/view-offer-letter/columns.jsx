@@ -26,6 +26,15 @@ const getCandidateName = (row) => {
   return parts.join(" ") || "—";
 };
 
+const getSalary = (row) => row.gross ?? row.stipend ?? row.salary ?? null;
+
+const formatSalary = (value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  const num = Number(value);
+  if (Number.isNaN(num)) return String(value);
+  return `₹${num.toLocaleString("en-IN")}`;
+};
+
 export const columns = [
   // Sr.no
   columnHelper.accessor((_row, index) => index + 1, {
@@ -62,30 +71,37 @@ export const columns = [
     cell: (info) => info.getValue(),
   }),
 
+  // Salary
+  columnHelper.accessor((row) => getSalary(row), {
+    id: "salary",
+    header: "Salary",
+    cell: (info) => formatSalary(info.getValue()),
+  }),
+
   // Status
-  columnHelper.accessor("status", {
+  columnHelper.accessor((row) => row.status_label || row.status, {
     id: "status",
     header: "Status",
     cell: (info) => {
-      const status = String(info.getValue() || "").toLowerCase();
+      const label = String(info.getValue() || "").toLowerCase();
 
-      if (status.includes("accept") || status.includes("active") || status.includes("joined") || status === "1" || status === "approved") {
-        return (
-          <Badge className="rounded-full" color="success" variant="soft">
-            {info.getValue() || "Active"}
-          </Badge>
-        );
-      }
-      if (status.includes("reject") || status.includes("cancel") || status === "-1") {
+      if (label.includes("reject") || label.includes("cancel")) {
         return (
           <Badge className="rounded-full" color="error" variant="soft">
             {info.getValue() || "Rejected"}
           </Badge>
         );
       }
+      if (!label || label === "0" || label === "pending") {
+        return (
+          <Badge className="rounded-full" color="warning" variant="soft">
+            {info.getValue() || "Pending"}
+          </Badge>
+        );
+      }
       return (
-        <Badge className="rounded-full" color="warning" variant="soft">
-          {info.getValue() || "Pending"}
+        <Badge className="rounded-full" color="success" variant="soft">
+          {info.getValue()}
         </Badge>
       );
     },
