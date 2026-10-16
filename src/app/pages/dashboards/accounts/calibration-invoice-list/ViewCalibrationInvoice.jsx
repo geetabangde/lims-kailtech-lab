@@ -28,8 +28,8 @@ function printInvoice(templateProps, withLH, logoSrc, pageTitle) {
   <title>${pageTitle || templateProps.inv?.invoiceno || "Invoice"}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    @page { size: A4; margin: 0; }
-    body  { margin: 10mm; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #111; background: #fff; }
+    @page { size: A4; margin: 10mm; }
+    body  { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #111; background: #fff; }
     @media print { 
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       table { page-break-inside: auto; }
