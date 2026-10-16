@@ -708,6 +708,13 @@ const CalibrateStep3 = () => {
       }
     }
 
+    // Parallelism of Spindle & Anvil is mandatory for External Micrometer (0 is a valid value)
+    if (selectedTableData?.id === 'observationexm') {
+      if (thermalCoeff.parallinternal === undefined || thermalCoeff.parallinternal === null || String(thermalCoeff.parallinternal).trim() === '') {
+        newErrors.parallinternal = 'This field is required';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -9572,13 +9579,15 @@ const CalibrateStep3 = () => {
                     if (e.target.value === '' || /^-?\d*\.?\d*$/.test(e.target.value)) {
                       if (!e.target.value.includes('.') || e.target.value.split('.')[1]?.length <= 10) {
                         setThermalCoeff((prev) => ({ ...prev, parallinternal: e.target.value }));
+                        if (errors.parallinternal) setErrors((prev) => ({ ...prev, parallinternal: '' }));
                       }
                     }
                   }}
                   onBlur={(e) => handleThermalCoeffBlur('parallinternal', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white"
+                  className={`w-full px-3 py-2 border ${errors.parallinternal || !String(thermalCoeff.parallinternal ?? '').trim() ? 'border-red-400 bg-red-50/30 dark:bg-red-950/20' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-white`}
                   placeholder="Enter parallelism value"
                 />
+                {errors.parallinternal && <p className="text-red-500 text-xs mt-1">{errors.parallinternal}</p>}
               </div>
             )}
           </div>
