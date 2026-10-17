@@ -12928,7 +12928,7 @@ const CalibrateStep3 = () => {
                                       return (
                                         <td key={colIndex} className="px-3 py-2 whitespace-nowrap text-sm border-r border-gray-200 dark:border-gray-600 last:border-r-0">
                                           <Select
-                                            options={unitsList}
+                                            options={unitsList.filter(u => [35, 29, 12].includes(Number(u.value)))}
                                             className="w-full text-sm"
                                             classNamePrefix="select"
                                             placeholder="Select unit..."
