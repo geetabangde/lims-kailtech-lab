@@ -55,6 +55,8 @@ const AddNewEquipmentHistory = () => {
     startDate: '',
     endDate: '',
     certificateFile: null,
+    verificationFile: null,
+    recalibrationRequired: 'No',
     idUse: 'idno',
     adjustment: 'No',
     adjustmentRemark: '',
@@ -153,6 +155,23 @@ const AddNewEquipmentHistory = () => {
         toast.error('Please enter Detail of issue');
         return;
       }
+    } else if (formData.typeOfService === 'Repair/Modification') {
+      if (!formData.startDate) {
+        toast.error('Please select Date repair');
+        return;
+      }
+      if (!formData.serviceProvider.trim()) {
+        toast.error('Please enter Service provider');
+        return;
+      }
+      if (!formData.remark || !formData.remark.trim()) {
+        toast.error('Please enter Detail of repair');
+        return;
+      }
+      if (!formData.verificationFile) {
+        toast.error('Please upload Verification details (mandatory)');
+        return;
+      }
     } else {
       if (!formData.serviceProvider.trim()) {
         toast.error('Please enter Service Provider name');
@@ -222,6 +241,37 @@ const AddNewEquipmentHistory = () => {
             apiFormData.append(remarkName, '-');
           }
         }
+      } else if (formData.typeOfService === 'Repair/Modification') {
+        apiFormData.append('typeofservice', 'Repair/Modification');
+        apiFormData.append('startdate', formatDateForAPI(formData.startDate));
+        apiFormData.append('enddate', formatDateForAPI(formData.startDate));
+        apiFormData.append('serviceprovider', formData.serviceProvider.trim());
+        apiFormData.append('remark', formData.remark.trim());
+        apiFormData.append('certificateno', '-');
+        apiFormData.append('iduse', 'idno');
+        apiFormData.append('adjusment', 'No');
+        apiFormData.append('adjustmentremark', '-');
+        apiFormData.append('meetacceptance', 'Yes');
+        apiFormData.append('recalibration_required', formData.recalibrationRequired || 'No');
+
+        // Optional Service Report file
+        if (formData.certificateFile) {
+          apiFormData.append('file', formData.certificateFile);
+        }
+
+        // Mandatory Verification Details file
+        if (formData.verificationFile) {
+          apiFormData.append('verification_file', formData.verificationFile);
+        }
+
+        for (let i = 1; i <= 17; i++) {
+          const checkName = checklistMapping[i];
+          const remarkName = remarkMapping[i];
+          if (checkName && remarkName) {
+            apiFormData.append(checkName, 'Yes');
+            apiFormData.append(remarkName, '-');
+          }
+        }
       } else {
         apiFormData.append('serviceprovider', formData.serviceProvider);
         apiFormData.append('typeofservice', formData.typeOfService);
@@ -250,7 +300,7 @@ const AddNewEquipmentHistory = () => {
             }
           });
         } else {
-          // For non-calibration (Maintenance, Repair/Modification), checklist is not shown on UI.
+          // For non-calibration (Maintenance), checklist is not shown on UI.
           // Send safe standard defaults to satisfy database NOT NULL constraints.
           for (let i = 1; i <= 17; i++) {
             const checkName = checklistMapping[i];
@@ -322,22 +372,7 @@ const AddNewEquipmentHistory = () => {
         </div>
 
         <div className="p-6 border-b">
-          {formData.typeOfService !== 'Out of order' && (
-            <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
-              <label className="text-sm font-medium text-gray-700 flex items-center">
-                Name and Address of Service Provider <span className="text-red-500 ml-1">*</span>
-              </label>
-              <Input
-                type="text"
-                className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={formData.serviceProvider}
-                onChange={(e) => setFormData({ ...formData, serviceProvider: e.target.value })}
-                placeholder="Enter service provider name"
-                disabled={isSubmitting}
-              />
-            </div>
-          )}
-
+          {/* 1. TYPE OF SERVICE — FIRST FIELD FOR ALL */}
           <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
             <label className="text-sm font-medium text-gray-700 flex items-center">
               Type of Service
@@ -363,7 +398,9 @@ const AddNewEquipmentHistory = () => {
             />
           </div>
 
+          {/* 2. FORM FIELDS BASED ON SELECTED SERVICE TYPE */}
           {formData.typeOfService === 'Out of order' ? (
+            /* =================== OUT OF ORDER =================== */
             <>
               <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
                 <label className="text-sm font-medium text-gray-700 flex items-center">
@@ -392,8 +429,147 @@ const AddNewEquipmentHistory = () => {
                 />
               </div>
             </>
-          ) : (
+          ) : formData.typeOfService === 'Repair/Modification' ? (
+            /* =================== REPAIR / MODIFICATION =================== */
             <>
+              {/* Date Repair */}
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Date Repair <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="date"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {/* Service Provider */}
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Service Provider <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="text"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.serviceProvider}
+                  onChange={(e) => setFormData({ ...formData, serviceProvider: e.target.value })}
+                  placeholder="Enter service provider name / address"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {/* Detail of Repair */}
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-start pt-2">
+                  Detail of Repair <span className="text-red-500 ml-1">*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  value={formData.remark}
+                  onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                  placeholder="Enter detailed description of repair / modification carried out..."
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {/* Service Report Upload (Optional: PDF / JPG / PNG) */}
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Service Report Upload <span className="text-gray-400 ml-1 text-xs font-normal">(optional, pdf/jpg)</span>
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="file"
+                    id="serviceReportFile"
+                    className="hidden"
+                    onChange={(e) => setFormData({ ...formData, certificateFile: e.target.files[0] })}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    disabled={isSubmitting}
+                  />
+                  <label
+                    htmlFor="serviceReportFile"
+                    className={`px-3 py-2 border border-gray-300 rounded bg-gray-100 text-sm mr-2 ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-gray-200'}`}
+                  >
+                    Choose File
+                  </label>
+                  <span className="text-sm text-gray-500">
+                    {formData.certificateFile ? formData.certificateFile.name : 'No file chosen'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Upload Verification Details (Mandatory: PDF / JPG / PNG) */}
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Upload Verification Details <span className="text-red-500 ml-1">*</span> <span className="text-gray-400 ml-1 text-xs font-normal">(mandatory, pdf/jpg)</span>
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="file"
+                    id="verificationDetailsFile"
+                    className="hidden"
+                    onChange={(e) => setFormData({ ...formData, verificationFile: e.target.files[0] })}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    disabled={isSubmitting}
+                  />
+                  <label
+                    htmlFor="verificationDetailsFile"
+                    className={`px-3 py-2 border border-emerald-400 rounded bg-emerald-50 text-emerald-800 text-sm mr-2 font-medium ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-emerald-100'}`}
+                  >
+                    Choose Verification File
+                  </label>
+                  <span className="text-sm text-gray-700 font-medium">
+                    {formData.verificationFile ? formData.verificationFile.name : <span className="text-red-500 font-normal">No file chosen (required)</span>}
+                  </span>
+                </div>
+              </div>
+
+              {/* Recalibration Required (Yes / No) */}
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Recalibration Required <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Select
+                  styles={customSelectStyles}
+                  options={[
+                    { value: 'No', label: 'No (Equipment will be immediately available for Testing & Calibration)' },
+                    { value: 'Yes', label: 'Yes (Hidden from Testing & Calibration until Calibration is updated)' },
+                  ]}
+                  value={[
+                    { value: 'No', label: 'No (Equipment will be immediately available for Testing & Calibration)' },
+                    { value: 'Yes', label: 'Yes (Hidden from Testing & Calibration until Calibration is updated)' },
+                  ].find(opt => opt.value === formData.recalibrationRequired) || null}
+                  onChange={(opt) => setFormData({ ...formData, recalibrationRequired: opt ? opt.value : 'No' })}
+                  placeholder="Select Yes or No"
+                  isLoading={isSubmitting}
+                  isDisabled={isSubmitting}
+                  isSearchable={false}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                />
+              </div>
+            </>
+          ) : (
+            /* =================== CALIBRATION / MAINTENANCE =================== */
+            <>
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Name and Address of Service Provider <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="text"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.serviceProvider}
+                  onChange={(e) => setFormData({ ...formData, serviceProvider: e.target.value })}
+                  placeholder="Enter service provider name"
+                  disabled={isSubmitting}
+                />
+              </div>
+
               <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
                 <label className="text-sm font-medium text-gray-700 flex items-center">
                   Certificate No <span className="text-red-500 ml-1">*</span>

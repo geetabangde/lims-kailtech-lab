@@ -332,7 +332,10 @@ function ViewEquipmentHistory() {
                   <tbody>
                     {history && history.length > 0 ? (
                       history.map((record, index) => {
-                        const isOutOfOrder = (record.service_type || '').toLowerCase().trim() === 'out of order';
+                        const serviceTypeLower = (record.service_type || '').toLowerCase().trim();
+                        const isOutOfOrder = serviceTypeLower === 'out of order';
+                        const isRepairMod = serviceTypeLower === 'repair/modification' || serviceTypeLower === 'repair' || serviceTypeLower === 'modification';
+
                         return (
                           <tr key={index}>
                             <td className="border border-gray-300 px-2 py-2 font-medium">
@@ -340,16 +343,16 @@ function ViewEquipmentHistory() {
                             </td>
                             <td className="border border-gray-300 px-2 py-2">{record.start_date || '-'}</td>
                             <td className="border border-gray-300 px-2 py-2">
-                              {isOutOfOrder ? '-' : (record.end_date || '-')}
+                              {isOutOfOrder || (isRepairMod && record.end_date === record.start_date) ? '-' : (record.end_date || '-')}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">
                               {isOutOfOrder ? '-' : (record.service_provider || '-')}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">
-                              {isOutOfOrder ? '-' : (record.certificate_no || '-')}
+                              {isOutOfOrder || isRepairMod ? '-' : (record.certificate_no || '-')}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">
-                              {isOutOfOrder ? '-' : (
+                              {isOutOfOrder || isRepairMod ? '-' : (
                                 <>
                                   {record.adjustment || '-'}
                                   {record.adjustment_remark && record.adjustment_remark !== '-' && (
@@ -375,20 +378,38 @@ function ViewEquipmentHistory() {
                               )}
                               <div className="font-medium">{record.signed_by || 'N/A'}</div>
                             </td>
-                            <td className="border border-gray-300 px-2 py-2 whitespace-pre-wrap">{record.remark || '-'}</td>
-                            <td className="border border-gray-300 px-2 py-2 text-center">
-                              {record.document_url ? (
-                                <a
-                                  href={record.document_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded border border-blue-200"
-                                >
-                                  📄 View Document
-                                </a>
-                              ) : (
-                                '-'
+                            <td className="border border-gray-300 px-2 py-2 whitespace-pre-wrap">
+                              {record.remark || '-'}
+                              {record.recalibration_required === 'Yes' && (
+                                <span className="block mt-1 text-xs text-amber-800 font-medium bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                  ⚠️ Recalibration Required: Yes
+                                </span>
                               )}
+                            </td>
+                            <td className="border border-gray-300 px-2 py-2 text-center">
+                              <div className="flex flex-col gap-1 items-center justify-center">
+                                {record.document_url && (
+                                  <a
+                                    href={record.document_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded border border-blue-200"
+                                  >
+                                    📄 {isRepairMod ? 'Service Report' : 'View Document'}
+                                  </a>
+                                )}
+                                {record.verification_url && (
+                                  <a
+                                    href={record.verification_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-emerald-700 hover:text-emerald-900 underline inline-flex items-center gap-1 font-medium text-xs bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded border border-emerald-200"
+                                  >
+                                    📋 Verification Details
+                                  </a>
+                                )}
+                                {!record.document_url && !record.verification_url && '-'}
+                              </div>
                             </td>
                           </tr>
                         );
