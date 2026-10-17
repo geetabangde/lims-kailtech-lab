@@ -4603,7 +4603,8 @@ const CalibrateStep3 = () => {
     const lcInfo = leastCountData[calibPointId] || leastCountData[String(calibPointId)];
 
     // ✅ CORRECTED: Validate least count (both decimal places AND divisibility)
-    if (value && value !== '.') {
+    // (the rtdwi master unit dropdown stores a unit label, not a reading - nothing to validate)
+    if (value && value !== '.' && !(selectedTableData?.id === 'observationrtdwi' && colIndex === RTDWI_COLS.UNIT)) {
       let leastCount = null;
 
       if (selectedTableData?.id === 'observationwb' || selectedTableData?.id === 'observationwbn') {
@@ -6585,30 +6586,37 @@ const CalibrateStep3 = () => {
         return null;
       };
 
-      if (isMaster && colIndex === RTDWI_COLS.UNIT) {
-        const selectedUnit = unitsList.find(u => u.label === value);
+      // Master unit chosen (Ohm / Millivolt / Degree Centigrade): save it, then fall through so the whole grid
+      // (master Average (degC), UUC Average (degC), Deviation) is recalculated and saved with the new unit
+      const isRtdwiUnitCol = isMaster && colIndex === RTDWI_COLS.UNIT;
+      let rtdwiSelectedUnit = null;
+      if (isRtdwiUnitCol) {
+        rtdwiSelectedUnit = unitsList.find(u => String(u.value) === String(value) || u.label === value);
         payloads.push({
           inwardid: inwardId,
           instid: instId,
           calibrationpoint: calibrationPointId,
           type: 'masterunit',
           repeatable: '0',
-          value: selectedUnit?.value?.toString() || '0',
+          value: rtdwiSelectedUnit?.value?.toString() || '0',
         });
-        return;
       }
 
-      const field = fieldFor();
-      if (!field) return;
-      const cellValue = value !== undefined && value !== null ? value.toString().trim() : '';
-      payloads.push({
-        inwardid: inwardId,
-        instid: instId,
-        calibrationpoint: calibrationPointId,
-        type: field.type,
-        repeatable: field.repeatable,
-        value: cellValue || '0',
-      });
+      const field = isRtdwiUnitCol ? null : fieldFor();
+      if (!field && !isRtdwiUnitCol) return;
+      const cellValue = isRtdwiUnitCol
+        ? (rtdwiSelectedUnit?.label || '')
+        : (value !== undefined && value !== null ? value.toString().trim() : '');
+      if (field) {
+        payloads.push({
+          inwardid: inwardId,
+          instid: instId,
+          calibrationpoint: calibrationPointId,
+          type: field.type,
+          repeatable: field.repeatable,
+          value: cellValue || '0',
+        });
+      }
 
       // Any reading / ambient / set point change can move the shared sensitivity coefficient, so
       // recalculate the whole grid and save every calculated cell that changed
@@ -12933,7 +12941,7 @@ const CalibrateStep3 = () => {
                                               })
                                             }}
                                             onChange={(selected) => {
-                                              handleInputChange(rowIndex, colIndex, selected?.label || '');
+                                              handleInputChange(rowIndex, colIndex, selected?.label || '', 'text');
                                               handleObservationBlur(rowIndex, colIndex, selected?.value?.toString() || '');
                                             }}
                                           />
