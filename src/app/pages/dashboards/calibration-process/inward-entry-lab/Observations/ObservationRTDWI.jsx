@@ -65,57 +65,98 @@ const rtdwiMean = (getCell, row) => {
   return readings.length ? readings.reduce((a, b) => a + b, 0) / readings.length : NaN;
 };
 
+// Unit ids of the units master (units table): 12 degC, 20 Volt, 29 Millivolt, 35 Ohm
+const RTDWI_UNIT_ID_KIND = { 12: 'degc', 29: 'mv', 35: 'ohm' };
+
 /**
- * Sensitivity coefficient (mV per degC) of the master thermocouple, derived from the
- * corrected master averages (mV) of the first two points and their set points (degC).
- * Returns null when it cannot be derived yet.
+ * What the master reading is: 'ohm' (Pt100 / RTD master), 'mv' (thermocouple master) or 'degc' (reads in degC).
+ * Accepts the unit label shown in the dropdown (e.g. "Ohm", "Millivolt", "Degree Centigrade") or the saved unit id.
  */
-export const deriveRTDWISensitivity = (t1, t2, v1, v2) => {
-  const t1n = rtdwiNum(t1);
-  const t2n = rtdwiNum(t2);
-  if (isNaN(t1n) || isNaN(t2n) || !Number.isFinite(v1) || !Number.isFinite(v2)) return null;
-  if (Math.abs(t2n - t1n) < 1) return null;
-  if (Math.abs(v2 - v1) < 1e-9) return null;
-  const s = (v2 - v1) / (t2n - t1n);
-  return Number.isFinite(s) && s > 0 ? rtdwiFmt(Number(s.toFixed(6))) : null;
+export const rtdwiUnitKind = (labelOrId) => {
+  const raw = String(labelOrId ?? '').trim();
+  if (!raw || raw === 'UNIT_SELECT' || raw === '-') return null;
+  if (/^\d+$/.test(raw)) return RTDWI_UNIT_ID_KIND[Number(raw)] || null;
+  const s = raw.toLowerCase();
+  if (s === 'ohm' || s === 'ohms' || raw === 'Ω') return 'ohm';
+  if (s === 'millivolt' || s === 'milli volt' || s === 'mv') return 'mv';
+  if (s.includes('centigrade') || s.includes('celsius') || raw === '˚C' || raw === '°C') return 'degc';
+  return null;
+};
+
+// IEC 60751 Callendar-Van Dusen for Pt100 (R0 = 100 ohm): resistance (ohm) -> degC, Newton iteration
+export const rtdwiPt100OhmToC = (ohm) => {
+  const R0 = 100;
+  const A = 3.9083e-3;
+  const B = -5.775e-7;
+  const C = -4.183e-12;
+  if (!Number.isFinite(ohm) || ohm <= 0) return NaN;
+  const r = (t) => R0 * (1 + A * t + B * t * t + (t < 0 ? C * (t - 100) * t * t * t : 0));
+  let t = (ohm / R0 - 1) / A;
+  for (let i = 0; i < 50; i += 1) {
+    const f = r(t) - ohm;
+    const h = 1e-6;
+    const d = (r(t + h) - r(t - h)) / (2 * h);
+    const step = f / d;
+    t -= step;
+    if (Math.abs(step) < 1e-10) break;
+  }
+  return t;
+};
+
+// NIST ITS-90 / IEC 60584-1 inverse polynomials for an S-type thermocouple: mV (reference junction 0 degC) -> degC
+const S_TYPE_INVERSE = [
+  { max: 1.874, d: [0, 1.84949460e2, -8.00504062e1, 1.02237430e2, -1.52248592e2, 1.88821343e2, -1.59085941e2, 8.23027880e1, -2.34181944e1, 2.79786260e0] },
+  { max: 11.95, d: [1.291507177e1, 1.466298863e2, -1.534713402e1, 3.145945973e0, -4.163257839e-1, 3.187963771e-2, -1.2916375e-3, 2.183475087e-5, -1.447379511e-7, 8.211272125e-9] },
+  { max: 17.536, d: [-8.087801117e1, 1.621573104e2, -8.536869453e0, 4.719686976e-1, -1.441693666e-2, 2.08161889e-4] },
+];
+export const rtdwiSTypeMvToC = (mv) => {
+  if (!Number.isFinite(mv) || mv < -0.235 || mv > 17.536) return NaN;
+  const range = S_TYPE_INVERSE.find((rg) => mv <= rg.max);
+  return range.d.reduce((sum, coef, i) => sum + coef * (mv ** i), 0);
+};
+
+/**
+ * Master reading -> degC according to the master's unit (the unit dropdown of the Master row).
+ * mV readings are corrected with the ambient (reference junction) mV first.
+ */
+export const rtdwiMasterToC = (kind, mean, ambient) => {
+  if (!Number.isFinite(mean)) return NaN;
+  if (kind === 'ohm') return rtdwiPt100OhmToC(mean);
+  if (kind === 'mv') return rtdwiSTypeMvToC(mean + (Number.isFinite(ambient) ? ambient : 0));
+  if (kind === 'degc') return mean;
+  return NaN;
 };
 
 /**
  * Every calculated cell of the grid (UUC row, then Master row per point), keyed "row-col":
- *  Master: Sensitivity Coefficient (same for all points), Average, Average with corrected mV,
- *          Average (degC) = corrected mV / sensitivity coefficient
+ *  Master: Average, Average with corrected mV (mV masters only), Average (degC) = master reading converted to degC
+ *          by its unit (Ohm -> Pt100 IEC 60751, Millivolt -> S-type IEC 60584, degC -> as is)
+ *          Sensitivity Coefficient is fixed at 1 (readings are converted by the standard, kept so the saved
+ *          value the uncertainty step multiplies by stays neutral)
  *  UUC:    Average (degC), Deviation = UUC average - master Average (degC)
- * getCell(row, col) returns the current text of a cell.
+ * getCell(row, col) returns the current text of a cell; getMasterUnitId(row) the saved unit id (optional fallback).
  */
-export const computeRTDWICells = (getCell, rowCount) => {
+export const computeRTDWICells = (getCell, rowCount, getMasterUnitId) => {
   const out = {};
   const points = Math.floor(rowCount / 2);
-  const masterStats = [];
-
-  for (let p = 0; p < points; p += 1) {
-    const m = p * 2 + 1;
-    const mean = rtdwiMean(getCell, m);
-    const ambient = rtdwiNum(getCell(m, RTDWI_COLS.AMBIENT));
-    const corrected = Number.isFinite(mean) ? mean + (isNaN(ambient) ? 0 : ambient) : NaN;
-    masterStats.push({ mean, corrected });
-    out[`${m}-${RTDWI_COLS.AVERAGE}`] = rtdwiFmt(mean);
-    out[`${m}-${RTDWI_COLS.CORRECTED_AVERAGE}`] = rtdwiFmt(corrected);
-  }
-
-  const sensitivity = points >= 2
-    ? deriveRTDWISensitivity(getCell(0, RTDWI_COLS.SET_POINT), getCell(2, RTDWI_COLS.SET_POINT), masterStats[0].corrected, masterStats[1].corrected)
-    : null;
-  const sNum = sensitivity === null ? NaN : Number(sensitivity);
 
   for (let p = 0; p < points; p += 1) {
     const u = p * 2;
     const m = u + 1;
+    const mean = rtdwiMean(getCell, m);
+    const kind = rtdwiUnitKind(getCell(m, RTDWI_COLS.UNIT)) || rtdwiUnitKind(getMasterUnitId ? getMasterUnitId(m) : '');
+    const ambientRaw = rtdwiNum(getCell(m, RTDWI_COLS.AMBIENT));
+    const ambient = kind === 'mv' && !isNaN(ambientRaw) ? ambientRaw : 0;
+    const corrected = Number.isFinite(mean) ? mean + ambient : NaN;
+    const masterC = rtdwiMasterToC(kind, mean, ambient);
     const uucMean = rtdwiMean(getCell, u);
-    const converted = !isNaN(sNum) && Number.isFinite(masterStats[p].corrected) ? masterStats[p].corrected / sNum : NaN;
-    out[`${m}-${RTDWI_COLS.SENSITIVITY}`] = sensitivity ?? '';
-    out[`${m}-${RTDWI_COLS.CONVERTED_AVERAGE}`] = Number.isFinite(converted) ? converted.toFixed(3) : '';
+
+    out[`${m}-${RTDWI_COLS.AVERAGE}`] = rtdwiFmt(mean);
+    out[`${m}-${RTDWI_COLS.CORRECTED_AVERAGE}`] = rtdwiFmt(corrected);
+    out[`${m}-${RTDWI_COLS.SENSITIVITY}`] = '1';
+    out[`${m}-${RTDWI_COLS.CONVERTED_AVERAGE}`] = Number.isFinite(masterC) ? masterC.toFixed(3) : '';
     out[`${u}-${RTDWI_COLS.CONVERTED_AVERAGE}`] = Number.isFinite(uucMean) ? uucMean.toFixed(3) : '';
-    out[`${u}-${RTDWI_COLS.DEVIATION}`] = Number.isFinite(uucMean) && Number.isFinite(converted) ? (uucMean - converted).toFixed(3) : '';
+    out[`${u}-${RTDWI_COLS.DEVIATION}`] = Number.isFinite(uucMean) && Number.isFinite(masterC) ? (uucMean - masterC).toFixed(3) : '';
   }
 
   return out;
@@ -130,6 +171,7 @@ export const createRTDWIRows = (dataArray, observationData) => {
   const types = [];
   const repeatables = [];
   const values = [];
+  const masterUnits = [];
 
   let pointsToProcess = [];
   if (observationData && observationData.calibration_points && Array.isArray(observationData.calibration_points)) {
@@ -164,6 +206,7 @@ export const createRTDWIRows = (dataArray, observationData) => {
     types.push('uuc');
     repeatables.push('1');
     values.push(setPoint || "0");
+    masterUnits.push('');
 
     // Master Row
     const masterReadings = safeGetArray(point.master_values, 5);
@@ -185,16 +228,17 @@ export const createRTDWIRows = (dataArray, observationData) => {
     types.push('master');
     repeatables.push('1');
     values.push(setPoint || "0");
+    masterUnits.push(point.master_unit ? String(point.master_unit) : '');
   });
 
   // Calculated cells are read-only: show them recalculated from the readings
-  const calc = computeRTDWICells((r, c) => rows[r]?.[c], rows.length);
+  const calc = computeRTDWICells((r, c) => rows[r]?.[c], rows.length, (r) => masterUnits[r]);
   Object.entries(calc).forEach(([key, val]) => {
     const [r, c] = key.split('-').map(Number);
     if (rows[r]) rows[r][c] = val;
   });
 
-  return { rows, hiddenInputs: { calibrationPoints, types, repeatables, values } };
+  return { rows, hiddenInputs: { calibrationPoints, types, repeatables, values, masterUnits } };
 };
 
 /**

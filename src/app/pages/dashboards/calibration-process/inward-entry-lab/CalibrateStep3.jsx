@@ -5204,7 +5204,8 @@ const CalibrateStep3 = () => {
         const staticRowsRtdwi = selectedTableData.staticRows || [];
         Object.assign(newValues, computeRTDWICells(
           (r, c) => newValues[`${r}-${c}`] ?? tableInputValues[`${r}-${c}`] ?? staticRowsRtdwi[r]?.[c],
-          staticRowsRtdwi.length
+          staticRowsRtdwi.length,
+          (r) => selectedTableData.hiddenInputs?.masterUnits?.[r]
         ));
       } else if (selectedTableData.id === 'observationdg') {
         Object.assign(newValues, getDGCalculatedCells(rowIndex, calculated, selectedTableData.dgLayout || getDGLayout(false)));
@@ -6613,7 +6614,7 @@ const CalibrateStep3 = () => {
       // recalculate the whole grid and save every calculated cell that changed
       const staticRowsRtdwi = selectedTableData.staticRows || [];
       const getCellRtdwi = (r, c) => (r === rowIndex && c === colIndex ? cellValue : (tableInputValues[`${r}-${c}`] ?? staticRowsRtdwi[r]?.[c]));
-      const calcCells = computeRTDWICells(getCellRtdwi, staticRowsRtdwi.length);
+      const calcCells = computeRTDWICells(getCellRtdwi, staticRowsRtdwi.length, (r) => selectedTableData.hiddenInputs?.masterUnits?.[r]);
       const nextCells = {};
       Object.entries(calcCells).forEach(([key, val]) => {
         const [r, c] = key.split('-').map(Number);
@@ -10686,7 +10687,12 @@ const CalibrateStep3 = () => {
           calibrationPoints.push(calibPointId);
           types.push('masterunit');
           repeatables.push('0');
-          values.push(rowData[3] || '0');
+          {
+            const rtdwiUnitCell = String(rowData[3] ?? '').trim();
+            const rtdwiUnitByLabel = unitsList.find(u => u.label === rtdwiUnitCell);
+            const rtdwiSavedUnit = selectedTableData.hiddenInputs?.masterUnits?.[rowIndex];
+            values.push(rtdwiUnitByLabel ? String(rtdwiUnitByLabel.value) : (rtdwiSavedUnit || (/^\d+$/.test(rtdwiUnitCell) ? rtdwiUnitCell : '0')));
+          }
 
           [5, 6, 7, 8, 9].forEach((colIndex, obsIndex) => {
             calibrationPoints.push(calibPointId);
@@ -12918,7 +12924,7 @@ const CalibrateStep3 = () => {
                                             className="w-full text-sm"
                                             classNamePrefix="select"
                                             placeholder="Select unit..."
-                                            value={unitsList.find(u => u.label === currentValue)}
+                                            value={unitsList.find(u => u.label === currentValue) || (currentValue === 'UNIT_SELECT' ? unitsList.find(u => String(u.value) === String(selectedTableData.hiddenInputs?.masterUnits?.[rowIndex] || '')) : undefined)}
                                             styles={{
                                               control: (base) => ({
                                                 ...base,
