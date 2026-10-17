@@ -335,6 +335,7 @@ function ViewEquipmentHistory() {
                         const serviceTypeLower = (record.service_type || '').toLowerCase().trim();
                         const isOutOfOrder = serviceTypeLower === 'out of order';
                         const isRepairMod = serviceTypeLower === 'repair/modification' || serviceTypeLower === 'repair' || serviceTypeLower === 'modification';
+                        const isMaintenance = serviceTypeLower === 'maintenance';
 
                         return (
                           <tr key={index}>
@@ -349,10 +350,10 @@ function ViewEquipmentHistory() {
                               {isOutOfOrder ? '-' : (record.service_provider || '-')}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">
-                              {isOutOfOrder || isRepairMod ? '-' : (record.certificate_no || '-')}
+                              {isOutOfOrder || isRepairMod || isMaintenance ? '-' : (record.certificate_no || '-')}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">
-                              {isOutOfOrder || isRepairMod ? '-' : (
+                              {isOutOfOrder || isRepairMod || isMaintenance ? '-' : (
                                 <>
                                   {record.adjustment || '-'}
                                   {record.adjustment_remark && record.adjustment_remark !== '-' && (
@@ -365,7 +366,7 @@ function ViewEquipmentHistory() {
                               )}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">
-                              {isOutOfOrder ? '-' : (record.meet_acceptance || '-')}
+                              {isOutOfOrder || isMaintenance ? '-' : (record.meet_acceptance || '-')}
                             </td>
                             <td className="border border-gray-300 px-2 py-2 text-xs">
                               {record.watermark_url && (
@@ -395,7 +396,7 @@ function ViewEquipmentHistory() {
                                     rel="noopener noreferrer"
                                     className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded border border-blue-200"
                                   >
-                                    📄 {isRepairMod ? 'Service Report' : 'View Document'}
+                                    📄 {isMaintenance ? 'Maintenance Record' : (isRepairMod ? 'Service Report' : 'View Document')}
                                   </a>
                                 )}
                                 {record.verification_url && (

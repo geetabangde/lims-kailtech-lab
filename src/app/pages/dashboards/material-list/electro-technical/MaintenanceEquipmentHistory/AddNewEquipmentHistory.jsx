@@ -172,6 +172,23 @@ const AddNewEquipmentHistory = () => {
         toast.error('Please upload Verification details (mandatory)');
         return;
       }
+    } else if (formData.typeOfService === 'Maintenance') {
+      if (!formData.serviceProvider.trim()) {
+        toast.error('Please enter Service Provider');
+        return;
+      }
+      if (!formData.startDate) {
+        toast.error('Please select Maintenance Date (Implement Date)');
+        return;
+      }
+      if (!formData.endDate) {
+        toast.error('Please select Next Maintenance Due Date');
+        return;
+      }
+      if (!formData.certificateFile) {
+        toast.error('Please upload Maintenance record (mandatory)');
+        return;
+      }
     } else {
       if (!formData.serviceProvider.trim()) {
         toast.error('Please enter Service Provider name');
@@ -272,9 +289,35 @@ const AddNewEquipmentHistory = () => {
             apiFormData.append(remarkName, '-');
           }
         }
+      } else if (formData.typeOfService === 'Maintenance') {
+        apiFormData.append('typeofservice', 'Maintenance');
+        apiFormData.append('serviceprovider', formData.serviceProvider.trim());
+        apiFormData.append('certificateno', '-');
+        apiFormData.append('startdate', formatDateForAPI(formData.startDate));
+        apiFormData.append('enddate', formatDateForAPI(formData.endDate));
+        apiFormData.append('iduse', 'idno');
+        apiFormData.append('adjusment', '-');
+        apiFormData.append('adjustmentremark', '-');
+        apiFormData.append('meetacceptance', '-');
+        apiFormData.append('recalibration_required', 'No');
+        apiFormData.append('remark', formData.remark ? formData.remark.trim() : '-');
+
+        if (formData.certificateFile) {
+          apiFormData.append('file', formData.certificateFile);
+        }
+
+        for (let i = 1; i <= 17; i++) {
+          const checkName = checklistMapping[i];
+          const remarkName = remarkMapping[i];
+          if (checkName && remarkName) {
+            apiFormData.append(checkName, 'Yes');
+            apiFormData.append(remarkName, '-');
+          }
+        }
       } else {
+        // Calibration
         apiFormData.append('serviceprovider', formData.serviceProvider);
-        apiFormData.append('typeofservice', formData.typeOfService);
+        apiFormData.append('typeofservice', 'Calibration');
         apiFormData.append('certificateno', formData.certificateNo);
         apiFormData.append('startdate', formatDateForAPI(formData.startDate));
         apiFormData.append('enddate', formatDateForAPI(formData.endDate));
@@ -288,29 +331,16 @@ const AddNewEquipmentHistory = () => {
           apiFormData.append('file', formData.certificateFile);
         }
 
-        if (formData.typeOfService === 'Calibration') {
-          Object.keys(formData.checklist).forEach(key => {
-            const item = formData.checklist[key];
-            const checkName = checklistMapping[parseInt(key)];
-            const remarkName = remarkMapping[parseInt(key)];
+        Object.keys(formData.checklist).forEach(key => {
+          const item = formData.checklist[key];
+          const checkName = checklistMapping[parseInt(key)];
+          const remarkName = remarkMapping[parseInt(key)];
 
-            if (checkName && remarkName) {
-              apiFormData.append(checkName, item.yes ? 'Yes' : 'No');
-              apiFormData.append(remarkName, item.remark || '-');
-            }
-          });
-        } else {
-          // For non-calibration (Maintenance), checklist is not shown on UI.
-          // Send safe standard defaults to satisfy database NOT NULL constraints.
-          for (let i = 1; i <= 17; i++) {
-            const checkName = checklistMapping[i];
-            const remarkName = remarkMapping[i];
-            if (checkName && remarkName) {
-              apiFormData.append(checkName, 'Yes');
-              apiFormData.append(remarkName, '-');
-            }
+          if (checkName && remarkName) {
+            apiFormData.append(checkName, item.yes ? 'Yes' : 'No');
+            apiFormData.append(remarkName, item.remark || '-');
           }
-        }
+        });
       }
 
       const response = await axios.post('/material/add-master-validity', apiFormData);
@@ -553,8 +583,95 @@ const AddNewEquipmentHistory = () => {
                 />
               </div>
             </>
+          ) : formData.typeOfService === 'Maintenance' ? (
+            /* =================== MAINTENANCE =================== */
+            <>
+              {/* Service Provider */}
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Service Provider <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="text"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.serviceProvider}
+                  onChange={(e) => setFormData({ ...formData, serviceProvider: e.target.value })}
+                  placeholder="Enter service provider name / address"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {/* Maintenance Date (Implement Date) */}
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Maintenance Date (Implement Date) <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="date"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {/* Next Maintenance Due Date (Next Due Date) */}
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Next Maintenance Due Date (Next Due Date) <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="date"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              {/* Upload Maintenance Record (Mandatory: PDF / JPG / PNG) */}
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Upload Maintenance Record <span className="text-red-500 ml-1">*</span> <span className="text-gray-400 ml-1 text-xs font-normal">(mandatory, pdf/jpg)</span>
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="file"
+                    id="maintenanceRecordFile"
+                    className="hidden"
+                    onChange={(e) => setFormData({ ...formData, certificateFile: e.target.files[0] })}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    disabled={isSubmitting}
+                  />
+                  <label
+                    htmlFor="maintenanceRecordFile"
+                    className={`px-3 py-2 border border-blue-400 rounded bg-blue-50 text-blue-800 text-sm mr-2 font-medium ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-blue-100'}`}
+                  >
+                    Choose Maintenance File
+                  </label>
+                  <span className="text-sm text-gray-700 font-medium">
+                    {formData.certificateFile ? formData.certificateFile.name : <span className="text-red-500 font-normal">No file chosen (required)</span>}
+                  </span>
+                </div>
+              </div>
+
+              {/* Remark */}
+              <div className="grid grid-cols-[200px_1fr] gap-4">
+                <label className="text-sm font-medium text-gray-700 flex items-start pt-2">
+                  Remark
+                </label>
+                <textarea
+                  rows={4}
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  value={formData.remark}
+                  onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                  placeholder="Enter remark..."
+                  disabled={isSubmitting}
+                />
+              </div>
+            </>
           ) : (
-            /* =================== CALIBRATION / MAINTENANCE =================== */
+            /* =================== CALIBRATION =================== */
             <>
               <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
                 <label className="text-sm font-medium text-gray-700 flex items-center">
