@@ -44,15 +44,6 @@ function ViewEquipmentHistory() {
     navigate(-1);
   };
 
-  const getServiceCode = (serviceType) => {
-    const codes = {
-      'Maintenance': '1',
-      'Calibration': '2',
-      'Repair/Modification': '3',
-      'Out of order': '4'
-    };
-    return codes[serviceType] || 'NA';
-  };
 
   if (loading) {
     return (
