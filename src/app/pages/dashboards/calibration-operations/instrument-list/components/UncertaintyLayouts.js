@@ -79,6 +79,7 @@ export const UNCERTAINTY_LAYOUTS = {
     { key: "degree_of_freedom", group: "Uncertainty Measurement", header: "Degree of Freedom", value: (row) => row.dof === '-' ? '-' : (typeof row.dof === 'number' ? row.dof.toFixed(2) : row.dof) },
     { key: "coverage_factor_k", group: "Uncertainty Measurement", header: "Coverage Factor (k)", value: (row) => typeof row.coverageFactor === 'number' ? row.coverageFactor.toFixed(2) : row.coverageFactor },
     { key: "expanded_uncertainty_in_value", group: "Uncertainty Measurement", header: "Expanded Uncertainty in Value", value: (row) => typeof row.expandedUnc === 'number' ? row.expandedUnc.toFixed(6) : row.expandedUnc },
+    { key: "cmc_scope", group: "Uncertainty Measurement", header: "CMC Scope", value: (row) => typeof row.cmcScope === 'number' ? row.cmcScope.toFixed(6) : (row.cmcScope ?? '-') },
     { key: "cmc_taken", group: "Uncertainty Measurement", header: "CMC taken", value: (row) => typeof row.cmc === 'number' ? row.cmc.toFixed(6) : row.cmc },
   ],
   dg: [
