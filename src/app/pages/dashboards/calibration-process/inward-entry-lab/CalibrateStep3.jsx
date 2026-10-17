@@ -12926,7 +12926,7 @@ const CalibrateStep3 = () => {
                                     // Special handling for UNIT_SELECT in observationrtdwi Master row
                                     if (selectedTableData.id === 'observationrtdwi' && cell === 'UNIT_SELECT') {
                                       return (
-                                        <td key={colIndex} className="px-3 py-2 whitespace-nowrap text-sm border-r border-gray-200 dark:border-gray-600 last:border-r-0">
+                                        <td key={colIndex} style={{ minWidth: 210 }} className="px-3 py-2 whitespace-nowrap text-sm border-r border-gray-200 dark:border-gray-600 last:border-r-0">
                                           <Select
                                             options={unitsList.filter(u => [35, 29, 12].includes(Number(u.value)))}
                                             className="w-full text-sm"
@@ -13077,6 +13077,7 @@ const CalibrateStep3 = () => {
                                       <td
                                         key={colIndex}
                                         rowSpan={rowSpanVal}
+                                        style={selectedTableData.id === 'observationrtdwi' ? { minWidth: 120 } : undefined}
                                         className="px-3 py-2 whitespace-nowrap text-sm border-r border-b border-gray-200 dark:border-gray-600 last:border-r-0 align-middle"
                                       >
                                         <input
