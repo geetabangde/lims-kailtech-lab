@@ -89,7 +89,8 @@ export const rtdwiPt100OhmToC = (ohm) => {
   const A = 3.9083e-3;
   const B = -5.775e-7;
   const C = -4.183e-12;
-  if (!Number.isFinite(ohm) || ohm <= 0) return NaN;
+  // Outside the Pt100 range (-200..850 degC = 18.52..390.48 ohm) the reading is not a Pt100 value (wrong unit chosen): leave blank
+  if (!Number.isFinite(ohm) || ohm < 18.52 || ohm > 390.48) return NaN;
   const r = (t) => R0 * (1 + A * t + B * t * t + (t < 0 ? C * (t - 100) * t * t * t : 0));
   let t = (ohm / R0 - 1) / A;
   for (let i = 0; i < 50; i += 1) {
