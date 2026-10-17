@@ -144,24 +144,35 @@ const AddNewEquipmentHistory = () => {
 
   const handleSave = async () => {
     // Validation
-    if (!formData.serviceProvider.trim()) {
-      toast.error('Please enter Service Provider name');
-      return;
-    }
+    if (formData.typeOfService === 'Out of order') {
+      if (!formData.startDate) {
+        toast.error('Please select Date');
+        return;
+      }
+      if (!formData.remark || !formData.remark.trim()) {
+        toast.error('Please enter Detail of issue');
+        return;
+      }
+    } else {
+      if (!formData.serviceProvider.trim()) {
+        toast.error('Please enter Service Provider name');
+        return;
+      }
 
-    if (!formData.certificateNo.trim()) {
-      toast.error('Please enter Certificate No');
-      return;
-    }
+      if (!formData.certificateNo.trim()) {
+        toast.error('Please enter Certificate No');
+        return;
+      }
 
-    if (!formData.startDate) {
-      toast.error('Please select Start Date');
-      return;
-    }
+      if (!formData.startDate) {
+        toast.error('Please select Start Date');
+        return;
+      }
 
-    if (!formData.endDate) {
-      toast.error('Please select End Date');
-      return;
+      if (!formData.endDate) {
+        toast.error('Please select End Date');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -172,21 +183,6 @@ const AddNewEquipmentHistory = () => {
       if (fid) {
         apiFormData.append('id', fid);
         apiFormData.append('masterid', fid);
-      }
-
-      apiFormData.append('serviceprovider', formData.serviceProvider);
-      apiFormData.append('typeofservice', formData.typeOfService);
-      apiFormData.append('certificateno', formData.certificateNo);
-      apiFormData.append('startdate', formatDateForAPI(formData.startDate));
-      apiFormData.append('enddate', formatDateForAPI(formData.endDate));
-      apiFormData.append('iduse', formData.idUse || 'idno');
-      apiFormData.append('adjusment', formData.adjustment || 'No');
-      apiFormData.append('adjustmentremark', formData.adjustmentRemark || '-');
-      apiFormData.append('meetacceptance', formData.meetsAcceptance || 'Yes');
-      apiFormData.append('remark', formData.remark || '-');
-
-      if (formData.certificateFile) {
-        apiFormData.append('file', formData.certificateFile);
       }
 
       const checklistMapping = {
@@ -205,19 +201,18 @@ const AddNewEquipmentHistory = () => {
         16: 'kcheckremark', 17: 'acceptablecheckremark'
       };
 
-      if (formData.typeOfService === 'Calibration') {
-        Object.keys(formData.checklist).forEach(key => {
-          const item = formData.checklist[key];
-          const checkName = checklistMapping[parseInt(key)];
-          const remarkName = remarkMapping[parseInt(key)];
+      if (formData.typeOfService === 'Out of order') {
+        apiFormData.append('typeofservice', 'Out of order');
+        apiFormData.append('serviceprovider', '-');
+        apiFormData.append('certificateno', '-');
+        apiFormData.append('startdate', formatDateForAPI(formData.startDate));
+        apiFormData.append('enddate', formatDateForAPI(formData.startDate));
+        apiFormData.append('iduse', 'idno');
+        apiFormData.append('adjusment', 'No');
+        apiFormData.append('adjustmentremark', '-');
+        apiFormData.append('meetacceptance', 'No');
+        apiFormData.append('remark', formData.remark.trim());
 
-          if (checkName && remarkName) {
-            apiFormData.append(checkName, item.yes ? 'Yes' : 'No');
-            apiFormData.append(remarkName, item.remark || '-');
-          }
-        });
-      } else {
-        // For non-calibration (Maintenance, Repair/Modification), checklist is not shown on UI.
         // Send safe standard defaults to satisfy database NOT NULL constraints.
         for (let i = 1; i <= 17; i++) {
           const checkName = checklistMapping[i];
@@ -225,6 +220,45 @@ const AddNewEquipmentHistory = () => {
           if (checkName && remarkName) {
             apiFormData.append(checkName, 'Yes');
             apiFormData.append(remarkName, '-');
+          }
+        }
+      } else {
+        apiFormData.append('serviceprovider', formData.serviceProvider);
+        apiFormData.append('typeofservice', formData.typeOfService);
+        apiFormData.append('certificateno', formData.certificateNo);
+        apiFormData.append('startdate', formatDateForAPI(formData.startDate));
+        apiFormData.append('enddate', formatDateForAPI(formData.endDate));
+        apiFormData.append('iduse', formData.idUse || 'idno');
+        apiFormData.append('adjusment', formData.adjustment || 'No');
+        apiFormData.append('adjustmentremark', formData.adjustmentRemark || '-');
+        apiFormData.append('meetacceptance', formData.meetsAcceptance || 'Yes');
+        apiFormData.append('remark', formData.remark || '-');
+
+        if (formData.certificateFile) {
+          apiFormData.append('file', formData.certificateFile);
+        }
+
+        if (formData.typeOfService === 'Calibration') {
+          Object.keys(formData.checklist).forEach(key => {
+            const item = formData.checklist[key];
+            const checkName = checklistMapping[parseInt(key)];
+            const remarkName = remarkMapping[parseInt(key)];
+
+            if (checkName && remarkName) {
+              apiFormData.append(checkName, item.yes ? 'Yes' : 'No');
+              apiFormData.append(remarkName, item.remark || '-');
+            }
+          });
+        } else {
+          // For non-calibration (Maintenance, Repair/Modification), checklist is not shown on UI.
+          // Send safe standard defaults to satisfy database NOT NULL constraints.
+          for (let i = 1; i <= 17; i++) {
+            const checkName = checklistMapping[i];
+            const remarkName = remarkMapping[i];
+            if (checkName && remarkName) {
+              apiFormData.append(checkName, 'Yes');
+              apiFormData.append(remarkName, '-');
+            }
           }
         }
       }
@@ -288,19 +322,21 @@ const AddNewEquipmentHistory = () => {
         </div>
 
         <div className="p-6 border-b">
-          <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700 flex items-center">
-              Name and Address of Service Provider <span className="text-red-500 ml-1">*</span>
-            </label>
-            <Input
-              type="text"
-              className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.serviceProvider}
-              onChange={(e) => setFormData({ ...formData, serviceProvider: e.target.value })}
-              placeholder="Enter service provider name"
-              disabled={isSubmitting}
-            />
-          </div>
+          {formData.typeOfService !== 'Out of order' && (
+            <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+              <label className="text-sm font-medium text-gray-700 flex items-center">
+                Name and Address of Service Provider <span className="text-red-500 ml-1">*</span>
+              </label>
+              <Input
+                type="text"
+                className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.serviceProvider}
+                onChange={(e) => setFormData({ ...formData, serviceProvider: e.target.value })}
+                placeholder="Enter service provider name"
+                disabled={isSubmitting}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
             <label className="text-sm font-medium text-gray-700 flex items-center">
@@ -312,8 +348,12 @@ const AddNewEquipmentHistory = () => {
                 { value: 'Calibration', label: 'Calibration' },
                 { value: 'Maintenance', label: 'Maintenance' },
                 { value: 'Repair/Modification', label: 'Repair/Modification' },
+                { value: 'Out of order', label: 'Out of Order' },
               ]}
-              value={{ value: formData.typeOfService, label: formData.typeOfService }}
+              value={{
+                value: formData.typeOfService,
+                label: formData.typeOfService === 'Out of order' ? 'Out of Order' : formData.typeOfService
+              }}
               onChange={(opt) => setFormData({ ...formData, typeOfService: opt.value })}
               isLoading={isSubmitting}
               isDisabled={isSubmitting}
@@ -323,170 +363,203 @@ const AddNewEquipmentHistory = () => {
             />
           </div>
 
-          <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700 flex items-center">
-              Certificate No <span className="text-red-500 ml-1">*</span>
-            </label>
-            <Input
-              type="text"
-              placeholder="Enter certificate number"
-              className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.certificateNo}
-              onChange={(e) => setFormData({ ...formData, certificateNo: e.target.value })}
-              disabled={isSubmitting}
-            />
-          </div>
+          {formData.typeOfService === 'Out of order' ? (
+            <>
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Date <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="date"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  disabled={isSubmitting}
+                />
+              </div>
 
-          <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700 flex items-center">
-              Start Date <span className="text-red-500 ml-1">*</span>
-            </label>
-            <Input
-              type="date"
-              className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.startDate}
-              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              disabled={isSubmitting}
-            />
-          </div>
+              <div className="grid grid-cols-[200px_1fr] gap-4">
+                <label className="text-sm font-medium text-gray-700 flex items-start pt-2">
+                  Detail of Issue <span className="text-red-500 ml-1">*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  value={formData.remark}
+                  onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                  placeholder="Enter details of the issue..."
+                  disabled={isSubmitting}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Certificate No <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Enter certificate number"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.certificateNo}
+                  onChange={(e) => setFormData({ ...formData, certificateNo: e.target.value })}
+                  disabled={isSubmitting}
+                />
+              </div>
 
-          <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700 flex items-center">
-              End Date <span className="text-red-500 ml-1">*</span>
-            </label>
-            <Input
-              type="date"
-              className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.endDate}
-              onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-              disabled={isSubmitting}
-            />
-          </div>
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Start Date <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="date"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  disabled={isSubmitting}
+                />
+              </div>
 
-          <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700 flex items-center">
-              Certificate File
-            </label>
-            <div className="flex items-center">
-              <input
-                type="file"
-                id="certificateFile"
-                className="hidden"
-                onChange={(e) => setFormData({ ...formData, certificateFile: e.target.files[0] })}
-                accept=".pdf,.jpg,.jpeg,.png"
-                disabled={isSubmitting}
-              />
-              <label
-                htmlFor="certificateFile"
-                className={`px-3 py-2 border border-gray-300 rounded bg-gray-100 text-sm mr-2 ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-gray-200'}`}
-              >
-                Choose File
-              </label>
-              <span className="text-sm text-gray-500">
-                {formData.certificateFile ? formData.certificateFile.name : 'No file chosen'}
-              </span>
-            </div>
-          </div>
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  End Date <span className="text-red-500 ml-1">*</span>
+                </label>
+                <Input
+                  type="date"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  disabled={isSubmitting}
+                />
+              </div>
 
-          <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700 flex items-center">
-              ID Use
-            </label>
-            <Select
-              styles={customSelectStyles}
-              options={[
-                { value: 'newidno', label: 'New Id No' },
-                { value: 'idno', label: 'Old Id No' },
-              ]}
-              value={[
-                { value: 'newidno', label: 'New Id No' },
-                { value: 'idno', label: 'Old Id No' },
-              ].find(opt => opt.value === formData.idUse) || null}
-              onChange={(opt) => setFormData({ ...formData, idUse: opt ? opt.value : 'idno' })}
-              placeholder="Select"
-              isLoading={isSubmitting}
-              isDisabled={isSubmitting}
-              isSearchable={false}
-              menuPortalTarget={document.body}
-              menuPosition="fixed"
-            />
-          </div>
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Certificate File
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="file"
+                    id="certificateFile"
+                    className="hidden"
+                    onChange={(e) => setFormData({ ...formData, certificateFile: e.target.files[0] })}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    disabled={isSubmitting}
+                  />
+                  <label
+                    htmlFor="certificateFile"
+                    className={`px-3 py-2 border border-gray-300 rounded bg-gray-100 text-sm mr-2 ${isSubmitting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-gray-200'}`}
+                  >
+                    Choose File
+                  </label>
+                  <span className="text-sm text-gray-500">
+                    {formData.certificateFile ? formData.certificateFile.name : 'No file chosen'}
+                  </span>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700 flex items-center">
-              Adjustment If Any
-            </label>
-            <Select
-              styles={customSelectStyles}
-              options={[
-                { value: 'Yes', label: 'Yes' },
-                { value: 'No', label: 'No' },
-              ]}
-              value={[
-                { value: 'Yes', label: 'Yes' },
-                { value: 'No', label: 'No' },
-              ].find(opt => opt.value === formData.adjustment) || null}
-              onChange={(opt) => setFormData({ ...formData, adjustment: opt ? opt.value : 'No' })}
-              placeholder="Select"
-              isLoading={isSubmitting}
-              isDisabled={isSubmitting}
-              isSearchable={false}
-              menuPortalTarget={document.body}
-              menuPosition="fixed"
-            />
-          </div>
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  ID Use
+                </label>
+                <Select
+                  styles={customSelectStyles}
+                  options={[
+                    { value: 'newidno', label: 'New Id No' },
+                    { value: 'idno', label: 'Old Id No' },
+                  ]}
+                  value={[
+                    { value: 'newidno', label: 'New Id No' },
+                    { value: 'idno', label: 'Old Id No' },
+                  ].find(opt => opt.value === formData.idUse) || null}
+                  onChange={(opt) => setFormData({ ...formData, idUse: opt ? opt.value : 'idno' })}
+                  placeholder="Select"
+                  isLoading={isSubmitting}
+                  isDisabled={isSubmitting}
+                  isSearchable={false}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                />
+              </div>
 
-          <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700 flex items-center">
-              Adjustment Details
-            </label>
-            <Input
-              type="text"
-              className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.adjustmentRemark}
-              onChange={(e) => setFormData({ ...formData, adjustmentRemark: e.target.value })}
-              placeholder="Enter adjustment remark"
-              disabled={isSubmitting}
-            />
-          </div>
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Adjustment If Any
+                </label>
+                <Select
+                  styles={customSelectStyles}
+                  options={[
+                    { value: 'Yes', label: 'Yes' },
+                    { value: 'No', label: 'No' },
+                  ]}
+                  value={[
+                    { value: 'Yes', label: 'Yes' },
+                    { value: 'No', label: 'No' },
+                  ].find(opt => opt.value === formData.adjustment) || null}
+                  onChange={(opt) => setFormData({ ...formData, adjustment: opt ? opt.value : 'No' })}
+                  placeholder="Select"
+                  isLoading={isSubmitting}
+                  isDisabled={isSubmitting}
+                  isSearchable={false}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                />
+              </div>
 
-          <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700 flex items-center">
-              MEETS ACCEPTANCE CRITERIA
-            </label>
-            <Select
-              styles={customSelectStyles}
-              options={[
-                { value: 'Yes', label: 'Yes' },
-                { value: 'No', label: 'No' },
-              ]}
-              value={[
-                { value: 'Yes', label: 'Yes' },
-                { value: 'No', label: 'No' },
-              ].find(opt => opt.value === formData.meetsAcceptance) || null}
-              onChange={(opt) => setFormData({ ...formData, meetsAcceptance: opt ? opt.value : 'Yes' })}
-              placeholder="Select"
-              isLoading={isSubmitting}
-              isDisabled={isSubmitting}
-              isSearchable={false}
-              menuPortalTarget={document.body}
-              menuPosition="fixed"
-            />
-          </div>
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Adjustment Details
+                </label>
+                <Input
+                  type="text"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.adjustmentRemark}
+                  onChange={(e) => setFormData({ ...formData, adjustmentRemark: e.target.value })}
+                  placeholder="Enter adjustment remark"
+                  disabled={isSubmitting}
+                />
+              </div>
 
-          <div className="grid grid-cols-[200px_1fr] gap-4">
-            <label className="text-sm font-medium text-gray-700 flex items-center">
-              Remark
-            </label>
-            <Input
-              type="text"
-              className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formData.remark}
-              onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
-              placeholder="Enter remark"
-              disabled={isSubmitting}
-            />
-          </div>
+              <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  MEETS ACCEPTANCE CRITERIA
+                </label>
+                <Select
+                  styles={customSelectStyles}
+                  options={[
+                    { value: 'Yes', label: 'Yes' },
+                    { value: 'No', label: 'No' },
+                  ]}
+                  value={[
+                    { value: 'Yes', label: 'Yes' },
+                    { value: 'No', label: 'No' },
+                  ].find(opt => opt.value === formData.meetsAcceptance) || null}
+                  onChange={(opt) => setFormData({ ...formData, meetsAcceptance: opt ? opt.value : 'Yes' })}
+                  placeholder="Select"
+                  isLoading={isSubmitting}
+                  isDisabled={isSubmitting}
+                  isSearchable={false}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                />
+              </div>
+
+              <div className="grid grid-cols-[200px_1fr] gap-4">
+                <label className="text-sm font-medium text-gray-700 flex items-center">
+                  Remark
+                </label>
+                <Input
+                  type="text"
+                  className="w-full border border-blue-400 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.remark}
+                  onChange={(e) => setFormData({ ...formData, remark: e.target.value })}
+                  placeholder="Enter remark"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         {formData.typeOfService === 'Calibration' ? (

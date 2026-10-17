@@ -326,51 +326,85 @@ function ViewEquipmentHistory() {
                 <table className="w-full border-collapse border border-gray-300 text-sm">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="border border-gray-300 px-2 py-2 text-left font-medium">CODE</th>
+                      <th className="border border-gray-300 px-2 py-2 text-left font-medium">TYPE OF SERVICE</th>
                       <th className="border border-gray-300 px-2 py-2 text-left font-medium">IMPLEMENT DATE</th>
                       <th className="border border-gray-300 px-2 py-2 text-left font-medium">NEXT DUE DATE</th>
+                      <th className="border border-gray-300 px-2 py-2 text-left font-medium">SERVICE PROVIDER</th>
                       <th className="border border-gray-300 px-2 py-2 text-left font-medium">RESULT OF CALIBRATION (Certificate No.)</th>
                       <th className="border border-gray-300 px-2 py-2 text-left font-medium">ADJUSTMENTS, IF ANY (YES/NO)</th>
                       <th className="border border-gray-300 px-2 py-2 text-left font-medium">MEETS ACCEPTANCE CRITERIA (YES/NO)</th>
                       <th className="border border-gray-300 px-2 py-2 text-left font-medium">SIGNED BY</th>
                       <th className="border border-gray-300 px-2 py-2 text-left font-medium">REMARKS</th>
+                      <th className="border border-gray-300 px-2 py-2 text-left font-medium">DETAIL OF RECORD</th>
                     </tr>
                   </thead>
                   <tbody>
                     {history && history.length > 0 ? (
-                      history.map((record, index) => (
-                        <tr key={index}>
-                          <td className="border border-gray-300 px-2 py-2">{getServiceCode(record.service_type)}</td>
-                          <td className="border border-gray-300 px-2 py-2">{record.start_date || 'N/A'}</td>
-                          <td className="border border-gray-300 px-2 py-2">{record.end_date || 'N/A'}</td>
-                          <td className="border border-gray-300 px-2 py-2">{record.certificate_no || 'N/A'}</td>
-                          <td className="border border-gray-300 px-2 py-2">
-                            {record.adjustment || ''}
-                            {record.adjustment_remark && (
-                              <>
-                                <br />
-                                {record.adjustment_remark}
-                              </>
-                            )}
-                          </td>
-                          <td className="border border-gray-300 px-2 py-2">{record.meet_acceptance || ''}</td>
-                          <td className="border border-gray-300 px-2 py-2 text-xs">
-                            {record.watermark_url && (
-                              <img
-                                src={record.watermark_url}
-                                alt="Signature"
-                                className="max-w-32 mb-2"
-                                onError={(e) => { e.target.style.display = 'none'; }}
-                              />
-                            )}
-                            <div className="font-medium">{record.signed_by || 'N/A'}</div>
-                          </td>
-                          <td className="border border-gray-300 px-2 py-2">{record.remark || ''}</td>
-                        </tr>
-                      ))
+                      history.map((record, index) => {
+                        const isOutOfOrder = (record.service_type || '').toLowerCase().trim() === 'out of order';
+                        return (
+                          <tr key={index}>
+                            <td className="border border-gray-300 px-2 py-2 font-medium">
+                              {isOutOfOrder ? 'Out of Order' : (record.service_type || '-')}
+                            </td>
+                            <td className="border border-gray-300 px-2 py-2">{record.start_date || '-'}</td>
+                            <td className="border border-gray-300 px-2 py-2">
+                              {isOutOfOrder ? '-' : (record.end_date || '-')}
+                            </td>
+                            <td className="border border-gray-300 px-2 py-2">
+                              {isOutOfOrder ? '-' : (record.service_provider || '-')}
+                            </td>
+                            <td className="border border-gray-300 px-2 py-2">
+                              {isOutOfOrder ? '-' : (record.certificate_no || '-')}
+                            </td>
+                            <td className="border border-gray-300 px-2 py-2">
+                              {isOutOfOrder ? '-' : (
+                                <>
+                                  {record.adjustment || '-'}
+                                  {record.adjustment_remark && record.adjustment_remark !== '-' && (
+                                    <>
+                                      <br />
+                                      <span className="text-gray-500 text-xs">{record.adjustment_remark}</span>
+                                    </>
+                                  )}
+                                </>
+                              )}
+                            </td>
+                            <td className="border border-gray-300 px-2 py-2">
+                              {isOutOfOrder ? '-' : (record.meet_acceptance || '-')}
+                            </td>
+                            <td className="border border-gray-300 px-2 py-2 text-xs">
+                              {record.watermark_url && (
+                                <img
+                                  src={record.watermark_url}
+                                  alt="Signature"
+                                  className="max-w-32 mb-2"
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              )}
+                              <div className="font-medium">{record.signed_by || 'N/A'}</div>
+                            </td>
+                            <td className="border border-gray-300 px-2 py-2 whitespace-pre-wrap">{record.remark || '-'}</td>
+                            <td className="border border-gray-300 px-2 py-2 text-center">
+                              {record.document_url ? (
+                                <a
+                                  href={record.document_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded border border-blue-200"
+                                >
+                                  📄 View Document
+                                </a>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     ) : (
                       <tr>
-                        <td colSpan="8" className="border border-gray-300 px-2 py-4 text-center text-gray-500">
+                        <td colSpan="10" className="border border-gray-300 px-2 py-4 text-center text-gray-500">
                           No history records available
                         </td>
                       </tr>
