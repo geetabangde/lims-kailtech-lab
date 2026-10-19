@@ -302,7 +302,7 @@ function ViewEquipmentHistory() {
                     </tr>
                     <tr>
                       <td className="border border-gray-300 px-3 py-2">3</td>
-                      <td className="border border-gray-300 px-3 py-2">Repair / Modification</td>
+                      <td className="border border-gray-300 px-3 py-2">Routine Maintenance</td>
                     </tr>
                     <tr>
                       <td className="border border-gray-300 px-3 py-2">4</td>
@@ -334,26 +334,26 @@ function ViewEquipmentHistory() {
                       history.map((record, index) => {
                         const serviceTypeLower = (record.service_type || '').toLowerCase().trim();
                         const isOutOfOrder = serviceTypeLower === 'out of order';
-                        const isRepairMod = serviceTypeLower === 'repair/modification' || serviceTypeLower === 'repair' || serviceTypeLower === 'modification';
+                        const isRoutineMaint = serviceTypeLower === 'routine maintenance' || serviceTypeLower === 'repair/modification' || serviceTypeLower === 'repair' || serviceTypeLower === 'modification';
                         const isMaintenance = serviceTypeLower === 'maintenance';
 
                         return (
                           <tr key={index}>
                             <td className="border border-gray-300 px-2 py-2 font-medium">
-                              {isOutOfOrder ? 'Out of Order' : (record.service_type || '-')}
+                              {isOutOfOrder ? 'Out of Order' : (isRoutineMaint ? 'Routine Maintenance' : (record.service_type || '-'))}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">{record.start_date || '-'}</td>
                             <td className="border border-gray-300 px-2 py-2">
-                              {isOutOfOrder || (isRepairMod && record.end_date === record.start_date) ? '-' : (record.end_date || '-')}
+                              {isOutOfOrder || (isRoutineMaint && record.end_date === record.start_date) ? '-' : (record.end_date || '-')}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">
                               {isOutOfOrder ? '-' : (record.service_provider || '-')}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">
-                              {isOutOfOrder || isRepairMod || isMaintenance ? '-' : (record.certificate_no || '-')}
+                              {isOutOfOrder || isRoutineMaint || isMaintenance ? '-' : (record.certificate_no || '-')}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">
-                              {isOutOfOrder || isRepairMod || isMaintenance ? '-' : (
+                              {isOutOfOrder || isRoutineMaint || isMaintenance ? '-' : (
                                 <>
                                   {record.adjustment || '-'}
                                   {record.adjustment_remark && record.adjustment_remark !== '-' && (
@@ -396,7 +396,7 @@ function ViewEquipmentHistory() {
                                     rel="noopener noreferrer"
                                     className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded border border-blue-200"
                                   >
-                                    📄 {isMaintenance ? 'Maintenance Record' : (isRepairMod ? 'Service Report' : 'View Document')}
+                                    📄 {isMaintenance ? 'Maintenance Record' : (isRoutineMaint ? 'Service Report' : 'View Document')}
                                   </a>
                                 )}
                                 {record.verification_url && (

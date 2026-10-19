@@ -11,7 +11,7 @@ export const ExmCmcTable = ({ data }) => (
           <th colSpan="9" className="border border-gray-300 px-1 py-2 bg-gray-200 font-semibold text-xs">
             Type B Factor
           </th>
-          <th colSpan="5" className="border border-gray-300 px-1 py-2 bg-gray-200 font-semibold text-xs">
+          <th colSpan="6" className="border border-gray-300 px-1 py-2 bg-gray-200 font-semibold text-xs">
             Uncertainty Measurement
           </th>
         </tr>
@@ -41,6 +41,7 @@ export const ExmCmcTable = ({ data }) => (
           <th className="border border-gray-300 px-1 py-2">Degree of Freedom</th>
           <th className="border border-gray-300 px-1 py-2">Coverage Factor (k)</th>
           <th className="border border-gray-300 px-1 py-2">Expanded Uncertainty in Value</th>
+          <th className="border border-gray-300 px-1 py-2">CMC Scope</th>
           <th className="border border-gray-300 px-1 py-2">CMC taken</th>
         </tr>
       </thead>
@@ -70,6 +71,7 @@ export const ExmCmcTable = ({ data }) => (
             <td className="border border-gray-300 px-1 py-2">{row.dof === '-' ? '-' : (typeof row.dof === 'number' ? formatUncertaintyValue(row.dof, 2) : row.dof)}</td>
             <td className="border border-gray-300 px-1 py-2">{typeof row.coverageFactor === 'number' ? formatUncertaintyValue(row.coverageFactor, 2) : row.coverageFactor}</td>
             <td className="border border-gray-300 px-1 py-2">{typeof row.expandedUnc === 'number' ? formatUncertaintyValue(row.expandedUnc, 6) : row.expandedUnc}</td>
+            <td className="border border-gray-300 px-1 py-2">{typeof row.cmcScope === 'number' ? formatUncertaintyValue(row.cmcScope, 2) : (row.cmcScope || '-')}</td>
             <td className="border border-gray-300 px-1 py-2">{typeof row.cmc === 'number' ? formatUncertaintyValue(row.cmc, 6) : row.cmc}</td>
           </tr>
         ))}

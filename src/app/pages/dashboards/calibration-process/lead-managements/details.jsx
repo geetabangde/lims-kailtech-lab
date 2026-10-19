@@ -16,6 +16,18 @@ const Details = () => {
     const [printLoading, setPrintLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [companyInfo, setCompanyInfo] = useState(null);
+    const [isPrinting, setIsPrinting] = useState(false);
+
+    useEffect(() => {
+        const handleBeforePrint = () => setIsPrinting(true);
+        const handleAfterPrint = () => setIsPrinting(false);
+        window.addEventListener('beforeprint', handleBeforePrint);
+        window.addEventListener('afterprint', handleAfterPrint);
+        return () => {
+            window.removeEventListener('beforeprint', handleBeforePrint);
+            window.removeEventListener('afterprint', handleAfterPrint);
+        };
+    }, []);
 
     // State for API data
     const [customerDetails, setCustomerDetails] = useState(null);
@@ -278,6 +290,7 @@ const Details = () => {
     const totalPages = Math.ceil(filteredData.length / pageSize);
     const startIndex = (currentPage - 1) * pageSize;
     const displayedData = filteredData.slice(startIndex, startIndex + pageSize);
+    const itemsToRender = isPrinting ? filteredData : displayedData;
 
     // Handle page size change
     const handlePageSizeChange = (e) => {
@@ -366,23 +379,116 @@ const Details = () => {
     }
 
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-white lead-details-page">
+            <style>
+                {`
+                  @media print {
+                    @page {
+                      size: landscape;
+                      margin: 8mm 10mm;
+                    }
+
+                    .app-header,
+                    .sidebar-panel,
+                    .prime-panel,
+                    .sidebar-toggle-btn,
+                    .no-print,
+                    .print\\:hidden {
+                      display: none !important;
+                    }
+
+                    body {
+                      margin: 0 !important;
+                      padding: 0 !important;
+                      background: #fff !important;
+                      -webkit-print-color-adjust: exact;
+                      print-color-adjust: exact;
+                    }
+
+                    main,
+                    .main-content,
+                    [data-layout="sideblock"] main,
+                    [data-layout="main-layout"] main {
+                      display: block !important;
+                      width: 100% !important;
+                      margin: 0 !important;
+                      padding: 0 !important;
+                    }
+
+                    .lead-details-page {
+                      padding: 0 !important;
+                      margin: 0 !important;
+                      max-width: 100% !important;
+                      width: 100% !important;
+                      background: #fff !important;
+                    }
+
+                    .lead-details-card {
+                      box-shadow: none !important;
+                      border: 1px solid #d1d5db !important;
+                      margin-bottom: 12px !important;
+                      border-radius: 0 !important;
+                      page-break-inside: avoid;
+                      break-inside: avoid;
+                    }
+
+                    .print-table-wrapper {
+                      overflow: visible !important;
+                      width: 100% !important;
+                    }
+
+                    .print-table {
+                      width: 100% !important;
+                      border-collapse: collapse !important;
+                      table-layout: auto !important;
+                      font-size: 10px !important;
+                    }
+
+                    .print-table th,
+                    .print-table td {
+                      padding: 4px 6px !important;
+                      border: 1px solid #9ca3af !important;
+                      word-break: break-word !important;
+                    }
+
+                    .print-table thead {
+                      display: table-header-group !important;
+                    }
+
+                    .print-table tr {
+                      page-break-inside: avoid !important;
+                      break-inside: avoid !important;
+                    }
+                  }
+                `}
+            </style>
             <div className="max-w-7xl mx-auto px-4 py-6">
-                {/* Header with Back Button */}
-                <div className="bg-white shadow-sm border border-gray-200 rounded-lg mb-6">
+                {/* Header with Back Button and Print Button */}
+                <div className="bg-white shadow-sm border border-gray-200 rounded-lg mb-6 lead-details-card">
                     <div className="flex items-center justify-between p-4 border-b border-gray-200">
                         <h1 className="text-xl font-semibold text-gray-800">Customer Detail</h1>
-                        <Button
-                            onClick={handleBackClick}
-                            className="bg-orange-400 hover:bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                        >
-                            &lt;&lt; Back
-                        </Button>
+                        <div className="flex items-center gap-2 no-print">
+                            <Button
+                                onClick={() => window.print()}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                </svg>
+                                Print / Save PDF
+                            </Button>
+                            <Button
+                                onClick={handleBackClick}
+                                className="bg-orange-400 hover:bg-orange-500 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                            >
+                                &lt;&lt; Back
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
                 {/* Customer Details Section */}
-                <div className="bg-white shadow-sm border border-gray-200 rounded-lg mb-6">
+                <div className="bg-white shadow-sm border border-gray-200 rounded-lg mb-6 lead-details-card">
                     <div className="overflow-hidden">
                         <table className="w-full text-sm">
                             <tbody>
@@ -440,8 +546,8 @@ const Details = () => {
                 </div>
 
                 {/* Instruments Table Section */}
-                <div className="bg-white shadow-sm border border-gray-200 rounded-lg">
-                    <div className="p-4 border-b border-gray-200">
+                <div className="bg-white shadow-sm border border-gray-200 rounded-lg lead-details-card">
+                    <div className="p-4 border-b border-gray-200 no-print">
                         <div className="flex items-center justify-between mb-4">
                             <span className="text-sm text-gray-600">
                                 Showing {filteredData.length > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + pageSize, filteredData.length)} of {filteredData.length} entries
@@ -459,8 +565,8 @@ const Details = () => {
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm border-collapse">
+                    <div className="overflow-x-auto print-table-wrapper">
+                        <table className="w-full text-sm border-collapse print-table">
                             <thead>
                                 <tr className="bg-gray-100">
                                     <th className="text-left p-3 font-medium text-gray-700 border border-gray-300">Id</th>
@@ -545,14 +651,14 @@ const Details = () => {
                                             <SortIcon column="dueDate" />
                                         </div>
                                     </th>
-                                    <th className="text-left p-3 font-medium text-gray-700 border border-gray-300">
+                                    <th className="text-left p-3 font-medium text-gray-700 border border-gray-300 no-print">
                                         Action
                                     </th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {displayedData.length > 0 ? (
-                                    displayedData.map((item) => (
+                                {itemsToRender.length > 0 ? (
+                                    itemsToRender.map((item) => (
                                         <tr key={item.id} className="border-b border-gray-200 hover:bg-gray-50">
                                             <td className="p-3 border border-gray-200">{item.id}</td>
                                             <td className="p-3 border border-gray-200">{item.inwardId}</td>
@@ -564,7 +670,7 @@ const Details = () => {
                                             <td className="p-3 border border-gray-200">{item.serialNo}</td>
                                             <td className="p-3 border border-gray-200">{item.idNo}</td>
                                             <td className="p-3 border border-gray-200">{item.dueDate}</td>
-                                            <td className="p-3 border border-gray-200">
+                                            <td className="p-3 border border-gray-200 no-print">
                                                 <Button
                                                     onClick={() => handleDownloadDispatchReport(item)}
                                                     color="success"
@@ -588,7 +694,7 @@ const Details = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="11" className="p-4 text-center text-gray-500">
+                                        <td colSpan={isPrinting ? "10" : "11"} className="p-4 text-center text-gray-500">
                                             No instruments found
                                         </td>
                                     </tr>
@@ -597,7 +703,7 @@ const Details = () => {
                         </table>
                     </div>
 
-                    <div className="p-4 border-t border-gray-200">
+                    <div className="p-4 border-t border-gray-200 no-print">
                         <div className="flex flex-col justify-between space-y-4 sm:flex-row sm:items-center sm:space-y-0">
                             <div className="flex items-center space-x-2 text-sm text-gray-600">
                                 <span>Show</span>

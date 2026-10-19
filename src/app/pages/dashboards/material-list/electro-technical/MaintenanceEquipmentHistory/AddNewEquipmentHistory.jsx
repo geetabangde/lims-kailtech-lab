@@ -155,9 +155,9 @@ const AddNewEquipmentHistory = () => {
         toast.error('Please enter Detail of issue');
         return;
       }
-    } else if (formData.typeOfService === 'Repair/Modification') {
+    } else if (formData.typeOfService === 'Routine Maintenance' || formData.typeOfService === 'Repair/Modification') {
       if (!formData.startDate) {
-        toast.error('Please select Date repair');
+        toast.error('Please select Date');
         return;
       }
       if (!formData.serviceProvider.trim()) {
@@ -258,8 +258,8 @@ const AddNewEquipmentHistory = () => {
             apiFormData.append(remarkName, '-');
           }
         }
-      } else if (formData.typeOfService === 'Repair/Modification') {
-        apiFormData.append('typeofservice', 'Repair/Modification');
+      } else if (formData.typeOfService === 'Routine Maintenance' || formData.typeOfService === 'Repair/Modification') {
+        apiFormData.append('typeofservice', 'Routine Maintenance');
         apiFormData.append('startdate', formatDateForAPI(formData.startDate));
         apiFormData.append('enddate', formatDateForAPI(formData.startDate));
         apiFormData.append('serviceprovider', formData.serviceProvider.trim());
@@ -412,12 +412,14 @@ const AddNewEquipmentHistory = () => {
               options={[
                 { value: 'Calibration', label: 'Calibration' },
                 { value: 'Maintenance', label: 'Maintenance' },
-                { value: 'Repair/Modification', label: 'Repair/Modification' },
+                { value: 'Routine Maintenance', label: 'Routine Maintenance' },
                 { value: 'Out of order', label: 'Out of Order' },
               ]}
               value={{
                 value: formData.typeOfService,
-                label: formData.typeOfService === 'Out of order' ? 'Out of Order' : formData.typeOfService
+                label: formData.typeOfService === 'Out of order' 
+                  ? 'Out of Order' 
+                  : (formData.typeOfService === 'Repair/Modification' ? 'Routine Maintenance' : formData.typeOfService)
               }}
               onChange={(opt) => setFormData({ ...formData, typeOfService: opt.value })}
               isLoading={isSubmitting}
@@ -459,13 +461,13 @@ const AddNewEquipmentHistory = () => {
                 />
               </div>
             </>
-          ) : formData.typeOfService === 'Repair/Modification' ? (
-            /* =================== REPAIR / MODIFICATION =================== */
+          ) : (formData.typeOfService === 'Routine Maintenance' || formData.typeOfService === 'Repair/Modification') ? (
+            /* =================== ROUTINE MAINTENANCE =================== */
             <>
-              {/* Date Repair */}
+              {/* Date */}
               <div className="grid grid-cols-[200px_1fr] gap-4 mb-4">
                 <label className="text-sm font-medium text-gray-700 flex items-center">
-                  Date Repair <span className="text-red-500 ml-1">*</span>
+                  Date <span className="text-red-500 ml-1">*</span>
                 </label>
                 <Input
                   type="date"
