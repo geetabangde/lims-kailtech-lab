@@ -331,6 +331,117 @@ function InwardMultiSelect({ options, value, onChange, disabled }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Searchable Address Dropdown
+// addresses[] from API: { id, name, address }
+// ─────────────────────────────────────────────────────────────────────────────
+function AddressSearch({ addresses, value, onChange, disabled }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  const getLabel = (a) => (a.name ? `${a.name} — ${a.address}` : a.address);
+
+  const selectedLabel = useMemo(() => {
+    const a = addresses.find((a) => String(a.id) === String(value));
+    return a ? getLabel(a) : "";
+  }, [addresses, value]);
+
+  const filtered = useMemo(() => {
+    if (!query) return addresses;
+    const q = query.toLowerCase();
+    return addresses.filter(
+      (a) =>
+        a.address?.toLowerCase().includes(q) ||
+        a.name?.toLowerCase().includes(q),
+    );
+  }, [addresses, query]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <div className="relative">
+        <input
+          type="text"
+          disabled={disabled}
+          value={open ? query : selectedLabel}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+            if (!e.target.value) onChange("");
+          }}
+          onFocus={() => !disabled && setOpen(true)}
+          placeholder={
+            disabled ? "No addresses available" : "Select or search address..."
+          }
+          className={inputCls}
+          autoComplete="off"
+        />
+        {value && !open && !disabled && (
+          <button
+            type="button"
+            className="absolute top-1/2 right-2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+            onClick={() => {
+              onChange("");
+              setQuery("");
+            }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+      {open && !disabled && (
+        <div className="dark:bg-dark-800 dark:border-dark-600 absolute z-50 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-xl">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-gray-400">
+              No addresses found
+            </div>
+          ) : (
+            filtered.map((a) => (
+              <div
+                key={a.id}
+                onMouseDown={() => {
+                  onChange(String(a.id));
+                  setQuery("");
+                  setOpen(false);
+                }}
+                className={`cursor-pointer px-3 py-2 text-sm dark:hover:bg-dark-700 hover:bg-blue-50 ${
+                  String(a.id) === String(value)
+                    ? "bg-blue-50 font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                    : "text-gray-700 dark:text-dark-200"
+                }`}
+              >
+                {a.name && (
+                  <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                    {a.name}
+                  </div>
+                )}
+                <div
+                  className={
+                    a.name ? "mt-0.5 text-xs text-gray-500 dark:text-dark-400" : ""
+                  }
+                >
+                  {a.address}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Spinner
 // ─────────────────────────────────────────────────────────────────────────────
 function Spinner({ text = "Loading..." }) {
@@ -405,6 +516,8 @@ export default function EditCalibrationInvoice() {
   const originalPonumbersRef = useRef([]);
   const originalInwardOptionsRef = useRef([]);
 
+  const [addresses, setAddresses] = useState([]);
+  const [addressid, setAddressid] = useState("");
   const [brnnos, setBrnnos] = useState("");
   const [remark, setRemark] = useState("");
   const [billingInfo, setBillingInfo] = useState(null);
@@ -477,12 +590,26 @@ export default function EditCalibrationInvoice() {
         const inwards = d.inwards ?? []; // [{id, inwarddate}]
         const selInw = d.selected_inward_ids ?? []; // ["3585","3586"]
         const apiItems = d.items ?? []; // [{item_id,name,...}]
+        const addrsList = d.addresses ?? [];
+        setAddresses(addrsList);
 
-        // Address normalization
-        const addr =
-          typeof addrObj === "object"
-            ? (addrObj.full_address ?? addrObj.address ?? inv.address ?? "")
-            : String(addrObj);
+        // Address normalization: prefer inward_billing_address_id or inv.addressid
+        const initialAddrId = String(
+          d.inward_billing_address_id ?? inv.addressid ?? "",
+        );
+        setAddressid(initialAddrId);
+
+        let addr = "";
+        const matchedAddr = addrsList.find(
+          (a) => String(a.id) === initialAddrId,
+        );
+        if (matchedAddr) {
+          addr = matchedAddr.address;
+        } else if (typeof addrObj === "object") {
+          addr = addrObj.full_address ?? addrObj.address ?? inv.address ?? "";
+        } else {
+          addr = String(addrObj);
+        }
 
         // ── Invoice basic fields ──
         setInvoiceNo(inv.invoiceno ?? "");
@@ -505,7 +632,7 @@ export default function EditCalibrationInvoice() {
         // ── Billing info ──
         const billingInfoObj = {
           name: inv.customername ?? cust.name ?? "",
-          addressid: inv.addressid ?? 0,
+          addressid: initialAddrId ? Number(initialAddrId) : (inv.addressid ?? 0),
           address: addr,
           statecode: String(inv.statecode ?? cust.statecode ?? ""),
           pan: inv.pan ?? cust.pan ?? "",
@@ -612,6 +739,34 @@ export default function EditCalibrationInvoice() {
       toast.error("Failed to load PO numbers");
     } finally {
       setLoadingPo(false);
+    }
+  }, []);
+
+  const loadCustomerAddresses = useCallback(async (cid) => {
+    if (!cid) {
+      setAddresses([]);
+      setAddressid("");
+      return;
+    }
+    try {
+      const res = await axios.get(`/inventory/get-customer-address-details/${cid}`);
+      const list = res.data?.data ?? [];
+      const mapped = list.map((a) => ({
+        id: a.id,
+        name: a.name || "",
+        address: a.full_address || [a.address, a.city, a.pincode].filter(Boolean).join(", "),
+      }));
+      setAddresses(mapped);
+      if (mapped.length > 0) {
+        setAddressid(String(mapped[0].id));
+        setBillingInfo((prev) => ({
+          ...prev,
+          addressid: mapped[0].id,
+          address: mapped[0].address,
+        }));
+      }
+    } catch {
+      // fallback
     }
   }, []);
 
@@ -794,8 +949,11 @@ export default function EditCalibrationInvoice() {
         ponumber: selectedPo,
         inwardid: selectedInwards.map(Number),
         customername: billingInfo?.name ?? "",
-        addressid: Number(billingInfo?.addressid ?? 0),
-        address: billingInfo?.address ?? "",
+        addressid: Number(addressid || billingInfo?.addressid || 0),
+        address:
+          addresses.find((a) => String(a.id) === String(addressid))?.address ||
+          billingInfo?.address ||
+          "",
         statecode: billingInfo?.statecode ?? "",
         pan: billingInfo?.pan ?? "",
         gstno: billingInfo?.gstno ?? "",
@@ -957,7 +1115,10 @@ export default function EditCalibrationInvoice() {
                     setBrnnos("");
                     setBillingInfo(null);
                     setPonumbers([]);
-                    if (cid) loadPoDetail(cid);
+                    if (cid) {
+                      loadPoDetail(cid);
+                      loadCustomerAddresses(cid);
+                    }
                   }}
                 />
               )}
@@ -1033,11 +1194,36 @@ export default function EditCalibrationInvoice() {
                 <p className="dark:text-dark-100 mt-0.5 font-bold text-gray-900">
                   {billingInfo.name}
                 </p>
-                {billingInfo.address && (
-                  <p className="dark:text-dark-400 mt-1 text-gray-600">
-                    <b>Address:</b> {billingInfo.address}
-                  </p>
-                )}
+
+                {/* Customer Address selector */}
+                <div className="mt-2.5">
+                  <span className={labelCls}>Customer Address</span>
+                  <div className="mt-1">
+                    <AddressSearch
+                      addresses={addresses}
+                      value={addressid}
+                      onChange={(newId) => {
+                        setAddressid(newId);
+                        const found = addresses.find(
+                          (a) => String(a.id) === String(newId),
+                        );
+                        if (found) {
+                          setBillingInfo((prev) => ({
+                            ...prev,
+                            addressid: Number(newId),
+                            address: found.address,
+                          }));
+                        }
+                      }}
+                      disabled={addresses.length === 0}
+                    />
+                  </div>
+                  {billingInfo.address && (
+                    <p className="dark:text-dark-400 mt-1.5 text-xs text-gray-600">
+                      <b>Selected:</b> {billingInfo.address}
+                    </p>
+                  )}
+                </div>
                 <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs">
                   <span>
                     <span className={roLabelCls}>State code:</span>

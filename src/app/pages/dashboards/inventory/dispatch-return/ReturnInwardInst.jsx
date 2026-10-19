@@ -45,13 +45,14 @@ export default function ReturnInwardInst({ inwardItems, setInwardItems, register
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white dark:divide-dark-500 dark:bg-dark-700">
                         {inwardItems.map((item, index) => (
-                            <tr key={item.id}>
+                            <tr key={item.id} className="item-issue">
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 dark:text-dark-100">{index + 1}</td>
                                 <td className="px-4 py-3 whitespace-nowrap">
                                     <input 
                                         type="checkbox" 
                                         value={item.id}
                                         {...register(`ids`)}
+                                        name="ids[]"
                                         className="h-4 w-4 rounded border-gray-300"
                                     />
                                 </td>

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import axios from "utils/axios";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 // Local Imports
 import { Card, Button, ReactSelect as Select } from "components/ui";
@@ -132,27 +132,37 @@ export default function ReturnInstrument() {
     };
 
     const onSubmit = async (formData) => {
-        // Validation checks
-        const notfillreturn = document.querySelectorAll('.item-chklist').length;
-        const totalmasterid = document.getElementById('totalmasterid')?.value;
-        const items = document.querySelectorAll('.item-issue').length;
+        // Extract native form data to handle identical name[] inputs correctly
+        const formElement = document.getElementById("returninhouse");
+        const nativeFormData = new FormData(formElement);
 
-        if (items === 0 && notfillreturn === 0) {
-            toast.error("No Item is Added");
-            return;
-        } else if (totalmasterid && notfillreturn === parseInt(totalmasterid)) {
-            toast.error("Please Fill Atleast One Checklist Return");
-            return;
+        // Validation checks
+        if (['1', '2', '3', '4', '5'].includes(String(formData.purpose))) {
+            const notfillreturn = document.querySelectorAll('.item-chklist').length;
+            const totalmasterid = document.getElementById('totalmasterid')?.value;
+            const items = document.querySelectorAll('.item-issue').length;
+
+            if (items === 0 && notfillreturn === 0) {
+                toast.error("No Item is Added");
+                return;
+            } else if (totalmasterid && notfillreturn === parseInt(totalmasterid)) {
+                toast.error("Please Fill Atleast One Checklist Return");
+                return;
+            }
+        } else if (String(formData.purpose) === "7") {
+            const selectedIds = (formData.ids && formData.ids.length > 0)
+                ? (Array.isArray(formData.ids) ? formData.ids : [formData.ids])
+                : (nativeFormData.getAll('ids').length > 0 ? nativeFormData.getAll('ids') : nativeFormData.getAll('ids[]'));
+            if (!selectedIds || selectedIds.length === 0) {
+                toast.error("Please select at least one instrument to return");
+                return;
+            }
         }
 
         // Prepare payload exactly as requested by backend
         let activeDinId = formData.dinid;
         if (String(formData.purpose) === "7") activeDinId = formData.inwarddinid;
         if (String(formData.purpose) === "6") activeDinId = formData.trfdinid;
-
-        // Extract native form data to handle identical name[] inputs correctly
-        const formElement = document.getElementById("returninhouse");
-        const nativeFormData = new FormData(formElement);
 
         let payload = {};
 
@@ -171,7 +181,10 @@ export default function ReturnInstrument() {
                 instissuetype: validItems.map(i => Number(i.instissuetype))
             };
         } else {
-            // For TRF and Inward (purposes 6 and 7)
+            const rawIds = (formData.ids && formData.ids.length > 0)
+                ? (Array.isArray(formData.ids) ? formData.ids : [formData.ids])
+                : (nativeFormData.getAll('ids').length > 0 ? nativeFormData.getAll('ids') : nativeFormData.getAll('ids[]'));
+
             payload = {
                 ...formData,
                 purpose: Number(formData.purpose),
@@ -182,7 +195,7 @@ export default function ReturnInstrument() {
                 issueid: nativeFormData.getAll('issueid[]').map(Number),
                 returnlocation: nativeFormData.getAll('returnlocation[]'),
                 instissuetype: nativeFormData.getAll('instissuetype[]').map(Number),
-                ids: nativeFormData.getAll('ids').length > 0 ? nativeFormData.getAll('ids') : nativeFormData.getAll('ids[]'),
+                ids: rawIds.map(Number),
             };
 
             // Clean up UI-specific or raw bracketed keys
