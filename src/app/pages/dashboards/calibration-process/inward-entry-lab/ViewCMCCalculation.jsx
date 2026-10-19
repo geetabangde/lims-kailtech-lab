@@ -793,6 +793,8 @@ export default function ViewCMCCalculation() {
               coverageFactor: item.coverage_factor,
               expandedUnc: item.expanded_uncertainty,
               cmc: item.cmc_taken,
+              cmcScope: item.cmc_scope,
+              cmc_scope: item.cmc_scope,
             }));
             setData(mappedData);
           } else if (instrumentSuffix === "hg") {

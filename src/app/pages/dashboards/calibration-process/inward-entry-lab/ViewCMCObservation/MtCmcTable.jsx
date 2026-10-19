@@ -11,7 +11,7 @@ export const MtCmcTable = ({ data }) => (
           <th colSpan="8" className="border border-gray-300 px-1 py-2 bg-gray-200 font-semibold text-xs">
             Type B Factor
           </th>
-          <th colSpan="5" className="border border-gray-300 px-1 py-2 bg-gray-200 font-semibold text-xs">
+          <th colSpan="6" className="border border-gray-300 px-1 py-2 bg-gray-200 font-semibold text-xs">
             Uncertainty Measurement
           </th>
         </tr>
@@ -40,6 +40,7 @@ export const MtCmcTable = ({ data }) => (
           <th className="border border-gray-300 px-1 py-2">Degree of Freedom</th>
           <th className="border border-gray-300 px-1 py-2">Coverage Factor (k)</th>
           <th className="border border-gray-300 px-1 py-2">Expanded Uncertainty in Value</th>
+          <th className="border border-gray-300 px-1 py-2">CMC Scope</th>
           <th className="border border-gray-300 px-1 py-2">CMC Taken</th>
         </tr>
       </thead>
@@ -68,6 +69,7 @@ export const MtCmcTable = ({ data }) => (
             <td className="border border-gray-300 px-1 py-2">{row.dof === '-' ? '-' : (typeof row.dof === 'number' ? row.dof.toFixed(2) : row.dof)}</td>
             <td className="border border-gray-300 px-1 py-2">{typeof row.coverageFactor === 'number' ? row.coverageFactor.toFixed(2) : row.coverageFactor}</td>
             <td className="border border-gray-300 px-1 py-2">{typeof row.expandedUnc === 'number' ? row.expandedUnc.toFixed(6) : row.expandedUnc}</td>
+            <td className="border border-gray-300 px-1 py-2">{typeof (row.cmcScope ?? row.cmc_scope) === 'number' ? (row.cmcScope ?? row.cmc_scope).toFixed(6) : (row.cmcScope ?? row.cmc_scope ?? '-')}</td>
             <td className="border border-gray-300 px-1 py-2">{typeof row.cmc === 'number' ? row.cmc.toFixed(6) : row.cmc}</td>
           </tr>
         ))}
