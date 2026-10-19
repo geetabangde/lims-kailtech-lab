@@ -734,7 +734,7 @@ export function PerformActions({ item, onAction, inwardId, caliblocation, caliba
     });
   }
 
-  if (status >= 0 && status <= 2) {
+  if ((status >= 0 && status <= 2) || status === 11) {
     if (isAllotedOrAdmin) {
       performActions.push({
         label: "Cancel Crf",
@@ -748,7 +748,7 @@ export function PerformActions({ item, onAction, inwardId, caliblocation, caliba
     }
   }
 
-  if (status >= -1 && status <= 3) {
+  if ((status >= -1 && status <= 3) || status === 11) {
     performActions.push({
       label: "Request Cancel LRN",
       action: "requestCancelLRN",
