@@ -373,9 +373,21 @@ export default function AddDin() {
     }
 
     const isVendor = [1, 5, 6, 7, 10].includes(Number(formData.purpose)) || purpose11Type === "Vendor";
-    if (name === "custcontact" && !isVendor) {
+    if (name === "custcontact") {
       if (value) {
-        fetchCustomerContactDetails(value);
+        const found = customerContacts.find(c => c.id == value);
+        if (found) {
+          setFormData(prev => ({
+            ...prev,
+            custcontactname: found.name || "",
+            custphone: found.mobile || prev.custphone || "",
+            custemail: found.email || prev.custemail || "",
+            custdesignation: found.designation || prev.custdesignation || ""
+          }));
+        }
+        if (!isVendor) {
+          fetchCustomerContactDetails(value);
+        }
       } else {
         setFormData((prev) => ({
           ...prev,
@@ -727,6 +739,7 @@ export default function AddDin() {
         customerid: formData.customerid || "",
         customername: formData.customername || "",
         custadd: formData.custadd || "",
+        custcontact: formData.custcontact || "",
         custcontactname: formData.custcontactname || "",
         custphone: formData.custphone || "",
         custemail: formData.custemail || "",
@@ -979,6 +992,14 @@ export default function AddDin() {
                         value={formData.custcontact}
                         onChange={(val) => handleSelectChange("custcontact", val)}
                       />
+                      <input 
+                        type="text" 
+                        name="custcontactname" 
+                        value={formData.custcontactname} 
+                        onChange={handleInputChange} 
+                        placeholder="Or enter contact person name..." 
+                        className="form-input mt-1 rounded-lg border-gray-300 dark:border-dark-600 dark:bg-dark-900" 
+                      />
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-sm font-semibold text-gray-700 dark:text-dark-200">Phone</label>
@@ -1025,6 +1046,14 @@ export default function AddDin() {
                         options={customerContacts.map(c => ({ value: c.id, label: c.name }))}
                         value={formData.custcontact}
                         onChange={(val) => handleSelectChange("custcontact", val)}
+                      />
+                      <input 
+                        type="text" 
+                        name="custcontactname" 
+                        value={formData.custcontactname} 
+                        onChange={handleInputChange} 
+                        placeholder="Or enter contact person name..." 
+                        className="form-input mt-1 rounded-lg border-gray-300 dark:border-dark-600 dark:bg-dark-900" 
                       />
                     </div>
                     <div className="flex flex-col gap-1">
