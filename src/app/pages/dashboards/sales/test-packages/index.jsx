@@ -25,7 +25,8 @@ import { useSkipper } from "utils/react-table/useSkipper";
 import { PaginationSection } from "components/shared/table/PaginationSection";
 import { useThemeContext } from "app/contexts/theme/context";
 import { getUserAgentBrowser } from "utils/dom/getUserAgentBrowser";
-import { columns } from "./columns";
+import { columns, TYPE_MAP } from "./columns";
+import * as XLSX from "xlsx";
 
 // ----------------------------------------------------------------------
 
@@ -133,6 +134,31 @@ export default function TestPackagesList() {
   useDidUpdate(() => table.resetRowSelection(), [data]);
   useLockScrollbar(tableSettings.enableFullScreen);
 
+  // Export EVERY record of the list (all pages, ignores the search box and page size).
+  // Uses the already-loaded dataset, so no extra API call.
+  const handleExportExcel = () => {
+    const sourceRows = table.getCoreRowModel().rows;
+    if (!sourceRows.length) {
+      toast.error("No test packages to export");
+      return;
+    }
+    const rows = sourceRows.map((r) => ({
+      ID: r.original.id,
+      "Package Name": r.original.package ?? "",
+      Product: r.original.pname ?? "",
+      Rate: parseFloat(r.original.rate || 0),
+      Type: TYPE_MAP[r.original.type] ?? "—",
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet["!cols"] = [{ wch: 8 }, { wch: 60 }, { wch: 60 }, { wch: 12 }, { wch: 18 }];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Test Packages");
+    XLSX.writeFile(
+      workbook,
+      `TestPackages_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
+  };
+
   if (loading) {
     return (
       <Page title="Price List">
@@ -187,6 +213,13 @@ export default function TestPackagesList() {
                 placeholder="Search package, rate..."
                 className="focus:border-primary-500 focus:ring-primary-500 dark:border-dark-500 dark:bg-dark-800 dark:text-dark-100 h-9 w-60 rounded-md border border-gray-300 px-3 text-sm text-gray-700 focus:ring-1 focus:outline-none"
               />
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="inline-flex h-9 items-center justify-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Export to Excel
+              </button>
               {permissions.includes(263) && (
                 <Link
                   to="/dashboards/sales/test-packages/add"

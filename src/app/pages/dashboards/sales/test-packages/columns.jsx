@@ -8,7 +8,7 @@ import { RowActions } from "./RowActions";
 
 const columnHelper = createColumnHelper();
 
-const TYPE_MAP = { 0: "Upload Report", 1: "Perform All Tests" };
+export const TYPE_MAP = { 0: "Upload Report", 1: "Perform All Tests" };
 
 export const columns = [
   columnHelper.accessor("id", {
