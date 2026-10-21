@@ -297,6 +297,20 @@ function SetEndDateModal({ teid, startDate, onClose, onFinalised }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
+// IS 2 : 1960 rounding (exact half -> nearest even digit). Used for the live average preview only;
+// the saved result is calculated on the server with the same rule.
+function roundIs2(value, decimals) {
+  const factor = Math.pow(10, decimals);
+  const scaled = Math.round(Number((value * factor).toPrecision(12)) * 1e6) / 1e6;
+  const floor = Math.floor(scaled);
+  const diff = scaled - floor;
+  let r;
+  if (diff < 0.5 - 1e-9) r = floor;
+  else if (diff > 0.5 + 1e-9) r = floor + 1;
+  else r = floor % 2 === 0 ? floor : floor + 1;
+  return r / factor;
+}
+
 export default function TestInput() {
   const { teid } = useParams();
   const navigate = useNavigate();
@@ -815,41 +829,77 @@ export default function TestInput() {
               </h4>
               {isAac && (
                 <div className="space-y-4">
-                  {paramElements.map((el) => (
-                    <div key={el.measurement_id} className="overflow-x-auto rounded-lg border border-gray-300">
-                      <div className="bg-gray-200 px-3 py-2 text-xs font-semibold uppercase text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                        {el.name}
-                        {el.unit && <span className="ml-1 font-normal normal-case text-gray-500">({el.unit})</span>}
-                        {" — "}enter {cycle} values (one per block)
-                      </div>
-                      {Array.from({ length: Math.ceil(cycle / 8) }, (_, row) => (
-                        <div key={row} className="grid grid-cols-8 gap-0 border-t border-gray-300">
-                          {Array.from({ length: Math.min(8, cycle - row * 8) }, (_, col) => {
-                            const i = row * 8 + col;
-                            const pid = el.measurement_id;
-                            return (
-                              <div key={i} className="border-r border-gray-300 p-1 last:border-r-0">
-                                <div className="mb-1 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">Sample-{i + 1}</div>
-                                {status === 0 ? (
-                                  <input
-                                    type="text"
-                                    inputMode="decimal"
-                                    id={`measurement_${pid}_${i}`}
-                                    name={`${pid}[]`}
-                                    value={measurements[i]?.[pid] ?? ""}
-                                    onChange={(e) => handleMeasurement(i, pid, e.target.value)}
-                                    className="w-full rounded border border-gray-300 px-1 py-1 text-center text-sm outline-none focus:border-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-                                  />
-                                ) : (
-                                  <div className="py-1 text-center text-sm text-gray-700 dark:text-gray-300">{measurements[i]?.[pid] ?? "—"}</div>
+                  {paramElements.map((el) => {
+                    const pid = el.measurement_id;
+                    const nums = Array.from({ length: cycle }, (_, i) => String(measurements[i]?.[pid] ?? "").trim())
+                      .filter((v) => v !== "" && !isNaN(Number(v)))
+                      .map(Number);
+                    const decimals = Number(prow.decimal ?? 0) || 0;
+                    // Preview only - the saved result is calculated on the server (IS 2 : 1960 rounding)
+                    const avgPreview = nums.length
+                      ? roundIs2(nums.reduce((a, b) => a + b, 0) / nums.length, decimals)
+                      : null;
+                    const rowCount = Math.ceil(cycle / 8);
+                    return (
+                      <div key={pid} className="overflow-x-auto border border-gray-200 dark:border-gray-600">
+                        <table className="w-full border-collapse text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700">
+                              <th rowSpan="2" className="border-r border-gray-300 px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:border-gray-600 dark:text-gray-200">Sr. No.</th>
+                              <th colSpan="8" className="border-b border-r border-gray-300 px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-700 dark:border-gray-600 dark:text-gray-200">
+                                {el.name}{el.unit ? ` (${el.unit})` : ""} — enter {cycle} values (one per block)
+                              </th>
+                              <th rowSpan="2" className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-200">Average of {cycle}</th>
+                            </tr>
+                            <tr className="border-b border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-600">
+                              {Array.from({ length: 8 }, (_, c) => (
+                                <th key={c} className="border-r border-gray-300 px-3 py-2 text-center text-xs font-medium text-gray-600 dark:border-gray-600 dark:text-gray-300">{c + 1}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Array.from({ length: rowCount }, (_, row) => (
+                              <tr key={row} className="border-b border-gray-200 dark:border-gray-600">
+                                <td className="whitespace-nowrap border-r border-gray-200 px-3 py-2 align-middle text-xs text-gray-600 dark:border-gray-600 dark:text-gray-300">
+                                  Samples {row * 8 + 1}–{Math.min(row * 8 + 8, cycle)}
+                                </td>
+                                {Array.from({ length: 8 }, (_, col) => {
+                                  const i = row * 8 + col;
+                                  if (i >= cycle) return <td key={col} className="border-r border-gray-200 dark:border-gray-600" />;
+                                  const v = String(measurements[i]?.[pid] ?? "");
+                                  const bad = status === 0 && v.trim() !== "" && isNaN(Number(v));
+                                  return (
+                                    <td key={col} className="whitespace-nowrap border-r border-gray-200 px-3 py-2 align-middle text-sm dark:border-gray-600">
+                                      {status === 0 ? (
+                                        <input
+                                          type="text"
+                                          inputMode="decimal"
+                                          id={`measurement_${pid}_${i}`}
+                                          name={`${pid}[]`}
+                                          placeholder={`S${i + 1}`}
+                                          value={v}
+                                          onChange={(e) => handleMeasurement(i, pid, e.target.value)}
+                                          className={`w-full min-w-[56px] rounded border px-2 py-1 text-center text-sm focus:border-transparent focus:ring-1 focus:ring-blue-500 dark:bg-gray-600 dark:text-white ${bad ? "border-red-400 bg-red-50/30" : "border-gray-300 dark:border-gray-600"}`}
+                                        />
+                                      ) : (
+                                        <span className="block text-center text-gray-700 dark:text-gray-300">{v === "" ? "—" : v}</span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                                {row === 0 && (
+                                  <td rowSpan={rowCount} className="px-3 py-2 text-center align-middle text-base font-semibold text-gray-800 dark:text-gray-100">
+                                    {avgPreview === null ? "—" : avgPreview}
+                                    <div className="mt-1 text-[10px] font-normal text-gray-400">auto-calculated (IS 2 rounding)</div>
+                                  </td>
                                 )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {!isAac && (
