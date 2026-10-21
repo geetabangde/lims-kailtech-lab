@@ -10,8 +10,40 @@ const AAC_PRODUCT_IDS = [195];
 
 export function PrintAacReportButton({ report, className }) {
   const [loading, setLoading] = useState(false);
+  const [wordLoading, setWordLoading] = useState(false);
   const tp = report?.trf_product ?? {};
   if (!AAC_PRODUCT_IDS.includes(Number(tp.product))) return null;
+
+  // Word download is for approvers/reviewers only (the server enforces the same rule: user 1 or permission 105/115/278)
+  const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
+  const permissions =
+    typeof window !== "undefined"
+      ? localStorage.getItem("userPermissions")?.split(",").map(Number) || []
+      : [];
+  const canWord = Boolean(
+    userId == 1 || permissions.includes(105) || permissions.includes(115) || permissions.includes(278),
+  );
+
+  const handleWord = async () => {
+    setWordLoading(true);
+    try {
+      const res = await axios.get(`/approvals/download-report-word/${tp.id}`, { responseType: "blob", timeout: 90000 });
+      const cd = res.headers["content-disposition"] || "";
+      const m = /filename="?([^";]+)"?/i.exec(cd);
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: "application/msword" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = m ? m[1] : `AAC_Test_Report_${tp.id}.doc`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(e?.response?.status === 403 ? "You are not authorised to download the Word report" : "Could not build the Word report");
+    } finally {
+      setWordLoading(false);
+    }
+  };
 
   const handleClick = async () => {
     setLoading(true);
@@ -39,16 +71,27 @@ export function PrintAacReportButton({ report, className }) {
   };
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={loading}
-      className={
-        className ??
-        "rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-emerald-700 disabled:opacity-60"
-      }
-    >
-      {loading ? "Preparing..." : "Print AAC Report (PDF)"}
-    </button>
+    <>
+      <button
+        onClick={handleClick}
+        disabled={loading}
+        className={
+          className ??
+          "rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-emerald-700 disabled:opacity-60"
+        }
+      >
+        {loading ? "Preparing..." : "Print AAC Report (PDF)"}
+      </button>
+      {canWord && (
+        <button
+          onClick={handleWord}
+          disabled={wordLoading}
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow transition hover:bg-indigo-700 disabled:opacity-60"
+        >
+          {wordLoading ? "Preparing..." : "Download AAC Report (Word)"}
+        </button>
+      )}
+    </>
   );
 }
 
