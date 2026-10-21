@@ -636,6 +636,7 @@ export default function EditTQuotationItem() {
                                                                             type="checkbox"
                                                                             className="rounded border-gray-300"
                                                                             defaultChecked={param.special}
+                                                                            value={param.id}
                                                                             name={`parameters${item.package}[]`}
                                                                         />
                                                                         <label>{param.name}</label>
