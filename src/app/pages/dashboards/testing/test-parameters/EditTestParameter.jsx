@@ -41,6 +41,7 @@ export default function EditTestParameter() {
     results: [],
     formula: "",
     cycle: "",
+    formattype: "",
     visible: "",
     resultype: [],
     resultunit: "",
@@ -99,6 +100,7 @@ export default function EditTestParameter() {
             results: data.results ? data.results.split(',').map(Number) : [],
             formula: data.formula || "",
             cycle: data.cycle ?? "",
+            formattype: data.formattype ?? "",
             visible: data.visible ? data.visible.toString() : "",
             resultype: data.resultype ? data.resultype.split(',').map(Number) : [],
             resultunit: data.resultunit ? data.resultunit.toString() : "",
@@ -280,6 +282,7 @@ export default function EditTestParameter() {
         consumables: consumables,
         formula: formData.formula,
         cycle: formData.cycle ? Number(formData.cycle) : 0,
+        formattype: formData.formattype ?? "",
         visible: Number(formData.visible),
         resultype: formData.resultype,
         resultunit: Number(formData.resultunit),
@@ -920,6 +923,22 @@ export default function EditTestParameter() {
               value={formData.cycle}
               onChange={handleChange}
             />
+          </div>
+
+          {/* Type of format (AAC / Other) - AAC shows the 24-value grid on Test Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Type of Format
+            </label>
+            <select
+              name="formattype"
+              value={formData.formattype ?? ""}
+              onChange={handleChange}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Other</option>
+              <option value="AAC">AAC</option>
+            </select>
           </div>
 
           {/* Visible */}

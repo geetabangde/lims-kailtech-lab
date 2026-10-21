@@ -367,6 +367,8 @@ export default function TestInput() {
   const lrn = testData?.lrn ?? "";
   const rawCycle = Number(testData?.cycle ?? prow.cycle ?? 1);
   const cycle = isNaN(rawCycle) || rawCycle < 1 ? 1 : rawCycle;
+  // AAC format (set on the parameter): 24 values per reading shown as a 3 x 8 sample grid
+  const isAac = testData?.format_type === "AAC";
 
   // parameter_elements[].measurement_id = PHP $pid = $frow['element']
   const paramElements = Array.isArray(testData?.parameter_elements)
@@ -444,6 +446,18 @@ export default function TestInput() {
       }
     }
 
+    if (isAac) {
+      for (const el of paramElements) {
+        for (let i = 0; i < cycle; i++) {
+          const v = String(measurements[i]?.[el.measurement_id] ?? "").trim();
+          if (v === "" || isNaN(Number(v))) {
+            toast.error(`Enter all ${cycle} values as numbers (Sample-${i + 1} of ${el.name} is empty or invalid)`);
+            return;
+          }
+        }
+      }
+    }
+
     try {
       setSubmitting(true);
       const fd = new FormData();
@@ -485,7 +499,7 @@ export default function TestInput() {
       await fetchResults();
     } catch (err) {
       console.error("Submit error:", err);
-      toast.error(err?.response?.data?.message ?? "Submit failed ❌");
+      toast.error(err?.response?.data?.message ?? err?.response?.data?.error ?? "Submit failed ❌");
     } finally {
       setSubmitting(false);
     }
@@ -799,6 +813,46 @@ export default function TestInput() {
                 {/* PHP: echo $prow['name'] */}
                 {prow.name ?? "Measurements"}
               </h4>
+              {isAac && (
+                <div className="space-y-4">
+                  {paramElements.map((el) => (
+                    <div key={el.measurement_id} className="overflow-x-auto rounded-lg border border-gray-300">
+                      <div className="bg-gray-200 px-3 py-2 text-xs font-semibold uppercase text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                        {el.name}
+                        {el.unit && <span className="ml-1 font-normal normal-case text-gray-500">({el.unit})</span>}
+                        {" — "}enter {cycle} values (one per block)
+                      </div>
+                      {Array.from({ length: Math.ceil(cycle / 8) }, (_, row) => (
+                        <div key={row} className="grid grid-cols-8 gap-0 border-t border-gray-300">
+                          {Array.from({ length: Math.min(8, cycle - row * 8) }, (_, col) => {
+                            const i = row * 8 + col;
+                            const pid = el.measurement_id;
+                            return (
+                              <div key={i} className="border-r border-gray-300 p-1 last:border-r-0">
+                                <div className="mb-1 text-center text-xs font-semibold text-gray-600 dark:text-gray-300">Sample-{i + 1}</div>
+                                {status === 0 ? (
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    id={`measurement_${pid}_${i}`}
+                                    name={`${pid}[]`}
+                                    value={measurements[i]?.[pid] ?? ""}
+                                    onChange={(e) => handleMeasurement(i, pid, e.target.value)}
+                                    className="w-full rounded border border-gray-300 px-1 py-1 text-center text-sm outline-none focus:border-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+                                  />
+                                ) : (
+                                  <div className="py-1 text-center text-sm text-gray-700 dark:text-gray-300">{measurements[i]?.[pid] ?? "—"}</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!isAac && (
               <div className="overflow-x-auto rounded-lg border border-gray-300">
                 <table className="w-full text-left text-sm border-collapse">
                   <thead>
@@ -869,6 +923,7 @@ export default function TestInput() {
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
           )}
 
