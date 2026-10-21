@@ -16,6 +16,7 @@ import { Page } from "components/shared/Page";
 // PHP: exporttestingreportwolh.php → Print Report Without Letter Head
 import { ExportWithLHButton } from "./ExportReportWithLH";
 import { ExportWoLHButton } from "./ExportReportWoLH";
+import { PrintAacReportButton } from "../signed-reports/PrintAacReportButton";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function formatDate(dateStr) {
@@ -587,6 +588,7 @@ export default function DraftReportView() {
           <div className="no-print flex items-center gap-2">
             <ExportWithLHButton data={report} />
             <ExportWoLHButton data={report} />
+            <PrintAacReportButton report={report} />
           </div>
         </div>
 

@@ -11,6 +11,7 @@ import {
 } from "./TestReportPdf";
 import { PrintExportTestingReportButton } from "../signed-reports/ExportTestingReport";
 import { PrintExportTestingReportWOLHButton } from "../signed-reports/ExportTestingReportWOLH";
+import { PrintAacReportButton } from "../signed-reports/PrintAacReportButton";
 import { PrintExportTestingReportWOLHTwoSignButton } from "../signed-reports/ExportTestingReportWOLHTwoSign";
 
 // ----------------------------------------------------------------------
@@ -141,6 +142,7 @@ export default function FinalReportDetail() {
               <PrintExportTestingReportWOLHButton report={report} />
               {/* PHP: Print Report Without Letter Head (2 Signs) */}
               <PrintExportTestingReportWOLHTwoSignButton report={report} />
+              <PrintAacReportButton report={report} />
             </div>
           </div>
 

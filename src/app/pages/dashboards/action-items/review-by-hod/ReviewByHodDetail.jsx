@@ -18,6 +18,7 @@ import {
   PrintWithoutLHTwoSignButton,
 } from "./TestReportPdf";
 import { PrintExportTestingReportWOLHButton } from "../signed-reports/ExportTestingReportWOLH";
+import { PrintAacReportButton } from "../signed-reports/PrintAacReportButton";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -475,6 +476,7 @@ export default function ReviewByHodDetail() {
                 <PrintWithLHButton report={report} />
                 <PrintExportTestingReportWOLHButton report={report} />
                 <PrintWithoutLHTwoSignButton report={report} />
+                <PrintAacReportButton report={report} />
               </div>
             )}
           </div>
