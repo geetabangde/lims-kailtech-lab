@@ -388,6 +388,9 @@ export default function TestInput() {
   const paramElements = Array.isArray(testData?.parameter_elements)
     ? testData.parameter_elements
     : [];
+  // AAC parameters with ONE measurement (length / width / height, thermal conductivity) use the 3 x 8 sample grid;
+  // AAC parameters with several measurements per sample (blocks, cubes, shrinkage) keep the row-per-sample table below, with a Sample label.
+  const aacGrid = isAac && paramElements.length === 1;
 
   // ── FIX: instruments options — Array OR keyed Object ─────────────────────
   // "275": options = [...Array...]     → use as-is
@@ -827,7 +830,7 @@ export default function TestInput() {
                 {/* PHP: echo $prow['name'] */}
                 {prow.name ?? "Measurements"}
               </h4>
-              {isAac && (
+              {aacGrid && (
                 <div className="space-y-4">
                   {paramElements.map((el) => {
                     const pid = el.measurement_id;
@@ -902,11 +905,16 @@ export default function TestInput() {
                   })}
                 </div>
               )}
-              {!isAac && (
+              {!aacGrid && (
               <div className="overflow-x-auto rounded-lg border border-gray-300">
                 <table className="w-full text-left text-sm border-collapse">
                   <thead>
                     <tr className="bg-gray-200 dark:bg-gray-800 border-b border-gray-300">
+                      {isAac && (
+                        <th className="border-r border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 uppercase dark:border-gray-700 dark:text-gray-300">
+                          Sample
+                        </th>
+                      )}
                       {paramElements.map((el) => (
                         <th
                           key={el.measurement_id}
@@ -930,6 +938,11 @@ export default function TestInput() {
                         key={i}
                         className="border-b border-gray-300 dark:border-gray-700 hover:bg-gray-50 transition-colors"
                       >
+                        {isAac && (
+                          <td className="whitespace-nowrap border-r border-gray-300 px-3 py-1 text-xs font-medium text-gray-600 dark:border-gray-700 dark:text-gray-300">
+                            Sample-{i + 1}
+                          </td>
+                        )}
                         {paramElements.map((el) => {
                           const pid = el.measurement_id; // PHP: $pid = $frow['element']
                           const unit = el.unit ?? "";
