@@ -259,7 +259,7 @@ const AddNewEquipmentHistory = () => {
           }
         }
       } else if (formData.typeOfService === 'Routine Maintenance' || formData.typeOfService === 'Repair/Modification') {
-        apiFormData.append('typeofservice', 'Routine Maintenance');
+        apiFormData.append('typeofservice', 'Repair/Modification');
         apiFormData.append('startdate', formatDateForAPI(formData.startDate));
         apiFormData.append('enddate', formatDateForAPI(formData.startDate));
         apiFormData.append('serviceprovider', formData.serviceProvider.trim());
@@ -411,15 +411,16 @@ const AddNewEquipmentHistory = () => {
               styles={customSelectStyles}
               options={[
                 { value: 'Calibration', label: 'Calibration' },
-                { value: 'Maintenance', label: 'Maintenance' },
-                { value: 'Routine Maintenance', label: 'Routine Maintenance' },
+                { value: 'Maintenance', label: 'Routine Maintenance' },
+                { value: 'Repair/Modification', label: 'Repair / Modification' },
                 { value: 'Out of order', label: 'Out of Order' },
               ]}
               value={{
                 value: formData.typeOfService,
                 label: formData.typeOfService === 'Out of order' 
                   ? 'Out of Order' 
-                  : (formData.typeOfService === 'Repair/Modification' ? 'Routine Maintenance' : formData.typeOfService)
+                  : (formData.typeOfService === 'Maintenance' ? 'Routine Maintenance'
+                    : ((formData.typeOfService === 'Repair/Modification' || formData.typeOfService === 'Routine Maintenance') ? 'Repair / Modification' : formData.typeOfService))
               }}
               onChange={(opt) => setFormData({ ...formData, typeOfService: opt.value })}
               isLoading={isSubmitting}

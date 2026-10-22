@@ -294,7 +294,7 @@ function ViewEquipmentHistory() {
                   <tbody>
                     <tr>
                       <td className="border border-gray-300 px-3 py-2">1</td>
-                      <td className="border border-gray-300 px-3 py-2">Maintenance (KTRC/QF/0604/18)</td>
+                      <td className="border border-gray-300 px-3 py-2">Routine Maintenance (KTRC/QF/0604/18)</td>
                     </tr>
                     <tr>
                       <td className="border border-gray-300 px-3 py-2">2</td>
@@ -302,7 +302,7 @@ function ViewEquipmentHistory() {
                     </tr>
                     <tr>
                       <td className="border border-gray-300 px-3 py-2">3</td>
-                      <td className="border border-gray-300 px-3 py-2">Routine Maintenance</td>
+                      <td className="border border-gray-300 px-3 py-2">Repair / Modification</td>
                     </tr>
                     <tr>
                       <td className="border border-gray-300 px-3 py-2">4</td>
@@ -340,7 +340,7 @@ function ViewEquipmentHistory() {
                         return (
                           <tr key={index}>
                             <td className="border border-gray-300 px-2 py-2 font-medium">
-                              {isOutOfOrder ? 'Out of Order' : (isRoutineMaint ? 'Routine Maintenance' : (record.service_type || '-'))}
+                              {isOutOfOrder ? 'Out of Order' : (isRoutineMaint ? 'Repair / Modification' : (isMaintenance ? 'Routine Maintenance' : (record.service_type || '-')))}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">{record.start_date || '-'}</td>
                             <td className="border border-gray-300 px-2 py-2">
@@ -396,7 +396,7 @@ function ViewEquipmentHistory() {
                                     rel="noopener noreferrer"
                                     className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded border border-blue-200"
                                   >
-                                    📄 {isMaintenance ? 'Maintenance Record' : (isRoutineMaint ? 'Service Report' : 'View Document')}
+                                    📄 {isMaintenance ? 'Routine Maintenance Record' : (isRoutineMaint ? 'Service Report' : 'View Document')}
                                   </a>
                                 )}
                                 {record.verification_url && (
