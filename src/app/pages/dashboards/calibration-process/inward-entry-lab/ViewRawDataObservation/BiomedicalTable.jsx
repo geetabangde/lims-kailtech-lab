@@ -2,7 +2,7 @@ import { safeGetValue, formatValueByLc } from './viewRawDataUtils';
 
 const isYes = (val) => String(val || '').trim().toLowerCase() === 'yes';
 
-export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations }) => {
+export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instrumentId }) => {
   const config = biomedicalRawData?.config || {};
   const isBiomedical = isYes(config.biomedical ?? 'Yes');
 
@@ -191,6 +191,8 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations }) => {
         const showUncertaintyAndRemark = false;
         const masterCount = isMeasure ? 1 : 5;
         const uucCount = isElectricalGroup ? 0 : (isMeasure ? 5 : 1);
+        // Radiant / Baby Warmer (master instrument 138): performance rows have no tolerance -> column not shown (all other instruments unchanged)
+        const hideTolerance = !isElectricalGroup && Number(instrumentId) === 138;
 
         const tableTitle = isElectricalGroup
           ? (mode === 'Source' ? '3. ELECTRICAL SAFETY TEST (Source)' : '3. ELECTRICAL SAFETY TEST')
@@ -244,7 +246,9 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations }) => {
                   {showSetPointAndDeviation && (
                     <th className="border border-gray-300 px-3 py-2 text-left">Deviation</th>
                   )}
-                  <th className="border border-gray-300 px-3 py-2 text-left">Tolerance</th>
+                  {!hideTolerance && (
+                    <th className="border border-gray-300 px-3 py-2 text-left">Tolerance</th>
+                  )}
                   {showUncertaintyAndRemark && (
                     <th className="border border-gray-300 px-3 py-2 text-left">Expanded Uncertainty</th>
                   )}
@@ -337,7 +341,9 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations }) => {
                           )}
                         </td>
                       )}
-                      <td className="border border-gray-300 px-3 py-2">{safeGetValue(point.tolerance)}</td>
+                      {!hideTolerance && (
+                        <td className="border border-gray-300 px-3 py-2">{safeGetValue(point.tolerance)}</td>
+                      )}
                       {showUncertaintyAndRemark && (
                         <td className="border border-gray-300 px-3 py-2">{safeGetValue(point.expanded_uncertainty)}</td>
                       )}

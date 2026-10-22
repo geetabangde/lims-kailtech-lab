@@ -1121,7 +1121,7 @@ export default function CalibrationReport() {
               ) : observationTemplate === 'observationuc' ? (
                 <UCTable observationRows={observationRows} />
               ) : observationTemplate === 'observationbiomedical' ? (
-                <BiomedicalTable biomedicalRawData={biomedicalRawData} dynamicObservations={dynamicObservations} />
+                <BiomedicalTable biomedicalRawData={biomedicalRawData} dynamicObservations={dynamicObservations} instrumentId={instrumentInfo?.id} />
               ) : observationTemplate === 'observationts' ? (
                 <TSTable observationRows={observationRows} />
               ) : observationTemplate === 'observationautm' ? (
