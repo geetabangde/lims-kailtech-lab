@@ -242,9 +242,9 @@ export default function EditDumpApprove() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">1</td><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">Maintenance</td></tr>
+                  <tr><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">1</td><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">Routine Maintenance</td></tr>
                   <tr><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">2</td><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">Calibration</td></tr>
-                  <tr><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">3</td><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">Repair/Modification</td></tr>
+                  <tr><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">3</td><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">Repair / Maintenance</td></tr>
                   <tr><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">4</td><td className="border border-gray-300 dark:border-dark-500 p-3 font-normal text-gray-600">Out of order</td></tr>
                 </tbody>
               </table>

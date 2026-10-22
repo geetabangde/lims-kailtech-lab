@@ -412,7 +412,7 @@ const AddNewEquipmentHistory = () => {
               options={[
                 { value: 'Calibration', label: 'Calibration' },
                 { value: 'Maintenance', label: 'Routine Maintenance' },
-                { value: 'Repair/Modification', label: 'Repair / Modification' },
+                { value: 'Repair/Modification', label: 'Repair / Maintenance' },
                 { value: 'Out of order', label: 'Out of Order' },
               ]}
               value={{
@@ -420,7 +420,7 @@ const AddNewEquipmentHistory = () => {
                 label: formData.typeOfService === 'Out of order' 
                   ? 'Out of Order' 
                   : (formData.typeOfService === 'Maintenance' ? 'Routine Maintenance'
-                    : ((formData.typeOfService === 'Repair/Modification' || formData.typeOfService === 'Routine Maintenance') ? 'Repair / Modification' : formData.typeOfService))
+                    : ((formData.typeOfService === 'Repair/Modification' || formData.typeOfService === 'Routine Maintenance') ? 'Repair / Maintenance' : formData.typeOfService))
               }}
               onChange={(opt) => setFormData({ ...formData, typeOfService: opt.value })}
               isLoading={isSubmitting}

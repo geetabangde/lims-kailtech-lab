@@ -306,8 +306,8 @@ const CloneCertificateDetails = () => {
               disabled={isSubmitting}
             >
               <option>Calibration</option>
-              <option>Maintenance</option>
-              <option>Repair/Modification</option>
+              <option value="Maintenance">Routine Maintenance</option>
+              <option value="Repair/Modification">Repair / Maintenance</option>
             </select>
           </div>
 

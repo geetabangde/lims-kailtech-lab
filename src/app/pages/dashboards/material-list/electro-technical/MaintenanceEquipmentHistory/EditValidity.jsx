@@ -291,17 +291,17 @@ export default function EditMasterValidity() {
                 <Select
                   value={[
                     { value: 'Calibration', label: 'Calibration' },
-                    { value: 'Maintenance', label: 'Maintenance' },
+                    { value: 'Maintenance', label: 'Routine Maintenance' },
                     { value: 'Repair', label: 'Repair' },
-                    { value: 'Repair/Modification', label: 'Repair/Modification' },
+                    { value: 'Repair/Modification', label: 'Repair / Maintenance' },
                     { value: 'Inspection', label: 'Inspection' }
                   ].find(opt => opt.value === formData.typeOfService)}
                   onChange={(opt) => setFormData({ ...formData, typeOfService: opt ? opt.value : '' })}
                   options={[
                     { value: 'Calibration', label: 'Calibration' },
-                    { value: 'Maintenance', label: 'Maintenance' },
+                    { value: 'Maintenance', label: 'Routine Maintenance' },
                     { value: 'Repair', label: 'Repair' },
-                    { value: 'Repair/Modification', label: 'Repair/Modification' },
+                    { value: 'Repair/Modification', label: 'Repair / Maintenance' },
                     { value: 'Inspection', label: 'Inspection' }
                   ]}
                   placeholder="Select Type"

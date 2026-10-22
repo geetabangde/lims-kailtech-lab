@@ -302,7 +302,7 @@ function ViewEquipmentHistory() {
                     </tr>
                     <tr>
                       <td className="border border-gray-300 px-3 py-2">3</td>
-                      <td className="border border-gray-300 px-3 py-2">Repair / Modification</td>
+                      <td className="border border-gray-300 px-3 py-2">Repair / Maintenance</td>
                     </tr>
                     <tr>
                       <td className="border border-gray-300 px-3 py-2">4</td>
@@ -340,7 +340,7 @@ function ViewEquipmentHistory() {
                         return (
                           <tr key={index}>
                             <td className="border border-gray-300 px-2 py-2 font-medium">
-                              {isOutOfOrder ? 'Out of Order' : (isRoutineMaint ? 'Repair / Modification' : (isMaintenance ? 'Routine Maintenance' : (record.service_type || '-')))}
+                              {isOutOfOrder ? 'Out of Order' : (isRoutineMaint ? 'Repair / Maintenance' : (isMaintenance ? 'Routine Maintenance' : (record.service_type || '-')))}
                             </td>
                             <td className="border border-gray-300 px-2 py-2">{record.start_date || '-'}</td>
                             <td className="border border-gray-300 px-2 py-2">
