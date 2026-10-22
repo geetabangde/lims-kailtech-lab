@@ -227,7 +227,66 @@ export default function ViewRawData() {
               Environment Fields — {parameter.name ?? "Measurements"}
             </h3>
 
-            {headers.length > 0 && rows.length > 0 ? (
+            {/* AAC block (product 195, AAC format only): the 24 entered values as a 3 x 8 sample grid + average, same look as the entry screen */}
+            {data.format_type === "AAC" && Array.isArray(data.aac?.columns) ? (
+              <div className="space-y-4">
+                {data.aac.columns.map((col) => {
+                  const count = data.aac.count ?? 24;
+                  const rowCount = Math.ceil(count / 8);
+                  return (
+                    <div key={col.measurement_id} className="overflow-x-auto border border-gray-200 dark:border-gray-600">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700">
+                            <th rowSpan="2" className="border-r border-gray-300 px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-700 dark:border-gray-600 dark:text-gray-200">
+                              Sample
+                            </th>
+                            <th colSpan="8" className="border-b border-r border-gray-300 px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-700 dark:border-gray-600 dark:text-gray-200">
+                              {col.name} — {count} values (one per block)
+                            </th>
+                            <th rowSpan="2" className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-700 dark:text-gray-200">
+                              Average
+                            </th>
+                          </tr>
+                          <tr className="border-b border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-600">
+                            {Array.from({ length: 8 }, (_, c) => (
+                              <th key={c} className="border-r border-gray-300 px-3 py-2 text-center text-xs font-medium text-gray-600 dark:border-gray-600 dark:text-gray-200">
+                                {c + 1}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({ length: rowCount }, (_, row) => (
+                            <tr key={row} className="border-b border-gray-200 dark:border-gray-600">
+                              <td className="whitespace-nowrap border-r border-gray-200 px-3 py-2 align-middle text-xs text-gray-600 dark:border-gray-600 dark:text-gray-300">
+                                Samples {row * 8 + 1}–{Math.min(row * 8 + 8, count)}
+                              </td>
+                              {Array.from({ length: 8 }, (_, c) => {
+                                const i = row * 8 + c;
+                                if (i >= count) return <td key={c} className="border-r border-gray-200 dark:border-gray-600" />;
+                                const v = col.values?.[i];
+                                return (
+                                  <td key={c} className="whitespace-nowrap border-r border-gray-200 px-3 py-2 text-center align-middle text-sm text-gray-700 dark:border-gray-600 dark:text-gray-300">
+                                    {v === null || v === undefined || v === "" ? "—" : v}
+                                  </td>
+                                );
+                              })}
+                              {row === 0 && (
+                                <td rowSpan={rowCount} className="px-3 py-2 text-center align-middle text-base font-semibold text-gray-800 dark:text-gray-100">
+                                  {col.average ?? "—"}
+                                  <div className="mt-1 text-[10px] font-normal text-gray-400">IS 2 rounding</div>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : headers.length > 0 && rows.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
