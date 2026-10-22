@@ -1623,8 +1623,7 @@ const CalibrateStep3 = () => {
           }
         }
       }
-      else if (selectedTableData.id === 'observationcustom' ||
-                                              selectedTableData.id === 'observationuc') {
+      else if (selectedTableData.id === 'observationcustom') {
         const layout = getCustomLayoutIndices(instrument);
         if (layout) {
           const requiredCols = [];
@@ -1635,11 +1634,7 @@ const CalibrateStep3 = () => {
           layout.uucObsIndices.forEach(idx => requiredCols.push(idx));
           if (layout.remarkIdx !== -1) requiredCols.push(layout.remarkIdx);
 
-          const obsCols = [...layout.masterObsIndices, ...layout.uucObsIndices];
-          const rawLc = instrument?.leastcount;
-          const leastCount = (rawLc && rawLc !== 'NA' && !isNaN(parseFloat(rawLc)) && parseFloat(rawLc) > 0)
-            ? parseFloat(rawLc)
-            : undefined;
+          const point = observations?.[rowIndex];
 
           requiredCols.forEach(col => {
             const key = `${rowIndex}-${col}`;
@@ -1647,17 +1642,18 @@ const CalibrateStep3 = () => {
             const value = (rawVal !== undefined && rawVal !== null) ? rawVal.toString() : '';
             if (!value.trim()) {
               newErrors[key] = 'This field is required';
-            } else if (leastCount && obsCols.includes(col)) {
-              const numValue = parseFloat(value);
-              if (!isNaN(numValue) && numValue !== 0) {
-                if (Math.abs(numValue) < leastCount) {
-                  newErrors[key] = `Please enter a value with in leastcount ${leastCount}`;
-                } else {
-                  const factor = 1000000;
-                  const remainder = Math.round(numValue * factor) % Math.round(leastCount * factor);
-                  if (remainder !== 0) {
-                    newErrors[key] = `Please Enter Value divisible by ${leastCount}`;
-                  }
+            } else {
+              let targetLc = undefined;
+              if (layout.uucObsIndices.includes(col)) {
+                targetLc = point?.matrix?.leastcount ?? instrument?.leastcount;
+              } else if (layout.masterObsIndices.includes(col)) {
+                targetLc = point?.master_matrix?.leastcount ?? instrument?.masterleastcount;
+              }
+
+              if (targetLc && targetLc !== 'NA' && targetLc !== 'No' && !isNaN(parseFloat(targetLc)) && parseFloat(targetLc) > 0) {
+                const { isValid, error } = validateLeastCount(value, targetLc);
+                if (!isValid) {
+                  newErrors[key] = error;
                 }
               }
             }
@@ -1666,11 +1662,23 @@ const CalibrateStep3 = () => {
       }
     });
 
-    setObservationErrors(newErrors);
-    const errorKeys = Object.keys(newErrors);
+    // Ensure any existing cell-level observation errors in state (e.g. from blur/input validation)
+    // are preserved if they are still invalid and not cleared
+    const mergedErrors = { ...newErrors };
+    Object.keys(observationErrors).forEach(key => {
+      if (observationErrors[key] && !mergedErrors[key]) {
+        const val = tableInputValues[key];
+        if (val !== undefined && String(val).trim() !== '') {
+          mergedErrors[key] = observationErrors[key];
+        }
+      }
+    });
+
+    setObservationErrors(mergedErrors);
+    const errorKeys = Object.keys(mergedErrors).filter(k => Boolean(mergedErrors[k]));
     return {
       isValid: errorKeys.length === 0,
-      errors: newErrors,
+      errors: mergedErrors,
       firstErrorKey: errorKeys[0] || null,
       errorCount: errorKeys.length,
     };
@@ -10238,13 +10246,16 @@ const CalibrateStep3 = () => {
 
     // Validate observation fields
     const obsValidation = validateObservationFields();
-    if (!obsValidation.isValid) {
-      const firstErrorKey = obsValidation.firstErrorKey;
-      const count = obsValidation.errorCount;
+    const activeErrors = { ...observationErrors, ...obsValidation.errors };
+    const activeErrorKeys = Object.keys(activeErrors).filter(k => Boolean(activeErrors[k]));
+
+    if (!obsValidation.isValid || activeErrorKeys.length > 0) {
+      const firstErrorKey = obsValidation.firstErrorKey || activeErrorKeys[0];
+      const count = Math.max(obsValidation.errorCount, activeErrorKeys.length);
       const fieldLabel = getObservationFieldLabel(firstErrorKey, selectedTableData);
 
       if (count > 0) {
-        const errorReason = obsValidation.errors[firstErrorKey];
+        const errorReason = activeErrors[firstErrorKey];
         const reasonSuffix = errorReason && errorReason !== 'This field is required' ? ` (${errorReason})` : '';
         toast.error(
           count > 1
@@ -10255,7 +10266,7 @@ const CalibrateStep3 = () => {
 
       if (firstErrorKey) {
         const [rowIndex, colIndex] = firstErrorKey.split('-');
-        console.error('❌ First validation error at:', { rowIndex, colIndex, fieldLabel, error: obsValidation.errors[firstErrorKey] });
+        console.error('❌ First validation error at:', { rowIndex, colIndex, fieldLabel, error: activeErrors[firstErrorKey] });
 
         setTimeout(() => {
           const errorInput =
