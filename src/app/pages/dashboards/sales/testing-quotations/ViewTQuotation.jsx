@@ -210,12 +210,8 @@ export default function ViewTQuotation() {
                                             {item.sample_quantity ? item.sample_quantity.join(", ") : "---"}
                                         </td>
                                         <td style={{ borderRight: border, padding: cellPad }}>
+                                            {/* plain View shows only the package name; parameters are shown by "View with parameter" */}
                                             <div>{item.package}</div>
-                                            {item.parameters && item.parameters.length > 0 && (
-                                                <div style={{ fontSize: 9, color: "#666", marginTop: 4 }}>
-                                                    {item.parameters.join(", ")}
-                                                </div>
-                                            )}
                                         </td>
                                         <td style={{ borderRight: border, padding: cellPad, textAlign: "center" }}>{item.qty}</td>
                                         <td style={{ borderRight: border, padding: cellPad, textAlign: "right" }}>Rs.{parseFloat(item.unit_cost).toLocaleString()}</td>
