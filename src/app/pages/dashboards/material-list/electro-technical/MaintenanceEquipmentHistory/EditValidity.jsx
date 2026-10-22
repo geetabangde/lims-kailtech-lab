@@ -293,7 +293,7 @@ export default function EditMasterValidity() {
                     { value: 'Calibration', label: 'Calibration' },
                     { value: 'Maintenance', label: 'Routine Maintenance' },
                     { value: 'Repair', label: 'Repair' },
-                    { value: 'Repair/Modification', label: 'Repair / Maintenance' },
+                    { value: 'Repair/Modification', label: 'Repair / Modification' },
                     { value: 'Inspection', label: 'Inspection' }
                   ].find(opt => opt.value === formData.typeOfService)}
                   onChange={(opt) => setFormData({ ...formData, typeOfService: opt ? opt.value : '' })}
@@ -301,7 +301,7 @@ export default function EditMasterValidity() {
                     { value: 'Calibration', label: 'Calibration' },
                     { value: 'Maintenance', label: 'Routine Maintenance' },
                     { value: 'Repair', label: 'Repair' },
-                    { value: 'Repair/Modification', label: 'Repair / Maintenance' },
+                    { value: 'Repair/Modification', label: 'Repair / Modification' },
                     { value: 'Inspection', label: 'Inspection' }
                   ]}
                   placeholder="Select Type"

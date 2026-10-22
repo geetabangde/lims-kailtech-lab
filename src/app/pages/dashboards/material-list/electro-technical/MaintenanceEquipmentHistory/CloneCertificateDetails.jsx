@@ -307,7 +307,7 @@ const CloneCertificateDetails = () => {
             >
               <option>Calibration</option>
               <option value="Maintenance">Routine Maintenance</option>
-              <option value="Repair/Modification">Repair / Maintenance</option>
+              <option value="Repair/Modification">Repair / Modification</option>
             </select>
           </div>
 
