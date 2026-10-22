@@ -35,6 +35,8 @@ export default function EditEmployeeDetails() {
     esicno: "",
     pfno: "",
     uanno: "",
+    department: "",
+    designation: "",
   });
 
   const [files, setFiles] = useState({
@@ -51,6 +53,8 @@ export default function EditEmployeeDetails() {
     gender: [],
     maritalstatus: [],
     bloodgroup: [],
+    departments: [],
+    designations: [],
   });
 
   useEffect(() => {
@@ -87,6 +91,8 @@ export default function EditEmployeeDetails() {
             esicno: d.esicno || "",
             pfno: d.pfno || "",
             uanno: d.uanno || "",
+            department: d.department || "",
+            designation: d.designation || "",
           });
           setPreviewImages({
             thumb_image: d.thumb_image_url || "",
@@ -96,6 +102,8 @@ export default function EditEmployeeDetails() {
             gender: result.data.gender || [],
             maritalstatus: result.data.maritalstatus || [],
             bloodgroup: result.data.bloodgroup || [],
+            departments: result.data.departments || [],
+            designations: result.data.designations || [],
           });
         } else {
           toast.error(result.message || "Failed to load employee.");
@@ -257,6 +265,45 @@ export default function EditEmployeeDetails() {
             <label className="col-span-2 text-sm font-medium pl-2">Joining Date</label>
             <div className="col-span-4">
               <Input type="date" name="joiningdate" value={formData.joiningdate} onChange={handleChange} />
+            </div>
+          </div>
+
+          {/* Row 3b: Department & Designation */}
+          <div className="grid grid-cols-12 gap-4 items-center">
+            <label className="col-span-2 text-sm font-medium">Department</label>
+            <div className="col-span-4">
+              <select
+                name="department"
+                value={formData.department}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-[7px] dark:bg-gray-800 dark:border-gray-700 text-sm"
+              >
+                <option value="">Select Department</option>
+                {options.departments?.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="col-span-2 text-sm font-medium pl-2">Designation</label>
+            <div className="col-span-4">
+              <select
+                name="designation"
+                value={formData.designation}
+                onChange={handleChange}
+                className="w-full border rounded px-3 py-[7px] dark:bg-gray-800 dark:border-gray-700 text-sm"
+              >
+                <option value="">Select Designation</option>
+                {formData.designation && !options.designations?.some((d) => d.name === formData.designation) && (
+                  <option value={formData.designation}>{formData.designation}</option>
+                )}
+                {options.designations?.map((d) => (
+                  <option key={d.id || d.name} value={d.name || d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
