@@ -71,6 +71,15 @@ export default function EditTestParameter() {
 
   const [fetchingDropdowns, setFetchingDropdowns] = useState(false);
 
+  // Type of Format options come from the server list (App\Support\TestFormats): "Other" is the empty value
+  const [formatOptions, setFormatOptions] = useState([]);
+  useEffect(() => {
+    axios
+      .get("/testing/get-test-formats")
+      .then((res) => setFormatOptions(Array.isArray(res.data?.data) ? res.data.data : []))
+      .catch(() => setFormatOptions([]));
+  }, []);
+
   useEffect(() => {
     const fetchParameterData = async () => {
       if (!id) return;
@@ -925,7 +934,7 @@ export default function EditTestParameter() {
             />
           </div>
 
-          {/* Type of format (AAC / Other) - AAC shows the 24-value grid on Test Input */}
+          {/* Type of format: Other (standard) or one of the AAC formats - decides the readings required on Test Input and what the AAC report prints */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Type of Format
@@ -937,7 +946,13 @@ export default function EditTestParameter() {
               className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Other</option>
-              <option value="AAC">AAC</option>
+              {formatOptions.map((f) => (
+                <option key={f.code} value={f.code}>
+                  {f.label}
+                </option>
+              ))}
+              {/* value saved before the list existed: keep it selectable so saving this page does not clear it */}
+              {formData.formattype === "AAC" && <option value="AAC">AAC (old setting)</option>}
             </select>
           </div>
 
