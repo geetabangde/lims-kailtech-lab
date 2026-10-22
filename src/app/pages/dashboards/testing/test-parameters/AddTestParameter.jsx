@@ -764,8 +764,6 @@ export default function AddTestParameter() {
                   {f.label}
                 </option>
               ))}
-              {/* value saved before the list existed: keep it selectable so saving this page does not clear it */}
-              {formData.formattype === "AAC" && <option value="AAC">AAC (old setting)</option>}
             </select>
           </div>
 
