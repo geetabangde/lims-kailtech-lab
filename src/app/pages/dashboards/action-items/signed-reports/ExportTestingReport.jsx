@@ -558,7 +558,7 @@ export function HtmlDocWithLH({ report }) {
 
               <div style={S1.ulrRow}>
                 <div><span style={SS.bold}>ULR:</span>{data.nablStatus === 1 && data.ulr ? data.ulr : ''}</div>
-                <div style={SS.bold}>{data.ktrcRef}</div>
+                <div style={SS.bold}>{data.ktrcRef || 'KTRC/QF/0708/01'}</div>
               </div>
 
               <div style={SS.infoWrap}>
