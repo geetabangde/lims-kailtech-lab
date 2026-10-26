@@ -8709,7 +8709,27 @@ const CalibrateStep3 = () => {
         } else if (observationTemplate === 'observationwb' || observationTemplate === 'observationwbn') {
           let allPoints = [];
           const dataObj = observationData?.data || observationData;
-          if (dataObj?.weighing_process || dataObj?.repeatability || dataObj?.eccentricity) {
+          if (observationTemplate === 'observationwbn' && (dataObj?.weighing_process?.rows || dataObj?.repeatability?.rows || dataObj?.eccentricity?.rows)) {
+            // observationwbn returns the structured { weighing_process / repeatability / eccentricity }.rows format. Rebuild the
+            // points exactly like the initial load (incl. __wbn_structured_data); without it the table lost its sections and
+            // collapsed after every cell blur (Item 72294, 26-Oct-2026). Typed cell values are left untouched.
+            if (dataObj.weighing_process?.rows) {
+              allPoints.push(...dataObj.weighing_process.rows.map(p => ({ ...p, mode: 'Weighing Process' })));
+            }
+            if (dataObj.repeatability?.rows) {
+              allPoints.push(...dataObj.repeatability.rows.map(p => ({ ...p, mode: 'Repeatability' })));
+            }
+            if (dataObj.eccentricity?.rows) {
+              allPoints.push(...dataObj.eccentricity.rows.map(p => ({ ...p, mode: 'Eccentricity' })));
+            }
+            if (allPoints.length > 0) {
+              allPoints[0].__wbn_structured_data = {
+                weighing_process: dataObj.weighing_process,
+                repeatability: dataObj.repeatability,
+                eccentricity: dataObj.eccentricity
+              };
+            }
+          } else if (dataObj?.weighing_process || dataObj?.repeatability || dataObj?.eccentricity) {
             const wp = (dataObj.weighing_process?.calibration_points || []).map(p => ({ ...p, mode: 'Weighing Process' }));
             const rp = (dataObj.repeatability?.calibration_points || []).map(p => ({ ...p, mode: 'Repeatability' }));
             const ep = (dataObj.eccentricity?.calibration_points || []).map(p => ({ ...p, mode: 'Eccentricity' }));
