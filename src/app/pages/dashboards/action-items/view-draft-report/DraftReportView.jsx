@@ -598,7 +598,9 @@ export default function DraftReportView() {
             {/* NABL logo + heading */}
             <div className="mb-2 flex flex-col items-center gap-1">
               {/* NABL / QAI Logo */}
-              {(nabl && nabl !== "0" && nabl !== 0) && (
+              {/* testprices.nabl: 1 = NABL, 2 = Non-NABL (no logo), 3 = QAI */}
+              {(Number(typeof nabl === "object" ? nabl?.status : nabl) === 1 ||
+                Number(typeof nabl === "object" ? nabl?.status : nabl) === 3) && (
                 <img
                   src={
                     (typeof nabl === "object" ? nabl?.logo : null) ||
@@ -615,7 +617,7 @@ export default function DraftReportView() {
 
             {/* ULR + Ref No */}
             <div className="mb-4 flex justify-between text-xs font-semibold text-gray-700 dark:text-gray-300">
-              <span>{nabl && nabl !== "0" && nabl !== 0 && ulr ? `ULR: ${ulr}` : ""}</span>
+              <span>{Number(typeof nabl === "object" ? nabl?.status : nabl) === 1 && ulr ? `ULR: ${ulr}` : ""}</span>
               <span>{reference_no ?? ""}</span>
             </div>
 
