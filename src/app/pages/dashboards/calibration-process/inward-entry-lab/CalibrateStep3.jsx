@@ -12997,7 +12997,7 @@ const CalibrateStep3 = () => {
                                     if (selectedTableData.id === 'observationmt') {
                                       const repeatableCycle = parseInt(selectedTableData.hiddenInputs?.repeatables?.[rowIndex], 10) || 5;
                                       isObs45Disabled = (colIndex >= 2 && colIndex <= 6 && colIndex >= 2 + repeatableCycle);
-                                    } else if (['observationctg', 'observationmsr', 'observationexm', 'observationvc', 'observationfg', 'observationhg'].includes(selectedTableData.id)) {
+                                    } else if (['observationmsr', 'observationexm', 'observationvc', 'observationfg', 'observationhg'].includes(selectedTableData.id)) {
                                       isObs45Disabled = !isLastRow && (colIndex === 5 || colIndex === 6);
                                     } else if (selectedTableData.id === 'observationgtm') {
                                       isObs45Disabled = !isLastTwoRows && (colIndex === 9 || colIndex === 10);
