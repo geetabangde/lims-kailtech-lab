@@ -480,6 +480,9 @@ const ObservationLS = ({
             className={editable
               ? `${EDITABLE_INPUT} ${text ? 'text-left' : ''} ${error ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`
               : READONLY_INPUT}
+            // Parameter names ("Chassis Leakage Current (NC)") were cut to "Chassis Leakag"; the old page showed them in full
+            style={field === 'parameter' ? { minWidth: 280 } : undefined}
+            title={field === 'parameter' ? (value ?? '') : undefined}
             value={value ?? ''}
             onChange={editable ? (e) => setValue(item.info.pointId, field, e.target.value) : undefined}
             onBlur={editable ? (e) => save(item, field, e.target.value, index) : undefined}
