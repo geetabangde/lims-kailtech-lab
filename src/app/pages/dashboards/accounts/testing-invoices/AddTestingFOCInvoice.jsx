@@ -449,7 +449,14 @@ export default function AddFocTestingInvoice() {
         if (Array.isArray(d)) {
           setInwardOptions(d);
         } else {
-          setInwardOptions(Array.isArray(d.inwards) ? d.inwards : []);
+          // One PO can carry inwards billed to different parties; name the party when it is not the customer itself
+          setInwardOptions(
+            (Array.isArray(d.inwards) ? d.inwards : []).map((o) =>
+              o.billing && String(o.billingid) !== String(customerid)
+                ? { ...o, display: `${o.display} · Bill to: ${o.billing}` }
+                : o,
+            ),
+          );
           if (d.customer) {
             setBillingInfo(d.customer);
           } else if (d.statecode || d.gstno) {
@@ -545,6 +552,18 @@ export default function AddFocTestingInvoice() {
   );
 
   const handleInwardChange = (vals) => {
+    // An invoice has one billing party: refuse a selection that mixes inwards billed to different parties
+    const parties = new Set(
+      inwardOptions
+        .filter((o) => vals.includes(String(o.id)) && o.billingid != null)
+        .map((o) => String(o.billingid)),
+    );
+    if (parties.size > 1) {
+      toast.error(
+        "These inward entries are billed to different parties. Create a separate invoice for each billing party.",
+      );
+      return;
+    }
     setSelectedInwards(vals);
     loadItems(vals);
   };
