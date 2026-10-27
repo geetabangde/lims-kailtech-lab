@@ -41,6 +41,13 @@ const formatToLc = (value, leastCount) => {
   return num.toFixed(s.includes('.') ? s.split('.')[1].length : 0);
 };
 
+// Decimal places of a least count, -1 for 'NA' / missing
+const lcDecimals = (leastCount) => {
+  if (isNA(leastCount)) return -1;
+  const s = String(leastCount).trim();
+  return s.includes('.') ? s.split('.')[1].length : 0;
+};
+
 const pick = (obj, ...keys) => {
   for (const key of keys) {
     const val = safeGetValue(obj?.[key]);
@@ -246,19 +253,29 @@ export const getLSValues = (item, tableInputValues = {}, errorMode) => {
   const averageField = info.isMeasure ? 'averageuuc' : 'averagemaster';
 
   const readings = info.stored.readings.map((v, i) => local(`${readingField}${i}`, v));
-  const average = info.waveform ? local(averageField, info.stored.average) : averageOf(readings, info.nibp);
+  const rawAverage = info.waveform ? local(averageField, info.stored.average) : averageOf(readings, info.nibp);
 
   // Measure: uuc = average, master = fixed. Source: uuc = fixed, master = average
-  const uuc = info.isMeasure ? average : info.fixedReading;
-  const master = info.isMeasure ? info.fixedReading : average;
+  const uuc = info.isMeasure ? rawAverage : info.fixedReading;
+  const master = info.isMeasure ? info.fixedReading : rawAverage;
   const computedError = errorMode === 'stduuc' ? subtract(master, uuc, info.nibp) : subtract(uuc, master, info.nibp);
 
-  const error = !info.waveform
+  const rawError = !info.waveform
     ? computedError
     : local('error', info.isMeasure && computedError !== '' ? computedError : info.stored.error);
 
-  const remark = info.tolRange && error !== '' && !info.nibp
-    ? checkSafety(error, info.tolRange.min, info.tolRange.max)
+  // Lab request (Item 71746): show Average and Deviation to the least count of the readings, e.g. 3991.6 -> 3992
+  // for LC 1. Deviation is computed from the unrounded average first (no double rounding) and the tolerance
+  // remark still judges that unrounded value. Waveform / NIBP and an 'NA' least count stay as before.
+  const roundable = !info.waveform && !info.nibp;
+  const average = roundable ? formatToLc(rawAverage, info.isMeasure ? info.uucLc : info.masterLc) : rawAverage;
+  const errorDecimals = Math.max(-1, ...[info.uucLc, info.masterLc].map(lcDecimals));
+  const error = roundable && errorDecimals >= 0 && rawError !== '' && Number.isFinite(toNum(rawError))
+    ? toNum(rawError).toFixed(errorDecimals)
+    : rawError;
+
+  const remark = info.tolRange && rawError !== '' && !info.nibp
+    ? checkSafety(rawError, info.tolRange.min, info.tolRange.max)
     : local('remark', info.stored.remark);
 
   return {
