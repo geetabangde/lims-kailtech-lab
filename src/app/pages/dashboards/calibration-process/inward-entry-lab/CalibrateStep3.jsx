@@ -432,7 +432,16 @@ const CalibrateStep3 = () => {
         const data = res.data;
 
         setInwardEntry(data.inwardEntry);
-        setInstrument(data.instrument);
+        // observationls only: the crfinstrument_new row has no display flags, so ObservationLS always drew the
+        // "Performance Testing" layout with Expanded Uncertainty / Remarks. Old observationls.php read
+        // showelectricalsafety / showperformancetest from listofinstruments; merge just those two here.
+        setInstrument(data.observationTemplate === 'observationls' && data.listOfInstrument
+          ? {
+            ...data.instrument,
+            showelectricalsafety: data.listOfInstrument.showelectricalsafety,
+            showperformancetest: data.listOfInstrument.showperformancetest,
+          }
+          : data.instrument);
         setMasters(data.masters || []);
         setSupportMasters(data.supportMasters || []);
         setObservationTemplate(data.observationTemplate);
