@@ -28,7 +28,16 @@ function printInvoice(templateProps, withLH, logoSrc, pageTitle) {
   <title>${pageTitle || templateProps.inv?.invoiceno || "Invoice"}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    @page { size: A4; margin: 10mm; }
+    @page { 
+      size: A4; 
+      margin-top: ${!withLH ? '20mm' : '10mm'}; 
+      margin-bottom: ${!withLH ? '15mm' : '10mm'}; 
+      margin-left: 10mm; 
+      margin-right: 10mm; 
+    }
+    @page :first {
+      margin-top: 10mm;
+    }
     body  { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #111; background: #fff; }
     @media print { 
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -254,7 +263,7 @@ function InvoicePrintTemplate({
         </div>
       )}
 
-      <div style={{ textAlign: "center", marginBottom: 8, marginTop: !withLH ? 34 : 80 }}>
+      <div style={{ textAlign: "center", marginBottom: 8, marginTop: !withLH ? "calc(34px + 10mm)" : 80 }}>
         <div
           style={{
             fontSize: 14,
@@ -291,7 +300,7 @@ function InvoicePrintTemplate({
   return (
     <div style={{ ...S.wrap, padding: 0 }}>
       {/* Page 1 */}
-      <div style={{ minHeight: "270mm", display: "flex", flexDirection: "column", padding: "16px 20px" }}>
+      <div style={{ minHeight: !withLH ? "255mm" : "270mm", display: "flex", flexDirection: "column", padding: !withLH ? "16px 20px calc(20px + 5mm) 20px" : "16px 20px" }}>
         <HeaderSection />
         <table style={S.table}>
           <tbody>
@@ -573,7 +582,7 @@ function InvoicePrintTemplate({
       </div>
 
       {/* Page 2 */}
-      <div style={{ pageBreakBefore: "always", paddingTop: 10, display: "flex", flexDirection: "column", minHeight: "270mm", padding: "16px 20px" }}>
+      <div style={{ pageBreakBefore: "always", paddingTop: !withLH ? "20mm" : 10, display: "flex", flexDirection: "column", minHeight: !withLH ? "255mm" : "270mm", padding: !withLH ? "20mm 20px calc(20px + 5mm) 20px" : "16px 20px" }}>
         <HeaderSection />
         <table style={S.table}>
           <colgroup>
