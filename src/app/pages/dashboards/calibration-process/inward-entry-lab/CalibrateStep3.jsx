@@ -1650,7 +1650,7 @@ const CalibrateStep3 = () => {
             const rawVal = tableInputValues[key] ?? row[col];
             const value = (rawVal !== undefined && rawVal !== null) ? rawVal.toString() : '';
             if (!value.trim()) {
-              newErrors[key] = 'This field is required';
+              if (!isCustomDashCell(rowIndex, col)) newErrors[key] = 'This field is required';
             } else {
               let targetLc = undefined;
               if (layout.uucObsIndices.includes(col)) {
@@ -4030,6 +4030,18 @@ const CalibrateStep3 = () => {
     };
   };
 
+  // observationcustom, Bio-Medical Electrical Safety only (listofinstruments id 122): the "isolation test" row may be
+  // left blank / "-" instead of a reading (lab request, Item 72416). Every other row and instrument stays required.
+  const isCustomDashCell = (rowIndex, colIndex) => {
+    if (selectedTableData?.id !== 'observationcustom') return false;
+    const inst = getCustomInstrument();
+    if (Number(inst?.instid) !== 122 && Number(inst?.id) !== 122) return false;
+    const layout = getCustomLayoutIndices(inst);
+    if (!layout || layout.paramIdx === -1 || !layout.masterObsIndices.includes(colIndex)) return false;
+    const param = tableInputValues[`${rowIndex}-${layout.paramIdx}`] ?? selectedTableData?.staticRows?.[rowIndex]?.[layout.paramIdx];
+    return /isolation/i.test(String(param ?? ''));
+  };
+
   const getCustomLayoutIndices = (inst) => {
     // The main instrument fetch replaces `instrument` wholesale and drops the
     // template settings; fall back to the copy captured from the observations call
@@ -4822,7 +4834,7 @@ const CalibrateStep3 = () => {
           const isObsCol = layout.masterObsIndices.includes(colIndex) || layout.uucObsIndices.includes(colIndex);
 
           if (isCheckCol) {
-            if (!value.trim()) {
+            if (!value.trim() && !isCustomDashCell(rowIndex, colIndex)) {
               setObservationErrors(prevErrors => ({
                 ...prevErrors,
                 [key]: 'This field is required'
@@ -13149,6 +13161,11 @@ const CalibrateStep3 = () => {
                                           }}
                                           onBlur={(e) => {
                                             if (isDisabled) return;
+                                            if (!e.target.value.trim() && isCustomDashCell(rowIndex, colIndex)) {
+                                              setTableInputValues(prev => ({ ...prev, [key]: '-' }));
+                                              handleObservationBlur(rowIndex, colIndex, '-');
+                                              return;
+                                            }
                                             if (selectedTableData.id === 'observationctg' ||
                                               selectedTableData.id === 'observationdpg' ||
                                               selectedTableData.id === 'observationodfm' ||
