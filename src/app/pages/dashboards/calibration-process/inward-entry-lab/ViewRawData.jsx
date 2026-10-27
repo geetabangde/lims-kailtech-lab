@@ -1136,7 +1136,16 @@ export default function CalibrationReport() {
                   instrument={rawdata?.listInstrument}
                 />
               ) : observationTemplate === 'observationls' ? (
-                <ViewObservationLS observations={dynamicObservations} instrument={rawdata?.listInstrument} />
+                <ViewObservationLS
+                  observations={dynamicObservations}
+                  // The response has no top-level `instrument`, so the display flags come from instrument_info
+                  instrument={{
+                    ...(rawdata?.listInstrument ?? {}),
+                    showelectricalsafety: instrumentInfo?.showelectricalsafety ?? rawdata?.listInstrument?.showelectricalsafety,
+                    showperformancetest: instrumentInfo?.showperformancetest ?? rawdata?.listInstrument?.showperformancetest,
+                    digitincmc: instrumentInfo?.digitincmc ?? rawdata?.listInstrument?.digitincmc,
+                  }}
+                />
               ) : observationTemplate === 'observationlms' ? (
                 <ViewObservationLMS observations={dynamicObservations} />
               ) : observationTemplate === 'observationutm' ? (

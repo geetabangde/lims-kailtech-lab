@@ -1,7 +1,9 @@
 import { safeGetValue } from './viewRawDataUtils';
 
 /**
- * LS raw-data view. Port of rawdatals.php.
+ * LS raw-data view. For suffix 'ls' the old viewRawdataCalibration.php includes observationls.php (NOT rawdatals.php), so the
+ * Tolerance column is drawn only in the section 3 Measure table; section 3 Source and both section 4 tables have none
+ * (see the layouts at the bottom; the column list below describes the older rawdatals.php layout).
  *
  * Section 3 - unit types listed in the electricalsafety table
  *   ("3. PERFORMANCE TESTING", or "3. ELECTRICAL SAFETY TEST" with showelectricalsafety):
@@ -93,6 +95,18 @@ const isElectricalSafetyPoint = (point) => {
   return section.includes('electric') || section.includes('safety');
 };
 
+// Light Source raw data = old viewRawdataCalibration.php -> observationls.php (not rawdatals.php): Average and Deviation are
+// shown to the least count (3985.6 -> 3986) and plain numbers without units. Only plain numbers are rounded (not "120/80").
+const PLAIN_NUMBER = /^-?\d+(\.\d+)?$/;
+const lcDecimals = (leastCount) => {
+  if (isNA(leastCount)) return -1;
+  const s = String(leastCount).trim();
+  return s.includes('.') ? s.split('.')[1].length : 0;
+};
+const roundTo = (value, decimals) => (
+  decimals >= 0 && PLAIN_NUMBER.test(String(value).trim()) ? Number(value).toFixed(decimals) : value
+);
+
 /** Display values for one point. */
 export const getLSViewPoint = (point, index = 0, digitInCmc) => {
   const isMeasure = String(point.mode || 'Measure').toLowerCase() !== 'source';
@@ -127,10 +141,16 @@ export const getLSViewPoint = (point, index = 0, digitInCmc) => {
     fixedReading: isMeasure ? formatToLc(rawPoint, masterLc) : formatToLc(rawPoint, uucLc),
     units,
     readings: Array.from({ length: LS_VIEW_READINGS }, (_, i) => readingAt(readingList, i)),
-    average: isMeasure
-      ? pick(point, 'average_uuc', 'averageuuc', 'average')
-      : pick(point, 'average_master', 'averagemaster', 'average'),
-    error: pick(point, 'error', 'deviation', 'deviation_error') || pick(point?.calculations, 'error'),
+    average: roundTo(
+      isMeasure
+        ? pick(point, 'average_uuc', 'averageuuc', 'average')
+        : pick(point, 'average_master', 'averagemaster', 'average'),
+      lcDecimals(isMeasure ? uucLc : masterLc),
+    ),
+    error: roundTo(
+      pick(point, 'error', 'deviation', 'deviation_error') || pick(point?.calculations, 'error'),
+      Math.max(lcDecimals(uucLc), lcDecimals(masterLc)),
+    ),
     specification: pick(point, 'specification', 'tolerance'),
     expandedUncertainty,
     remark: pick(point, 'remark', 'remarks'),
@@ -174,10 +194,13 @@ export const createLSRows = (dataArray) => {
 const TH = 'border border-gray-300 px-3 py-2 text-center font-medium text-gray-700';
 const TD = 'border border-gray-300 px-3 py-2 text-gray-800';
 
+// Unit labels stay (the lab only needs the same fields and values as the old page, not the same look)
+const SHOW_UNITS = true;
+
 const WithUnit = ({ value, unit }) => (
   <>
     {isBlank(value) ? '-' : value}
-    {unit && !isBlank(value) ? <span className="ml-1 text-xs text-gray-500">{unit}</span> : null}
+    {SHOW_UNITS && unit && !isBlank(value) ? <span className="ml-1 text-xs text-gray-500">{unit}</span> : null}
   </>
 );
 
@@ -196,7 +219,7 @@ const LSTable = ({ points, isMeasure, layout }) => (
           <th colSpan={LS_VIEW_READINGS} className={TH}>{isMeasure ? 'Reading on UUC' : 'Reading on Master'}</th>
           <th rowSpan={2} className={TH}>{isMeasure ? 'Average On UUC' : 'Average On Master'}</th>
           {layout.error && <th rowSpan={2} className={TH}>Deviation</th>}
-          <th rowSpan={2} className={TH}>Tolerance</th>
+          {layout.tolerance && <th rowSpan={2} className={TH}>Tolerance</th>}
           {layout.extras && <th rowSpan={2} className={TH}>(±) Expanded Uncertainty</th>}
           {layout.extras && <th rowSpan={2} className={TH}>Remarks</th>}
         </tr>
@@ -224,7 +247,7 @@ const LSTable = ({ points, isMeasure, layout }) => (
             {/* PHP labels both averages with the UUC unit */}
             <td className={TD}><WithUnit value={p.average} unit={p.units.uuc} /></td>
             {layout.error && <td className={TD}><WithUnit value={p.error} unit={p.units.uuc} /></td>}
-            <td className={TD}>{p.specification || '-'}</td>
+            {layout.tolerance && <td className={TD}>{p.specification || '-'}</td>}
             {layout.extras && <td className={TD}>{isBlank(p.expandedUncertainty) ? '-' : `${p.expandedUncertainty}%`}</td>}
             {layout.extras && <td className={TD}>{p.remark || '-'}</td>}
           </tr>
@@ -252,7 +275,7 @@ export const ViewObservationLS = ({ observations, instrument }) => {
         <div className="mb-6">
           <div className={sectionTitle}>{showES ? '3. Electrical Safety Test' : '3. Performance Testing'}</div>
           {showPerformance && esMeasure.length > 0 && (
-            <LSTable points={esMeasure} isMeasure layout={{ fixed: !showES, error: !showES }} />
+            <LSTable points={esMeasure} isMeasure layout={{ fixed: !showES, error: !showES, tolerance: true }} />
           )}
           {esSource.length > 0 && (
             <LSTable points={esSource} isMeasure={false} layout={{ fixed: !showES, error: !showES, extras: !showES }} />
