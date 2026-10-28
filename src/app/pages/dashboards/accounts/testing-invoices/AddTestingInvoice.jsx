@@ -507,7 +507,14 @@ export default function AddTestingInvoice() {
         );
         // Response: { status, data: { inwards: [{id, display}], gstno, statecode } }
         const d = res.data?.data ?? res.data ?? {};
-        setInwardOptions(Array.isArray(d.inwards) ? d.inwards : []);
+        // One PO can carry inwards billed to different parties; name the party when it is not the customer itself
+        setInwardOptions(
+          (Array.isArray(d.inwards) ? d.inwards : []).map((o) =>
+            o.billing && String(o.billingid) !== String(customerid)
+              ? { ...o, display: `${o.display} · Bill to: ${o.billing}` }
+              : o,
+          ),
+        );
         // statecode/gstno are at top level of data (no nested customer object)
         if (d.statecode || d.gstno) {
           setBillingInfo((prev) => ({
@@ -619,6 +626,18 @@ export default function AddTestingInvoice() {
 
   // PHP: onchange="getServiceReportDetailAndUpdateBrnnos(ponumber, customerid)"
   const handleInwardChange = (vals) => {
+    // An invoice has one billing party: refuse a selection that mixes inwards billed to different parties
+    const parties = new Set(
+      inwardOptions
+        .filter((o) => vals.includes(String(o.id)) && o.billingid != null)
+        .map((o) => String(o.billingid)),
+    );
+    if (parties.size > 1) {
+      toast.error(
+        "These inward entries are billed to different parties. Create a separate invoice for each billing party.",
+      );
+      return;
+    }
     setSelectedInwards(vals);
     loadItems(vals);
   };
