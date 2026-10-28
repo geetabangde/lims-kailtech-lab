@@ -7,6 +7,7 @@ import { toast } from "sonner";
 // Local Imports
 import { Page } from "components/shared/Page";
 import { Card } from "components/ui";
+import { GradingTable } from "components/shared/GradingTable";
 
 // =============================================================================
 // ViewRawData Page
@@ -228,7 +229,11 @@ export default function ViewRawData() {
             </h3>
 
             {/* AAC block (product 195, AAC format only): the 24 entered values as a 3 x 8 sample grid + average, same look as the entry screen */}
-            {data.format_type === "AAC" && Array.isArray(data.aac?.columns) ? (
+            {data.format_type === "GRADING" && data.grading_table ? (
+              <div className="max-w-md">
+                <GradingTable table={data.grading_table} mode="result" />
+              </div>
+            ) : data.format_type === "AAC" && Array.isArray(data.aac?.columns) ? (
               <div className="space-y-4">
                 {data.aac.columns.map((col) => {
                   const count = data.aac.count ?? 24;

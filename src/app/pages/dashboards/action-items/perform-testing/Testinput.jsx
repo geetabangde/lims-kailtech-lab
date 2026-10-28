@@ -383,6 +383,9 @@ export default function TestInput() {
   const cycle = isNaN(rawCycle) || rawCycle < 1 ? 1 : rawCycle;
   // AAC format (set on the parameter): 24 values per reading shown as a 3 x 8 sample grid
   const isAac = testData?.format_type === "AAC";
+  // Aggregate "Size and Grading" format: one % passing box per IS sieve (labels come from the backend)
+  const isGrading = testData?.format_type === "GRADING";
+  const gradingLabels = isGrading && Array.isArray(testData?.row_labels) ? testData.row_labels : null;
 
   // parameter_elements[].measurement_id = PHP $pid = $frow['element']
   const paramElements = Array.isArray(testData?.parameter_elements)
@@ -463,12 +466,12 @@ export default function TestInput() {
       }
     }
 
-    if (isAac) {
+    if (isAac || isGrading) {
       for (const el of paramElements) {
         for (let i = 0; i < cycle; i++) {
           const v = String(measurements[i]?.[el.measurement_id] ?? "").trim();
           if (v === "" || isNaN(Number(v))) {
-            toast.error(`Enter all ${cycle} values as numbers (Sample-${i + 1} of ${el.name} is empty or invalid)`);
+            toast.error(`Enter all ${cycle} values as numbers (${gradingLabels ? `sieve ${gradingLabels[i]} mm` : `Sample-${i + 1}`} of ${el.name} is empty or invalid)`);
             return;
           }
         }
@@ -910,9 +913,9 @@ export default function TestInput() {
                 <table className="w-full text-left text-sm border-collapse">
                   <thead>
                     <tr className="bg-gray-200 dark:bg-gray-800 border-b border-gray-300">
-                      {isAac && (
+                      {(isAac || isGrading) && (
                         <th className="border-r border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 uppercase dark:border-gray-700 dark:text-gray-300">
-                          Sample
+                          {isGrading ? "IS Sieve (mm)" : "Sample"}
                         </th>
                       )}
                       {paramElements.map((el) => (
@@ -938,9 +941,9 @@ export default function TestInput() {
                         key={i}
                         className="border-b border-gray-300 dark:border-gray-700 hover:bg-gray-50 transition-colors"
                       >
-                        {isAac && (
+                        {(isAac || isGrading) && (
                           <td className="whitespace-nowrap border-r border-gray-300 px-3 py-1 text-xs font-medium text-gray-600 dark:border-gray-700 dark:text-gray-300">
-                            Sample-{i + 1}
+                            {gradingLabels ? gradingLabels[i] : `Sample-${i + 1}`}
                           </td>
                         )}
                         {paramElements.map((el) => {

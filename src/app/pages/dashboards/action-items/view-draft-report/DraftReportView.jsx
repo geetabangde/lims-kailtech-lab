@@ -14,6 +14,7 @@ import { Page } from "components/shared/Page";
 // ── PDF Export ─────────────────────────────────────────────────────────────
 // PHP: exporttestingreport.php   → Print Report With Letter Head
 // PHP: exporttestingreportwolh.php → Print Report Without Letter Head
+import { GradingTable } from "components/shared/GradingTable";
 import { ExportWithLHButton } from "./ExportReportWithLH";
 import { ExportWoLHButton } from "./ExportReportWoLH";
 import { PrintAacReportButton } from "../signed-reports/PrintAacReportButton";
@@ -554,7 +555,7 @@ export default function DraftReportView() {
   // NABL Search logic for BDL/ADL Remarks
   const hasBDL = results.some(r => r.nabl_bdl);
   const hasADL = results.some(r => r.nabl_adl);
-  const hasSpecs = Number(typeof trf_product !== "undefined" ? trf_product?.specification_flag : null) === 2 ? false : ((typeof trf_product !== "undefined" && Number(trf_product?.specification_flag) === 1) || results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—"));
+  const hasSpecs = Number(typeof trf_product !== "undefined" ? trf_product?.specification_flag : null) === 2 ? false : ((typeof trf_product !== "undefined" && Number(trf_product?.specification_flag) === 1) || results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—") || results.some((r) => r.grading_table));
   const hasSplitSpecs = hasSpecs && results.some((r) => r.specification && String(r.specification).includes("|"));
   if (hasBDL && !hasSplitSpecs) remarkLines.push("BDL : Below Detection Limit");
   if (hasADL) remarkLines.push("ADL : Above Detection Limit");
@@ -838,13 +839,17 @@ export default function DraftReportView() {
                                 "text-center text-gray-700 dark:text-gray-300",
                               )}
                             >
-                              {displayResult}
+                              {row.grading_table ? <GradingTable table={row.grading_table} mode="result" /> : displayResult}
                             </td>
                             <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
                               {row.method}
                             </td>
                             {hasSpecs && (
-                              hasSplitSpecs ? (
+                              row.grading_table ? (
+                                <td colSpan={hasSplitSpecs ? 2 : 1} className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                                  <GradingTable table={row.grading_table} mode="spec" />
+                                </td>
+                              ) : hasSplitSpecs ? (
                                 <>
                                   <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
                                     {row.specification && String(row.specification).includes("|")
