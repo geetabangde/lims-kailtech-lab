@@ -7,6 +7,7 @@ import { Button } from "components/ui";
 import axios from "utils/axios";
 import { toast } from "sonner";
 import { useLocation } from "react-router";
+import SendBatchDispatchModal from "./SendBatchDispatchModal";
 
 const confirmMessages = {
   pending: {
@@ -25,6 +26,7 @@ export function RowActions({ row, table }) {
   const [confirmDeleteLoading, setConfirmDeleteLoading] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
+  const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
 
   // Convert localStorage string to array of numbers
   const permissions =
@@ -236,6 +238,15 @@ export function RowActions({ row, table }) {
           },
         ]
       : []),
+    ...(permissions.includes(139) || permissions.includes(111) || permissions.includes(105) || localStorage.getItem("userRole") === "admin" || localStorage.getItem("userRole") === "4"
+      ? [
+          {
+            label: "📧 Send Reports & Invoice",
+            color: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm font-semibold",
+            onClick: () => setDispatchModalOpen(true),
+          },
+        ]
+      : []),
   ];
 
   const filteredActions = actions;
@@ -243,20 +254,39 @@ export function RowActions({ row, table }) {
   return (
     <>
       <div className="flex flex-wrap justify-left gap-1.5">
-        {filteredActions.map((action, index) => (
-          <Button
-            key={index}
-            component={Link}
-            to={action.to}
-            className={clsx(
-              "h-7 rounded px-2.5 py-1 text-xs font-medium outline-none transition-all hover:shadow-md",
-              action.color
-            )}
-          >
-            <span>{action.label}</span>
-          </Button>
-        ))}
+        {filteredActions.map((action, index) =>
+          action.onClick ? (
+            <Button
+              key={index}
+              onClick={action.onClick}
+              className={clsx(
+                "h-7 rounded px-2.5 py-1 text-xs font-medium outline-none transition-all hover:shadow-md cursor-pointer",
+                action.color
+              )}
+            >
+              <span>{action.label}</span>
+            </Button>
+          ) : (
+            <Button
+              key={index}
+              component={Link}
+              to={action.to}
+              className={clsx(
+                "h-7 rounded px-2.5 py-1 text-xs font-medium outline-none transition-all hover:shadow-md",
+                action.color
+              )}
+            >
+              <span>{action.label}</span>
+            </Button>
+          )
+        )}
       </div>
+
+      <SendBatchDispatchModal
+        isOpen={dispatchModalOpen}
+        onClose={() => setDispatchModalOpen(false)}
+        inwardId={row.original.id}
+      />
 
       <ConfirmModal
         show={deleteModalOpen}
