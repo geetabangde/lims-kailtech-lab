@@ -138,6 +138,9 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
     setCcRecipients(ccRecipients.filter((e) => e !== email));
   };
 
+  const parseTestRecipients = (value) =>
+    [...new Set((value || '').split(/[\s,;]+/).map((a) => a.trim().toLowerCase()).filter(Boolean))];
+
   const isValidEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
@@ -172,12 +175,16 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
       return;
     }
     if (testMode || data?.test_mode) {
-      const email = testRecipientEmail.trim();
-      if (!email || !isValidEmail(email)) {
-        toast.error('Pilot testing requires a test recipient email.');
+      const testList = parseTestRecipients(testRecipientEmail);
+      if (testList.length === 0 || testList.some((a) => !isValidEmail(a))) {
+        toast.error('Pilot testing requires valid test recipient email address(es), separated by commas.');
         return;
       }
-      if (!/@(kailtech\.(in|net)|gmail\.com)$/i.test(email)) {
+      if (testList.length > 5) {
+        toast.error('Please enter at most 5 test recipient addresses.');
+        return;
+      }
+      if (testList.some((a) => !/@(kailtech\.(in|net)|gmail\.com)$/i.test(a))) {
         toast.error('Pilot test emails can only be delivered to a company mailbox (@kailtech.in) or a Gmail address (@gmail.com).');
         return;
       }
@@ -195,7 +202,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
         custom_note: customNote.trim() || null,
         skip_undo_buffer: skipUndoBuffer,
         test_mode: testMode,
-        test_recipient_email: testRecipientEmail.trim(),
+        test_recipient_email: parseTestRecipients(testRecipientEmail).join(', '),
         declaration_confirmed: true,
       };
 
@@ -576,6 +583,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                     setReferenceType('custom');
                   }}
                   className="w-full text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  autoComplete="off"
                   placeholder="Enter or customize P.O. / Work Order Number"
                 />
               </div>
@@ -619,13 +627,14 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-amber-900 dark:text-amber-300 mb-1">
-                      Send Pilot Test Email To (Tester / Approver Company Mailbox):
+                      Send Pilot Test Email To (up to 5 addresses, separated by commas):
                     </label>
                     <input
-                      type="email"
+                      type="text"
+                      autoComplete="off"
                       value={testRecipientEmail}
                       onChange={(e) => setTestRecipientEmail(e.target.value)}
-                      placeholder="e.g. yourname@kailtech.in or yourname@gmail.com"
+                      placeholder="e.g. yourname@kailtech.in, yourname@gmail.com"
                       className="w-full text-xs rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 p-2 outline-none focus:ring-2 focus:ring-amber-500 font-mono"
                     />
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
@@ -893,8 +902,8 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                     />
                     <span className="text-xs text-gray-800 dark:text-gray-200 font-medium">
                       {(data?.test_mode || testMode)
-                        ? (/@gmail\.com$/i.test(testRecipientEmail.trim())
-                          ? `I understand this is a test and no email is sent to the customer. I am sending these certificates to the personal Gmail address ${testRecipientEmail.trim()} and accept full responsibility for this release.`
+                        ? (parseTestRecipients(testRecipientEmail).some((a) => /@gmail\.com$/i.test(a))
+                          ? `I understand this is a test and no email is sent to the customer. I am sending these certificates to the personal Gmail address ${parseTestRecipients(testRecipientEmail).filter((a) => /@gmail\.com$/i.test(a)).join(', ')} and accept full responsibility for this release.`
                           : "I understand this is a test and no email is sent to the customer.")
                         : "I accept full authorization and sole responsibility for releasing and transmitting these official documents to the client."}
                     </span>
