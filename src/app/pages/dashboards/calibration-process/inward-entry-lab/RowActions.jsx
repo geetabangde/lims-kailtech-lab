@@ -9,6 +9,10 @@ import { toast } from "sonner";
 import { useLocation } from "react-router";
 import SendBatchDispatchModal from "./SendBatchDispatchModal";
 
+// Management who may use "Send Reports & Invoice" (directors, managers, deputy/assistant managers, HODs).
+// The server enforces the same list (EmailDispatchController::dispatchManagerGate, DISPATCH_ALLOWED_USER_IDS).
+const DISPATCH_MANAGEMENT_IDS = [31, 113, 65, 37, 32, 90, 97, 41, 34, 33, 110, 136];
+
 const confirmMessages = {
   pending: {
     description:
@@ -238,7 +242,7 @@ export function RowActions({ row, table }) {
           },
         ]
       : []),
-    ...(permissions.includes(139) || permissions.includes(111) || permissions.includes(105) || localStorage.getItem("userRole") === "admin" || localStorage.getItem("userRole") === "4"
+    ...(DISPATCH_MANAGEMENT_IDS.includes(Number(localStorage.getItem("userId"))) || localStorage.getItem("userRole") === "admin" || localStorage.getItem("userRole") === "4"
       ? [
           {
             label: "📧 Send Reports & Invoice",
