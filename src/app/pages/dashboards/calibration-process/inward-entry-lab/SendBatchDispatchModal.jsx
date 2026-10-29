@@ -138,15 +138,6 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
     setCcRecipients(ccRecipients.filter((e) => e !== email));
   };
 
-  const addContactToField = (email, field = 'to') => {
-    if (!email || !isValidEmail(email)) return;
-    if (field === 'to') {
-      if (!toRecipients.includes(email)) setToRecipients([...toRecipients, email]);
-    } else {
-      if (!ccRecipients.includes(email)) setCcRecipients([...ccRecipients, email]);
-    }
-  };
-
   const isValidEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
