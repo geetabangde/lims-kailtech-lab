@@ -186,8 +186,8 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
         toast.error('Pilot testing requires a test recipient email.');
         return;
       }
-      if (!/@kailtech\.(in|net)$/i.test(email)) {
-        toast.error('Client confidentiality requirement: Pilot test emails must be delivered to a company mailbox ending in @kailtech.in (e.g. reports@kailtech.in).');
+      if (!/@(kailtech\.(in|net)|gmail\.com)$/i.test(email)) {
+        toast.error('Pilot test emails can only be delivered to a company mailbox (@kailtech.in) or a Gmail address (@gmail.com).');
         return;
       }
     }
@@ -566,15 +566,15 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                   )}
                   <button
                     type="button"
-                    onClick={() => handleReferenceSelect('inward_ref', data.po_options.inward_ref)}
+                    onClick={() => handleReferenceSelect('inward_ref', data?.po_options?.inward_ref)}
                     className={`p-2.5 rounded-lg border text-left text-xs transition-all ${
-                      poNumber === data.po_options.inward_ref
+                      poNumber === data?.po_options?.inward_ref
                         ? 'border-blue-600 bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:border-blue-500 font-bold'
                         : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 text-gray-700'
                     }`}
                   >
                     <div className="text-[10px] uppercase font-bold text-gray-400">Inward Ref</div>
-                    <div className="truncate">{data.po_options.inward_ref}</div>
+                    <div className="truncate">{data?.po_options?.inward_ref}</div>
                   </button>
                 </div>
                 <input
@@ -634,11 +634,11 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                       type="email"
                       value={testRecipientEmail}
                       onChange={(e) => setTestRecipientEmail(e.target.value)}
-                      placeholder="e.g. reports@kailtech.in or yourname@kailtech.in"
+                      placeholder="e.g. yourname@kailtech.in or yourname@gmail.com"
                       className="w-full text-xs rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 p-2 outline-none focus:ring-2 focus:ring-amber-500 font-mono"
                     />
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
-                      Confidentiality Safeguard: For safety during pilot testing, emails are dispatched ONLY to this @kailtech.in mailbox. Customers will receive NOTHING.
+                      Confidentiality Safeguard: For safety during pilot testing, emails are dispatched ONLY to this @kailtech.in or @gmail.com mailbox. Customers will receive NOTHING. If you use a Gmail address, you are responsible for these documents once sent.
                     </p>
                   </div>
                 </div>
@@ -724,40 +724,6 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                   </div>
                 </div>
 
-                {/* Quick Directory Contacts Suggestion Chips */}
-                {data?.recipients?.available_contacts?.length > 0 && (
-                  <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-                    <span className="text-[11px] text-gray-400 block mb-1">
-                      Quick Add from Customer Contact Directory:
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {data.recipients.available_contacts.map((c) => (
-                        <div
-                          key={c.id}
-                          className="inline-flex items-center gap-1 text-[11px] bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-lg text-gray-700 dark:text-gray-300"
-                        >
-                          <span>
-                            {c.name} ({c.department || c.designation || 'Staff'}): {c.email}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => addContactToField(c.email, 'to')}
-                            className="text-blue-600 hover:underline font-bold ml-1"
-                          >
-                            +To
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => addContactToField(c.email, 'cc')}
-                            className="text-emerald-600 hover:underline font-bold ml-1"
-                          >
-                            +CC
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Items & Certificate Table */}
@@ -936,7 +902,9 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                     />
                     <span className="text-xs text-gray-800 dark:text-gray-200 font-medium">
                       {(data?.test_mode || testMode)
-                        ? "I understand this is a test and no email is sent to the customer."
+                        ? (/@gmail\.com$/i.test(testRecipientEmail.trim())
+                          ? `I understand this is a test and no email is sent to the customer. I am sending these certificates to the personal Gmail address ${testRecipientEmail.trim()} and accept full responsibility for this release.`
+                          : "I understand this is a test and no email is sent to the customer.")
                         : "I accept full authorization and sole responsibility for releasing and transmitting these official documents to the client."}
                     </span>
                   </label>
