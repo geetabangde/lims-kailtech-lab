@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import axios from 'utils/axios';
 import { toast } from 'sonner';
 
-export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSuccess }) {
+export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfId, onSuccess }) {
+  // Calibration batch = inwardId (default); Testing batch = trfId (reports of one TRF)
+  const isTesting = !inwardId && !!trfId;
+  const refId = inwardId || trfId;
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
 
@@ -41,12 +44,12 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   useEffect(() => {
-    if (isOpen && inwardId) {
+    if (isOpen && refId) {
       fetchPreviewData();
     } else {
       resetState();
     }
-  }, [isOpen, inwardId]);
+  }, [isOpen, refId]);
 
   const resetState = () => {
     setData(null);
@@ -74,7 +77,9 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
   const fetchPreviewData = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`/dispatch/preview/${inwardId}`);
+      const res = isTesting
+        ? await axios.get(`/dispatch/preview-inward`, { params: { trfid: trfId } })
+        : await axios.get(`/dispatch/preview/${inwardId}`);
       if (res.data?.status && res.data?.data) {
         const d = res.data.data;
         setData(d);
@@ -193,7 +198,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
     setIsSubmitting(true);
     try {
       const payload = {
-        inward_id: inwardId,
+        ...(isTesting ? { trf_id: trfId } : { inward_id: inwardId }),
         po_number: poNumber.trim(),
         reference_type: referenceType,
         to_recipients: toRecipients,
@@ -329,7 +334,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                 Send Reports & Tax Invoice to Client
               </h2>
               <p className="text-xs text-blue-200">
-                Inward #{inwardId} · Consolidated Dispatch Package (Lab Owner Standard)
+                {isTesting ? `TRF #${trfId}` : `Inward #${inwardId}`} · Consolidated Dispatch Package (Lab Owner Standard)
               </p>
             </div>
           </div>
@@ -730,7 +735,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-bold text-gray-900 dark:text-white">
-                    Enclosed Certificates ({selectedItemIds.length} of {data?.items?.length || 0} selected)
+                    Enclosed {isTesting ? 'Reports' : 'Certificates'} ({selectedItemIds.length} of {data?.items?.length || 0} selected)
                   </h4>
                   <div className="flex items-center gap-2 text-xs">
                     <button

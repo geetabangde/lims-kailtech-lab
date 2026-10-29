@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import axios from "utils/axios";
+import { DispatchEmailButton } from "components/shared/DispatchEmailButton";
 
 // ----------------------------------------------------------------------
 
@@ -135,6 +136,9 @@ export function RowActions({ row, table }) {
           )}
         </>
       )}
+
+      {/* Email the final reports + testing invoice of this TRF (management only; test mode) */}
+      <DispatchEmailButton trfId={trf} />
 
       {/* ── Request Revision — perm 411 ───────────────────────────── */}
       {permissions.includes(411) && (
