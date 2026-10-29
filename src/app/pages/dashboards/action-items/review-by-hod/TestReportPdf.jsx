@@ -21,6 +21,7 @@ import {
   pdf,
 } from "@react-pdf/renderer";
 import PropTypes from "prop-types";
+import { GradingPdfTable } from "components/shared/GradingPdfTable";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -93,7 +94,7 @@ function extractData(report) {
     })
     .join(", ") || "—";
 
-  const hasSpecs = Number(trf_product?.specification_flag) === 2 ? false : (Number(trf_product?.specification_flag) === 1 || Number(trf_product?.specification) === 1 || test_results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—"));
+  const hasSpecs = Number(trf_product?.specification_flag) === 2 ? false : (Number(trf_product?.specification_flag) === 1 || Number(trf_product?.specification) === 1 || test_results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—") || test_results.some((r) => r.grading_table));
 
   const nablLogo =
     nablStatus === 1 ? (nablObj?.logo ?? "/images/nabl2348.png") :
@@ -310,9 +311,9 @@ function PdfResultsTable({ data, landscape = false }) {
               <Text style={td.sno}>{row.sno ?? idx + 1}</Text>
               <Text style={td.param}>{row.parameter_name ?? ""}</Text>
               <Text style={td.unit}>{unitDisplay}</Text>
-              <Text style={resultStyles}>{displayResult}</Text>
+              {row.grading_table ? (<View style={resultStyles}><GradingPdfTable table={row.grading_table} mode="result" /></View>) : (<Text style={resultStyles}>{displayResult}</Text>)}
               <Text style={td.method}>{methodName}</Text>
-              {hasSpecs && <Text style={td.spec}>{row.specification ?? "—"}</Text>}
+              {hasSpecs && (row.grading_table ? (<View style={td.spec}><GradingPdfTable table={row.grading_table} mode="spec" /></View>) : (<Text style={td.spec}>{row.specification ?? "—"}</Text>))}
             </View>
           );
         })

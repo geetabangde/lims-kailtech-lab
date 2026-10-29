@@ -13,6 +13,7 @@ import { PrintExportTestingReportButton } from "../signed-reports/ExportTestingR
 import { PrintExportTestingReportWOLHButton } from "../signed-reports/ExportTestingReportWOLH";
 import { PrintAacReportButton } from "../signed-reports/PrintAacReportButton";
 import { PrintExportTestingReportWOLHTwoSignButton } from "../signed-reports/ExportTestingReportWOLHTwoSign";
+import { GradingTable } from "components/shared/GradingTable";
 
 // ----------------------------------------------------------------------
 // Route: /dashboards/action-items/final-reports/view?tid=49506&hid=52927
@@ -107,7 +108,7 @@ export default function FinalReportDetail() {
   const signatories = toArray(report.signatories);
   const remarks = report.remarks ?? {};
   const nablStatus = report.nabl?.status ?? 0;
-  const hasSpecs = Number(trfProduct?.specification_flag) === 2 ? false : (Number(trfProduct?.specification_flag) === 1 || Number(trfProduct?.specification) === 1 || testResults.some((r) => r.specification && r.specification !== "—" && r.specification !== "-"));
+  const hasSpecs = Number(trfProduct?.specification_flag) === 2 ? false : (Number(trfProduct?.specification_flag) === 1 || Number(trfProduct?.specification) === 1 || testResults.some((r) => r.specification && r.specification !== "—" && r.specification !== "-") || testResults.some((r) => r.grading_table));
   const hasSplitSpecs = hasSpecs && testResults.some((r) => r.specification && String(r.specification).includes("|"));
   const reportStatus = report.report_status?.code ?? 0;
   // "brand" key from trf_product — shown after Grade in Sample Particulars
@@ -314,12 +315,14 @@ export default function FinalReportDetail() {
                           <td
                             className="border-r border-gray-200 px-3 py-2 text-center text-sm font-semibold dark:border-dark-500"
                             style={{ backgroundColor: bg ?? undefined, color: color ?? undefined }}
-                          >
-                            {displayResult}
-                          </td>
+                          >{row.grading_table ? <GradingTable table={row.grading_table} mode="result" /> : displayResult}</td>
                           <td className="border-r border-gray-200 px-3 py-2 text-center text-sm dark:border-dark-500">{methodName}</td>
                           {hasSpecs && (
-                            hasSplitSpecs ? (
+                            row.grading_table ? (
+                              <td colSpan={hasSplitSpecs ? 2 : 1} className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                                <GradingTable table={row.grading_table} mode="spec" />
+                              </td>
+                            ) : hasSplitSpecs ? (
                               <>
                                 <td className="border-r border-gray-200 px-3 py-2 text-center text-sm dark:border-dark-500">
                                   {row.specification && String(row.specification).includes("|")

@@ -20,6 +20,7 @@ import {
 } from "@react-pdf/renderer";
 import PropTypes from "prop-types";
 import { useState } from "react";
+import { GradingPdfTable } from "components/shared/GradingPdfTable";
 
 // ── Styles ────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
@@ -185,7 +186,7 @@ function ReportDocWoLH({ data }) {
   const { lrn, brn, ulr, condition, sealed, reportdate } = trf_product;
   const { start_date, end_date } = dates;
 
-  const hasSpecs = Number(typeof trf_product !== "undefined" ? trf_product?.specification_flag : null) === 2 ? false : ((typeof trf_product !== "undefined" && Number(trf_product?.specification_flag) === 1) || results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—"));
+  const hasSpecs = Number(typeof trf_product !== "undefined" ? trf_product?.specification_flag : null) === 2 ? false : ((typeof trf_product !== "undefined" && Number(trf_product?.specification_flag) === 1) || results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—") || results.some((r) => r.grading_table));
   const sealedMap = ["Unsealed", "Sealed", "Packed", "NA"];
   const conditionMap = { 1: "Good", 2: "Fair", 3: "Poor" };
 
@@ -320,9 +321,9 @@ function ReportDocWoLH({ data }) {
                 <Text style={TDSno}>{idx + 1}</Text>
                 <Text style={TDParam}>{row.parameter}</Text>
                 <Text style={TDUnit}>{row.unit ?? "—"}</Text>
-                <Text style={[TDResult, rStyle]}>{row.result ?? "—"}</Text>
+                {row.grading_table ? (<View style={[TDResult, rStyle]}><GradingPdfTable table={row.grading_table} mode="result" /></View>) : (<Text style={[TDResult, rStyle]}>{row.result ?? "—"}</Text>)}
                 <Text style={TDMethod}>{row.method}</Text>
-                {hasSpecs && <Text style={S.tdSpec}>{row.specification ?? "—"}</Text>}
+                {hasSpecs && (row.grading_table ? (<View style={S.tdSpec}><GradingPdfTable table={row.grading_table} mode="spec" /></View>) : (<Text style={S.tdSpec}>{row.specification ?? "—"}</Text>))}
               </View>
             );
           })}

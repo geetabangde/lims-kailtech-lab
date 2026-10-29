@@ -33,6 +33,7 @@ import {
 } from "./TestReportPdf";
 import { PrintExportTestingReportWOLHButton } from "../signed-reports/ExportTestingReportWOLH";
 import { PrintAacReportButton } from "../signed-reports/PrintAacReportButton";
+import { GradingTable } from "components/shared/GradingTable";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -501,7 +502,7 @@ export default function GenerateUlrDetail() {
       available_actions.some((a) => (typeof a === "object" ? a.id : a) === row.id)
     );
 
-  const hasSpecs = Number(trf_product?.specification_flag) === 2 ? false : (Number(trf_product?.specification_flag) === 1 || Number(trf_product?.specification) === 1 || test_results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—"));
+  const hasSpecs = Number(trf_product?.specification_flag) === 2 ? false : (Number(trf_product?.specification_flag) === 1 || Number(trf_product?.specification) === 1 || test_results.some((r) => r.specification && r.specification !== "-" && r.specification !== "—") || test_results.some((r) => r.grading_table));
   const hasSplitSpecs = hasSpecs && test_results.some((r) => r.specification && String(r.specification).includes("|"));
 
   const nablLogo =
@@ -713,10 +714,14 @@ export default function GenerateUlrDetail() {
                             <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{row.sno ?? idx + 1}</td>
                             <td className="px-3 py-2 text-gray-800 dark:text-gray-200">{row.parameter_name}</td>
                             <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{unitDisplay}</td>
-                            <td className="px-3 py-2" style={cellStyle}>{displayResult}</td>
+                            <td className="px-3 py-2" style={cellStyle}>{row.grading_table ? <GradingTable table={row.grading_table} mode="result" /> : displayResult}</td>
                             <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{methodName}</td>
                             {hasSpecs && (
-                              hasSplitSpecs ? (
+                              row.grading_table ? (
+                                <td colSpan={hasSplitSpecs ? 2 : 1} className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                                  <GradingTable table={row.grading_table} mode="spec" />
+                                </td>
+                              ) : hasSplitSpecs ? (
                                 <>
                                   <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">
                                     {row.specification && String(row.specification).includes("|")

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { toast } from "sonner";
 import { IMAGE_HOST_API } from "configs/auth.config";
+import { GradingTable } from "components/shared/GradingTable";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -98,7 +99,7 @@ export function extractData(report) {
     })
     .join(", ") || "—";
 
-  const hasSpecs = Number(trf_product?.specification_flag) === 2 ? false : (Number(trf_product?.specification_flag) === 1 || Number(trf_product?.specification) === 1 || toArray(test_results).some((r) => r.specification && r.specification !== "—" && r.specification !== "-"));
+  const hasSpecs = Number(trf_product?.specification_flag) === 2 ? false : (Number(trf_product?.specification_flag) === 1 || Number(trf_product?.specification) === 1 || toArray(test_results).some((r) => r.specification && r.specification !== "—" && r.specification !== "-") || toArray(test_results).some((r) => r.grading_table));
 
   const customerName = customer?.name ?? "—";
   const customerAddress = [customer?.address, customer?.city, customer?.pincode].filter(Boolean).join(", ");
@@ -367,10 +368,12 @@ export function HtmlResultsTable({ data }) {
                 <td style={{ ...SS.td, width: '5%' }}>{row.sno ?? idx + 1}</td>
                 <td style={{ ...SS.td, width: hasSplitSpecs ? '26%' : '30%', textAlign: 'left' }}>{row.parameter_name ?? ''}</td>
                 <td style={{ ...SS.td, width: '8%' }}>{unitDisplay}</td>
-                <td style={resultStyles}>{displayResult}</td>
+                <td style={resultStyles}>{row.grading_table ? <GradingTable table={row.grading_table} mode="result" /> : displayResult}</td>
                 <td style={{ ...SS.td, width: hasSplitSpecs ? '23%' : '25%' }}>{methodName}</td>
                 {hasSpecs && (
-                  hasSplitSpecs ? (
+                  row.grading_table ? (
+                    <td colSpan={hasSplitSpecs ? 2 : 1} style={{ ...SS.td, width: hasSplitSpecs ? '26%' : '18%' }}><GradingTable table={row.grading_table} mode="spec" /></td>
+                  ) : hasSplitSpecs ? (
                     <>
                       <td style={{ ...SS.td, width: '13%' }}>{reqVal}</td>
                       <td style={{ ...SS.td, width: '13%' }}>{permVal}</td>
