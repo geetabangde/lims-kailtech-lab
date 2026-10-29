@@ -126,21 +126,13 @@ function HodApproveSection({ hid, allottedItems, disposable, onSuccess }) {
     setItemInputs((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: val } : r)));
 
   const handleSubmit = useCallback(async () => {
-    for (let i = 0; i < activeItems.length; i++) {
-      const remnantVal = itemInputs[i]?.remnant;
-      if (remnantVal === "" || remnantVal === null || remnantVal === undefined) {
-        toast.error(`Please enter Remnant Quantity for row ${i + 1}.`);
-        return;
-      }
-    }
-
     setLoading(true);
     try {
       const payload = {
         aid: hid,
         hodremark,
         qid: activeItems.map((item) => item.qid ?? item.id),
-        remnant: itemInputs.map((r) => r.remnant ?? ""),
+        remnant: activeItems.map(() => 0),
         remark: itemInputs.map((r) => r.remark ?? ""),
         itemdepartment: activeItems.map((item) => item.department_id ?? item.department),
       };
@@ -182,7 +174,7 @@ function HodApproveSection({ hid, allottedItems, disposable, onSuccess }) {
           <table className="w-full text-xs">
             <thead className="bg-gray-100 dark:bg-dark-700">
               <tr>
-                {["ID", "Quantity", "Allotted", "Left", "Department", "Remnant", "Remark"].map((h) => (
+                {["ID", "Quantity", "Allotted", "Left", "Department", "Remark"].map((h) => (
                   <th key={h} className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
                     {h}
                   </th>
@@ -197,18 +189,7 @@ function HodApproveSection({ hid, allottedItems, disposable, onSuccess }) {
                   <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{renderVal(item.alloted)}</td>
                   <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{renderVal(item.qleft)}</td>
                   <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{renderVal(item.department_name)}</td>
-                  {/* PHP: <input name="remnant[]" type="text" data-bvalidator="number,required,min[0],max[qleft]"> */}
-                  <td className="px-2 py-1.5">
-                    <input
-                      type="number"
-                      min={0}
-                      max={item.qleft}
-                      value={itemInputs[i]?.remnant ?? ""}
-                      onChange={(e) => setItemField(i, "remnant", e.target.value)}
-                      placeholder="Remnant qty"
-                      className="w-24 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-700 px-2 py-1 text-xs text-gray-800 dark:text-gray-200 focus:border-blue-500 focus:outline-none"
-                    />
-                  </td>
+
                   {/* PHP: <textarea name="remark[]" placeholder="Remark for remnant"> */}
                   <td className="px-2 py-1.5">
                     <textarea
@@ -224,7 +205,7 @@ function HodApproveSection({ hid, allottedItems, disposable, onSuccess }) {
             </tbody>
             <tfoot className="bg-gray-50 dark:bg-dark-800">
               <tr>
-                {["ID", "Quantity", "Allotted", "Left", "Department", "Remnant", "Remark"].map((h) => (
+                {["ID", "Quantity", "Allotted", "Left", "Department", "Remark"].map((h) => (
                   <th key={h} className="border-t border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
                     {h}
                   </th>
