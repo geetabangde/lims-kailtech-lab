@@ -8,10 +8,7 @@ import axios from "utils/axios";
 import { toast } from "sonner";
 import { useLocation } from "react-router";
 import SendBatchDispatchModal from "./SendBatchDispatchModal";
-
-// Management who may use "Send Reports & Invoice" (directors, managers, deputy/assistant managers, HODs).
-// The server enforces the same list (EmailDispatchController::dispatchManagerGate, DISPATCH_ALLOWED_USER_IDS).
-const DISPATCH_MANAGEMENT_IDS = [31, 113, 65, 37, 32, 90, 97, 41, 34, 33, 110, 136];
+import { canSendDispatchEmail } from "utils/dispatchAccess";
 
 const confirmMessages = {
   pending: {
@@ -242,7 +239,7 @@ export function RowActions({ row, table }) {
           },
         ]
       : []),
-    ...(DISPATCH_MANAGEMENT_IDS.includes(Number(localStorage.getItem("userId"))) || localStorage.getItem("userRole") === "admin" || localStorage.getItem("userRole") === "4"
+    ...(canSendDispatchEmail()
       ? [
           {
             label: "📧 Send Reports & Invoice",
