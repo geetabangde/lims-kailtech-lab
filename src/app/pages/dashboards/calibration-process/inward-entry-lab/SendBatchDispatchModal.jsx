@@ -862,6 +862,11 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                           </td>
                           <td className="p-2.5 font-bold text-gray-900 dark:text-white">
                             {item.certificateno}
+                            {!item.is_approved && (
+                              <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-semibold">
+                                Awaiting Approval / Signature
+                              </span>
+                            )}
                           </td>
                           <td className="p-2.5 text-gray-700 dark:text-gray-300">{item.name}</td>
                           <td className="p-2.5 text-gray-500">{item.serialno}</td>
@@ -942,6 +947,18 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                   placeholder="e.g. Kindly verify the test results. Hard copies are also dispatched via courier docket #..."
                 />
               </div>
+
+              {/* Unapproved items notice */}
+              {(data?.items || []).some((it) => !it.is_approved) && (
+                <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200">
+                  <div className="font-bold flex items-center gap-1.5 mb-1">
+                    <span>ℹ️</span> Notice for Approvers:
+                  </div>
+                  <div className="text-[11px] text-amber-800 dark:text-amber-300">
+                    Some items in this batch are still awaiting final HOD approval or digital signature. Only fully approved and signed reports can be selected for dispatch.
+                  </div>
+                </div>
+              )}
 
               {/* Why the dispatch is stopped (certificates / invoices not ready) */}
               {(blockers.length > 0 || serverBlockers.length > 0) && (
@@ -1060,6 +1077,17 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
             </button>
 
             <div className="flex flex-col items-end gap-1.5">
+              {(!allConfirmed || selectedItemIds.length === 0) && (
+                <div className="text-[11px] text-amber-700 dark:text-amber-400 text-right font-medium max-w-sm">
+                  {selectedItemIds.length === 0
+                    ? '⚠️ Please tick at least one approved report/certificate above.'
+                    : blockers.length > 0
+                    ? '⚠️ Dispatch stopped: please resolve the issues shown in red above.'
+                    : !confirmChecklist || !confirmResponsibility || (!confirmTestResponsibility && (data?.test_mode || testMode))
+                    ? '⚠️ Please tick all confirmation declaration checkboxes above to enable Send.'
+                    : ''}
+                </div>
+              )}
               <button
                 type="button"
                 disabled={loading || isSubmitting || selectedItemIds.length === 0 || !allConfirmed}
