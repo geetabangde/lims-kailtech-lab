@@ -19,6 +19,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
   const [confirmChecklist, setConfirmChecklist] = useState(false);
   const [confirmResponsibility, setConfirmResponsibility] = useState(false);
   const [confirmTestResponsibility, setConfirmTestResponsibility] = useState(false);
+  const [serverBlockers, setServerBlockers] = useState([]);
 
   // Testing Phase Safeguard State
   const [testMode, setTestMode] = useState(true);
@@ -61,6 +62,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
     setConfirmChecklist(false);
     setConfirmResponsibility(false);
     setConfirmTestResponsibility(false);
+    setServerBlockers([]);
     setTestMode(true);
     setTestRecipientEmail('');
     setQueuedLogId(null);
@@ -216,6 +218,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
       }
     }
 
+    setServerBlockers([]);
     setIsSubmitting(true);
     try {
       const payload = {
@@ -250,7 +253,12 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
       }
     } catch (err) {
       console.error('Queue error:', err);
-      toast.error(err.response?.data?.message || 'Error queueing dispatch.');
+      if (err.response?.data?.blockers?.length) {
+        setServerBlockers(err.response.data.blockers);
+        toast.error('Dispatch stopped - no email was sent. See the reasons shown in red on screen.');
+      } else {
+        toast.error(err.response?.data?.message || 'Error queueing dispatch.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -343,8 +351,23 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
 
   if (!isOpen) return null;
 
+  // Why this dispatch cannot go out (checked here for the ticked certificates; the server re-checks on send)
+  const blockers = (data?.items || [])
+    .filter((it) => selectedItemIds.includes(it.id))
+    .flatMap((it) => {
+      const list = [];
+      if (!it.pdf_exists) {
+        list.push({ item_id: it.id, certificate: it.certificateno, name: it.name, reason: 'The certificate PDF file is missing on the server, so it cannot be attached.' });
+      }
+      if (it.invoice_ok === false) {
+        list.push({ item_id: it.id, certificate: it.certificateno, name: it.name, reason: it.invoice_reason || 'No tax invoice is ready for this certificate.' });
+      }
+      return list;
+    });
+  const problemItemIds = [...new Set(blockers.map((b) => b.item_id))];
+
   const allConfirmed =
-    confirmChecklist && confirmResponsibility && (!(data?.test_mode || testMode) || confirmTestResponsibility);
+    confirmChecklist && confirmResponsibility && (!(data?.test_mode || testMode) || confirmTestResponsibility) && blockers.length === 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto overflow-x-hidden whitespace-normal">
@@ -807,6 +830,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                         <th className="p-2.5">Instrument / Item</th>
                         <th className="p-2.5">Serial No</th>
                         <th className="p-2.5">ULR No</th>
+                        <th className="p-2.5">Tax Invoice</th>
                         <th className="p-2.5 text-right">PDF File</th>
                       </tr>
                     </thead>
@@ -837,6 +861,13 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                           <td className="p-2.5 text-gray-700 dark:text-gray-300">{item.name}</td>
                           <td className="p-2.5 text-gray-500">{item.serialno}</td>
                           <td className="p-2.5 font-mono text-[11px] text-gray-600">{item.ulrno}</td>
+                          <td className="p-2.5">
+                            {item.invoice_ok ? (
+                              <span className="text-emerald-600 font-medium">✓ {item.invoice_no}</span>
+                            ) : (
+                              <span className="text-red-500 font-semibold">Not ready</span>
+                            )}
+                          </td>
                           <td className="p-2.5 text-right">
                             {item.pdf_exists ? (
                               <span className="text-emerald-600 font-medium">
@@ -904,6 +935,31 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                   placeholder="e.g. Kindly verify the test results. Hard copies are also dispatched via courier docket #..."
                 />
               </div>
+
+              {/* Why the dispatch is stopped (certificates / invoices not ready) */}
+              {(blockers.length > 0 || serverBlockers.length > 0) && (
+                <div className="p-4 rounded-xl border-2 border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800 space-y-2">
+                  <div className="text-xs font-bold text-red-800 dark:text-red-300">
+                    ⛔ Dispatch is stopped - no email will be sent until these are resolved:
+                  </div>
+                  <ul className="list-disc pl-5 space-y-1 text-[11px] text-red-900 dark:text-red-200">
+                    {(blockers.length > 0 ? blockers : serverBlockers).map((b, i) => (
+                      <li key={`${b.item_id}-${i}`}>
+                        <strong>{b.certificate}</strong> ({b.name}): {b.reason}
+                      </li>
+                    ))}
+                  </ul>
+                  {blockers.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedItemIds(selectedItemIds.filter((id) => !problemItemIds.includes(id)))}
+                      className="text-[11px] font-semibold text-red-700 underline"
+                    >
+                      Untick the certificates with problems and send the rest
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Mandatory Approver Undertaking & Accountability Card */}
               <div className="p-4 rounded-xl border-2 border-indigo-200 dark:border-indigo-900 bg-indigo-50/70 dark:bg-indigo-950/30 space-y-3">
