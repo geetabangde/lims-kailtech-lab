@@ -51,6 +51,8 @@ export default function MisSampleFlow() {
   const [data, setData] = useState(null);
 
   const [tat, setTat] = useState({ table_ready: true, data: [], allowance_days: 1 });
+  const [acks, setAcks] = useState(null);
+  const [ackDays, setAckDays] = useState(7);
   const [tatDraft, setTatDraft] = useState({ package_key: "", department: "*", dept_days: "", kailtech_tat: "" });
 
   const load = async () => {
@@ -75,10 +77,20 @@ export default function MisSampleFlow() {
     }
   };
 
+  const loadAcks = async (days = ackDays) => {
+    try {
+      const res = await axios.get("/mis/acks", { params: { days } });
+      if (res.data?.status) setAcks(res.data);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not load the confirmations.");
+    }
+  };
+
   useEffect(() => {
     if (isManagement) {
       load();
       loadTat();
+      loadAcks();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -142,14 +154,14 @@ export default function MisSampleFlow() {
             </p>
           </div>
           <div className="flex gap-2">
-            {["tracker", "tat"].map((t) => (
+            {["tracker", "acks", "tat"].map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTab(t)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${tab === t ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-300"}`}
               >
-                {t === "tracker" ? "Tracker & Dashboard" : "TAT Master"}
+                {t === "tracker" ? "Tracker & Dashboard" : t === "acks" ? "Allotment confirmations" : "TAT Master"}
               </button>
             ))}
           </div>
@@ -267,6 +279,71 @@ export default function MisSampleFlow() {
               </table>
             </div>
           </>
+        )}
+
+        {tab === "acks" && (
+          <div className="space-y-3">
+            <p className="text-xs text-gray-600">
+              Testing phase. People allotted a TRF / inward are asked to confirm they received it. "Not received" answers are disputes to resolve; "No response" lists allotments nobody has answered yet.
+            </p>
+            <div className="flex items-center gap-2 text-xs">
+              <label>Last
+                <select value={ackDays} onChange={(e) => { setAckDays(Number(e.target.value)); loadAcks(Number(e.target.value)); }} className="ml-1 border rounded-lg p-1.5">
+                  {[2, 7, 14, 30].map((d) => <option key={d} value={d}>{d} days</option>)}
+                </select>
+              </label>
+              <button type="button" onClick={() => loadAcks()} className="px-3 py-1.5 rounded-lg border font-semibold">Refresh</button>
+            </div>
+            {acks && !acks.table_ready && (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">The confirmation tables have not been created on the server yet.</div>
+            )}
+            {acks?.data?.summary && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <Card label="Confirmed" value={acks.data.summary.confirmed} />
+                <Card label="Will confirm later" value={acks.data.summary.later} tone={acks.data.summary.later ? "amber" : undefined} />
+                <Card label="Not received (dispute)" value={acks.data.summary.not_received} tone={acks.data.summary.not_received ? "red" : undefined} />
+                <Card label="No response" value={acks.data.summary.no_response} tone={acks.data.summary.no_response ? "amber" : undefined} />
+                <Card label="No response, past a day" value={acks.data.summary.no_response_overdue} tone={acks.data.summary.no_response_overdue ? "red" : undefined} />
+              </div>
+            )}
+            <h4 className="text-sm font-bold">Answers</h4>
+            <div className="overflow-auto border rounded-xl max-h-[40vh]">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 text-gray-500 sticky top-0"><tr>
+                  {["Person", "Type", "Ref", "Customer", "Items", "Allotted", "Answer", "Note", "Answered at", "Times"].map((h) => <th key={h} className="p-2 text-left whitespace-nowrap">{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {(acks?.data?.answers || []).map((r, i) => (
+                    <tr key={i} className={`border-t ${r.status === "not_received" ? "bg-red-50" : ""}`}>
+                      <td className="p-2">{r.person}</td><td className="p-2">{r.kind}</td><td className="p-2">{r.kind === "testing" ? `TRF #${r.ref_id}` : `Inward #${r.ref_id}`}</td>
+                      <td className="p-2">{r.customer}</td><td className="p-2">{r.items}</td><td className="p-2 whitespace-nowrap">{(r.allotted_on || "").slice(0, 16)}</td>
+                      <td className="p-2 font-semibold">{r.status === "not_received" ? "NOT RECEIVED" : r.status === "later" ? `Later (remind ${(r.remind_at || "").slice(0, 16)})` : "Confirmed"}</td>
+                      <td className="p-2">{r.note}</td><td className="p-2 whitespace-nowrap">{(r.responded_on || "").slice(0, 16)}</td><td className="p-2">{r.responses}</td>
+                    </tr>
+                  ))}
+                  {!(acks?.data?.answers || []).length && <tr><td colSpan={10} className="p-4 text-center text-gray-500">No answers yet.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <h4 className="text-sm font-bold">No response yet</h4>
+            <div className="overflow-auto border rounded-xl max-h-[40vh]">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 text-gray-500 sticky top-0"><tr>
+                  {["Person", "Type", "Ref", "Customer", "Items", "Allotted", "Waiting"].map((h) => <th key={h} className="p-2 text-left whitespace-nowrap">{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {(acks?.data?.no_response || []).map((r, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="p-2">{r.person}</td><td className="p-2">{r.kind}</td><td className="p-2">{r.kind === "testing" ? `TRF #${r.ref_id}` : `Inward #${r.ref_id}`}</td>
+                      <td className="p-2">{r.customer}</td><td className="p-2">{r.items}</td><td className="p-2 whitespace-nowrap">{(r.allotted_on || "").slice(0, 16)}</td>
+                      <td className="p-2">{r.overdue ? <span className="text-red-700 font-semibold">More than a day</span> : "Today"}</td>
+                    </tr>
+                  ))}
+                  {!(acks?.data?.no_response || []).length && <tr><td colSpan={7} className="p-4 text-center text-gray-500">Nothing waiting.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
 
         {tab === "tat" && (

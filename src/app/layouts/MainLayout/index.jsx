@@ -9,6 +9,7 @@ import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { AddTicketModal } from "components/modals/AddTicketModal";
 import { AddEnvironmentalRecordModal } from "components/modals/AddEnvironmentalRecordModal";
+import { AllotmentAckPopup } from "components/modals/AllotmentAckPopup";
 
 // ----------------------------------------------------------------------
 
@@ -56,6 +57,7 @@ export default function MainLayout() {
         <Outlet />
       </main>
       <Sidebar />
+      <AllotmentAckPopup />
 
       {/* --------------------------------------------------------- */}
       {/* STEP 1: GLOBAL SUPPORT BUTTON & MODALS                    */}

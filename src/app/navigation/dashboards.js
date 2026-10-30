@@ -406,6 +406,8 @@ export const canAccessDashboardsRoute = ({
 };
 
 // Function to generate dynamic dashboard config
+const MIS_MANAGEMENT_IDS = [31, 113, 65, 37, 32, 90, 97, 41, 34, 33, 110, 136];
+
 export const generateDashboardsConfig = (labs = [], userPermissions = []) => {
   const permissions = normalizePermissions(userPermissions);
   const employeeId = Number(localStorage.getItem("userId") || 0);
@@ -437,6 +439,17 @@ export const generateDashboardsConfig = (labs = [], userPermissions = []) => {
         transKey: "nav.dashboards.home",
         Icon: HomeIcon,
       },
+      ...(MIS_MANAGEMENT_IDS.includes(employeeId) || ["admin", "4"].includes(localStorage.getItem("userRole") || "")
+        ? [
+            {
+              id: "dashboards.mis",
+              type: NAV_TYPE_ITEM,
+              path: path(ROOT_DASHBOARDS, "/mis"),
+              title: "MIS - Sample Flow (Testing)",
+              Icon: MapIcon,
+            },
+          ]
+        : []),
       {
         id: "dashboards.material-list",
         path: path(ROOT_DASHBOARDS, "/material-list"),
