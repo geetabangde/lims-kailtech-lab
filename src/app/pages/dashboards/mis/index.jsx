@@ -1,5 +1,5 @@
 // MIS Phase 1 - Sample Flow Tracker (read-only) + TAT Master. Server: MisController (management only).
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import axios from "utils/axios";
 import { toast } from "sonner";
 import { Page } from "components/shared/Page";
@@ -52,6 +52,9 @@ export default function MisSampleFlow() {
 
   const [tat, setTat] = useState({ table_ready: true, data: [], allowance_days: 1 });
   const [acks, setAcks] = useState(null);
+  const [mailLog, setMailLog] = useState(null);
+  const [mailFilters, setMailFilters] = useState({ from: isoDate(new Date(today.getTime() - 30 * 86400000)), to: isoDate(today), status: "", mode: "", q: "" });
+  const [openMail, setOpenMail] = useState(null);
   const [ackDays, setAckDays] = useState(7);
   const [tatDraft, setTatDraft] = useState({ package_key: "", department: "*", dept_days: "", kailtech_tat: "" });
 
@@ -77,6 +80,15 @@ export default function MisSampleFlow() {
     }
   };
 
+  const loadMailLog = async (f = mailFilters) => {
+    try {
+      const res = await axios.get("/mis/email-log", { params: { from: f.from, to: f.to, status: f.status || undefined, mode: f.mode || undefined, q: f.q || undefined } });
+      if (res.data?.status) setMailLog(res.data.data);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not load the email log.");
+    }
+  };
+
   const loadAcks = async (days = ackDays) => {
     try {
       const res = await axios.get("/mis/acks", { params: { days } });
@@ -91,6 +103,7 @@ export default function MisSampleFlow() {
       load();
       loadTat();
       loadAcks();
+      loadMailLog();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -154,14 +167,14 @@ export default function MisSampleFlow() {
             </p>
           </div>
           <div className="flex gap-2">
-            {["tracker", "acks", "tat"].map((t) => (
+            {["tracker", "acks", "mail", "tat"].map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTab(t)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${tab === t ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-300"}`}
               >
-                {t === "tracker" ? "Tracker & Dashboard" : t === "acks" ? "Allotment confirmations" : "TAT Master"}
+                {t === "tracker" ? "Tracker & Dashboard" : t === "acks" ? "Allotment confirmations" : t === "mail" ? "Email log" : "TAT Master"}
               </button>
             ))}
           </div>
@@ -340,6 +353,79 @@ export default function MisSampleFlow() {
                     </tr>
                   ))}
                   {!(acks?.data?.no_response || []).length && <tr><td colSpan={7} className="p-4 text-center text-gray-500">Nothing waiting.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {tab === "mail" && (
+          <div className="space-y-3">
+            <p className="text-xs text-gray-600">Every report / invoice email sent from the LIMS: who sent it, to whom, what was attached and the result. Click a row for the full detail.</p>
+            <div className="flex flex-wrap items-end gap-2 text-xs">
+              <label>From<input type="date" value={mailFilters.from} onChange={(e) => setMailFilters({ ...mailFilters, from: e.target.value })} className="block border rounded-lg p-1.5" /></label>
+              <label>To<input type="date" value={mailFilters.to} onChange={(e) => setMailFilters({ ...mailFilters, to: e.target.value })} className="block border rounded-lg p-1.5" /></label>
+              <label>Status
+                <select value={mailFilters.status} onChange={(e) => setMailFilters({ ...mailFilters, status: e.target.value })} className="block border rounded-lg p-1.5">
+                  <option value="">All</option><option value="success">Sent</option><option value="test_delivered">Test delivered</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option><option value="queued_hold">Queued</option>
+                </select>
+              </label>
+              <label>Mode
+                <select value={mailFilters.mode} onChange={(e) => setMailFilters({ ...mailFilters, mode: e.target.value })} className="block border rounded-lg p-1.5">
+                  <option value="">All</option><option value="live">Live</option><option value="test">Test</option>
+                </select>
+              </label>
+              <label>Search<input value={mailFilters.q} onChange={(e) => setMailFilters({ ...mailFilters, q: e.target.value })} onKeyDown={(e) => e.key === "Enter" && loadMailLog()} placeholder="customer / email / PO / subject" className="block border rounded-lg p-1.5 w-56" /></label>
+              <button type="button" onClick={() => loadMailLog()} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold">Load</button>
+            </div>
+            {mailLog?.summary && (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <Card label="Emails" value={mailLog.summary.total} />
+                <Card label="Sent to customers" value={mailLog.summary.sent_live} />
+                <Card label="Test emails" value={mailLog.summary.test} />
+                <Card label="Failed" value={mailLog.summary.failed} tone={mailLog.summary.failed ? "red" : undefined} />
+                <Card label="Cancelled" value={mailLog.summary.cancelled} />
+              </div>
+            )}
+            <div className="overflow-auto border rounded-xl max-h-[65vh]">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 text-gray-500 sticky top-0"><tr>
+                  {["When", "Sent by", "Type", "Reference", "Customer", "To", "Docs", "Invoice", "Mode", "Status"].map((h) => <th key={h} className="p-2 text-left whitespace-nowrap">{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {(mailLog?.rows || []).map((r) => (
+                    <Fragment key={r.id}>
+                      <tr onClick={() => setOpenMail(openMail === r.id ? null : r.id)} className={`border-t cursor-pointer hover:bg-blue-50/40 ${r.status === "failed" ? "bg-red-50" : ""}`}>
+                        <td className="p-2 whitespace-nowrap">{(r.sent_at || "").slice(0, 16)}</td>
+                        <td className="p-2">{r.sent_by}<div className="text-[10px] text-gray-500">{r.sent_by_role}</div></td>
+                        <td className="p-2">{r.type}</td><td className="p-2 whitespace-nowrap">{r.ref}</td><td className="p-2 max-w-[200px] truncate" title={r.customer}>{r.customer}</td>
+                        <td className="p-2 max-w-[220px] truncate" title={(r.to || []).join(", ")}>{(r.to || []).join(", ")}</td>
+                        <td className="p-2">{r.documents}</td><td className="p-2">{r.invoice_no || "-"}</td>
+                        <td className="p-2">{r.mode === "test" ? <span className="text-amber-700 font-semibold">TEST</span> : "LIVE"}</td>
+                        <td className="p-2 font-semibold">{r.status}</td>
+                      </tr>
+                      {openMail === r.id && (
+                        <tr key={`${r.id}-d`} className="bg-gray-50">
+                          <td colSpan={10} className="p-3 space-y-1">
+                            <div><b>Subject:</b> {r.subject}</div>
+                            <div><b>To:</b> {(r.to || []).join(", ") || "-"} &nbsp; <b>CC:</b> {(r.cc || []).join(", ") || "-"} &nbsp; <b>BCC:</b> {(r.bcc || []).join(", ") || "-"}</div>
+                            <div><b>P.O. / reference:</b> {r.po || "-"} &nbsp; <b>Total size:</b> {(r.size_bytes / 1048576).toFixed(2)} MB (sent as one ZIP) &nbsp; <b>IP:</b> {r.ip || "-"}</div>
+                            <div><b>Declaration:</b> {r.declaration || "-"}</div>
+                            {r.declaration_text && <div className="text-gray-600">{r.declaration_text}</div>}
+                            {r.error && <div className="text-red-700"><b>Error:</b> {r.error}</div>}
+                            {r.feedback && <div><b>Tester feedback:</b> {r.feedback}</div>}
+                            <table className="w-full mt-2 border">
+                              <thead className="bg-white text-gray-500"><tr><th className="p-1 text-left">Certificate / report</th><th className="p-1 text-left">Instrument / product</th><th className="p-1 text-left">Serial / ID</th><th className="p-1 text-left">File</th><th className="p-1 text-left">Size</th></tr></thead>
+                              <tbody>{(r.items || []).map((it, i) => (
+                                <tr key={i} className="border-t"><td className="p-1">{it.no}</td><td className="p-1">{it.name}</td><td className="p-1">{it.serial}</td><td className="p-1">{it.file}</td><td className="p-1">{(it.bytes / 1024).toFixed(0)} KB</td></tr>
+                              ))}</tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                  {!(mailLog?.rows || []).length && <tr><td colSpan={10} className="p-6 text-center text-gray-500">No emails for these filters.</td></tr>}
                 </tbody>
               </table>
             </div>
