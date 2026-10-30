@@ -1385,6 +1385,12 @@ const protectedRoutes = {
               ],
             },
             {
+              path: "mis",
+              lazy: async () => ({
+                Component: (await import("app/pages/dashboards/mis")).default,
+              }),
+            },
+            {
               path: "calibration-process",
               children: [
                 {
