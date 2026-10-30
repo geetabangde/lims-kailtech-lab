@@ -175,7 +175,7 @@ export default function MisSampleFlow() {
             )}
             {data && !data.tat_master_loaded && (
               <div className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-2">
-                TAT Master is empty, so Report Due = latest department due date + 1 day. Fill the TAT Master tab to use the quoted Kailtech TAT.
+                TAT Master is empty, so a default of {data.default_tat_days || 10} days from booking is used for due dates (until the final TAT list is supplied). Fill the TAT Master tab to use the quoted Kailtech TAT.
               </div>
             )}
 
@@ -273,7 +273,7 @@ export default function MisSampleFlow() {
           <div className="space-y-3">
             <p className="text-xs text-gray-600">
               Kailtech TAT = report lead time quoted to the customer (use Department = <b>*</b>). Dept days = internal testing days for one department.
-              Package name must match the tracker exactly. Report Due = Booking + Kailtech TAT, otherwise latest department due + {tat.allowance_days} day.
+              Package name must match the tracker exactly. Report Due = Booking + Kailtech TAT; packages not listed here use a default of 10 days.
             </p>
             {!tat.table_ready ? (
               <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">The TAT Master table has not been created on the server yet.</div>
