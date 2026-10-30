@@ -4,6 +4,16 @@
 // (and to DISPATCH_ALLOWED_USER_IDS on the server) once the user names them.
 export const DISPATCH_MANAGEMENT_IDS = [31, 113, 65, 37, 32, 90, 97, 41, 34, 33, 110, 136];
 export const EXTRA_DISPATCH_USER_IDS = [];
+// Testing team: may use the TESTING report email (Signed Reports page) only. Keep in sync with server env DISPATCH_TESTING_USER_IDS (default 43 = Anita Dhakad).
+export const DISPATCH_TESTING_USER_IDS = [43];
+
+export function canSendTestingDispatchEmail() {
+  try {
+    return DISPATCH_TESTING_USER_IDS.includes(Number(localStorage.getItem("userId")));
+  } catch {
+    return false;
+  }
+}
 
 export function canSendDispatchEmail() {
   let userId = NaN;

@@ -5,11 +5,12 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import SendBatchDispatchModal from "app/pages/dashboards/calibration-process/inward-entry-lab/SendBatchDispatchModal";
-import { canSendDispatchEmail } from "utils/dispatchAccess";
+import { canSendDispatchEmail, canSendTestingDispatchEmail } from "utils/dispatchAccess";
 
 export function DispatchEmailButton({ inwardId, trfId, className }) {
   const [open, setOpen] = useState(false);
-  if (!canSendDispatchEmail() || (!inwardId && !trfId)) return null;
+  const allowed = canSendDispatchEmail() || (!inwardId && !!trfId && canSendTestingDispatchEmail());
+  if (!allowed || (!inwardId && !trfId)) return null;
   return (
     <>
       <button
