@@ -18,6 +18,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [confirmChecklist, setConfirmChecklist] = useState(false);
   const [confirmResponsibility, setConfirmResponsibility] = useState(false);
+  const [confirmTestResponsibility, setConfirmTestResponsibility] = useState(false);
 
   // Testing Phase Safeguard State
   const [testMode, setTestMode] = useState(true);
@@ -59,6 +60,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
     setSelectedItemIds([]);
     setConfirmChecklist(false);
     setConfirmResponsibility(false);
+    setConfirmTestResponsibility(false);
     setTestMode(true);
     setTestRecipientEmail('');
     setQueuedLogId(null);
@@ -138,6 +140,22 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
     setCcRecipients(ccRecipients.filter((e) => e !== email));
   };
 
+  const TEST_TO_EMAIL = 'reports@kailtech.in';
+
+  const TEMP_MAIL_DOMAINS = [
+    'mailinator.com', 'guerrillamail.com', 'guerrillamail.net', 'guerrillamail.org', 'sharklasers.com',
+    '10minutemail.com', '10minutemail.net', 'tempmail.com', 'temp-mail.org', 'temp-mail.io', 'tempmail.net',
+    'tempmailo.com', 'throwawaymail.com', 'yopmail.com', 'yopmail.net', 'getnada.com', 'nada.email',
+    'dispostable.com', 'trashmail.com', 'trashmail.net', 'maildrop.cc', 'fakeinbox.com', 'mailnesia.com',
+    'mintemail.com', 'mohmal.com', 'emailondeck.com', 'moakt.com', 'burnermail.io', 'spamgourmet.com',
+    'mytemp.email', 'tempail.com', 'discard.email', 'mailcatch.com', 'inboxkitten.com', 'tmpmail.org',
+    'tmpmail.net', 'e4ward.com', 'spambox.us', 'grr.la', 'guerrillamailblock.com', 'tempinbox.com',
+  ];
+  const isTempMail = (email) => {
+    const domain = (email.split('@')[1] || '').toLowerCase();
+    return TEMP_MAIL_DOMAINS.some((d) => domain === d || domain.endsWith('.' + d));
+  };
+
   const parseTestRecipients = (value) =>
     [...new Set((value || '').split(/[\s,;]+/).map((a) => a.trim().toLowerCase()).filter(Boolean))];
 
@@ -162,7 +180,15 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
 
   // Submit / Queue Dispatch
   const handleQueueDispatch = async () => {
-    if (toRecipients.length === 0) {
+    const isTestDispatch = testMode || data?.test_mode;
+    // Pending (un-entered) typed addresses are picked up so Enter is not mandatory
+    const pendingTo = newToEmail.trim().replace(/,$/, '');
+    const finalTo = isTestDispatch
+      ? [TEST_TO_EMAIL]
+      : [...new Set([...toRecipients, ...(pendingTo && isValidEmail(pendingTo) ? [pendingTo] : [])])];
+    const pendingCc = newCcEmail.trim().replace(/,$/, '');
+    const finalCc = [...new Set([...ccRecipients, ...(pendingCc && isValidEmail(pendingCc) ? [pendingCc] : [])])];
+    if (finalTo.length === 0) {
       toast.error('Please specify at least one "To" recipient email.');
       return;
     }
@@ -184,8 +210,8 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
         toast.error('Please enter at most 5 test recipient addresses.');
         return;
       }
-      if (testList.some((a) => !/@(kailtech\.(in|net)|gmail\.com)$/i.test(a))) {
-        toast.error('Pilot test emails can only be delivered to a company mailbox (@kailtech.in) or a Gmail address (@gmail.com).');
+      if (testList.some((a) => isTempMail(a))) {
+        toast.error('Temporary / disposable email addresses are not allowed for pilot testing. Please use a real mailbox.');
         return;
       }
     }
@@ -196,8 +222,8 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
         inward_id: inwardId,
         po_number: poNumber.trim(),
         reference_type: referenceType,
-        to_recipients: toRecipients,
-        cc_recipients: ccRecipients,
+        to_recipients: finalTo,
+        cc_recipients: finalCc,
         selected_item_ids: selectedItemIds,
         custom_note: customNote.trim() || null,
         skip_undo_buffer: skipUndoBuffer,
@@ -317,8 +343,11 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
 
   if (!isOpen) return null;
 
+  const allConfirmed =
+    confirmChecklist && confirmResponsibility && (!(data?.test_mode || testMode) || confirmTestResponsibility);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto overflow-x-hidden whitespace-normal">
       <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
         {/* Top Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-t-2xl">
@@ -342,7 +371,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 break-words">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
@@ -519,7 +548,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
                   Select P.O. / Delivery Challan Reference for Email Subject & Body
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 [&>*]:min-w-0">
                   {data?.po_options?.invoice_po && (
                     <button
                       type="button"
@@ -638,7 +667,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                       className="w-full text-xs rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 p-2 outline-none focus:ring-2 focus:ring-amber-500 font-mono"
                     />
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
-                      Confidentiality Safeguard: For safety during pilot testing, emails are dispatched ONLY to this @kailtech.in or @gmail.com mailbox. Customers will receive NOTHING. If you use a Gmail address, you are responsible for these documents once sent.
+                      Confidentiality Safeguard: For safety during pilot testing, emails are dispatched ONLY to the address(es) entered here. Customers will receive NOTHING. Temporary / disposable email addresses are not allowed. You are solely responsible for the documents once sent.
                     </p>
                   </div>
                 </div>
@@ -661,6 +690,18 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                 </div>
 
                 {/* TO field */}
+                {(testMode || data?.test_mode) ? (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
+                      &quot;To&quot; Primary Recipient (fixed during pilot testing)
+                    </label>
+                    <div className="flex items-center gap-1.5 p-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 min-h-[42px]">
+                      <span className="inline-flex items-center bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-blue-200 text-xs px-2.5 py-1 rounded-full font-medium">
+                        {TEST_TO_EMAIL}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
                 <div>
                   <label className="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
                     &quot;To&quot; Primary Recipients (Quality / Technical Desk)
@@ -691,6 +732,8 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                     />
                   </div>
                 </div>
+
+                )}
 
                 {/* CC field */}
                 <div>
@@ -908,6 +951,20 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
                         : "I accept full authorization and sole responsibility for releasing and transmitting these official documents to the client."}
                     </span>
                   </label>
+
+                  {(data?.test_mode || testMode) && (
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={confirmTestResponsibility}
+                        onChange={(e) => setConfirmTestResponsibility(e.target.checked)}
+                        className="mt-0.5 rounded text-indigo-600 focus:ring-0"
+                      />
+                      <span className="text-xs text-gray-800 dark:text-gray-200 font-medium">
+                        During testing, I (the approver / tester) am solely responsible for the emails and documents received at the address(es) I entered above. The software developers hold the approver / tester accountable for this test dispatch.
+                      </span>
+                    </label>
+                  )}
                 </div>
               </div>
 
@@ -942,19 +999,19 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, onSu
             <div className="flex flex-col items-end gap-1.5">
               <button
                 type="button"
-                disabled={loading || isSubmitting || selectedItemIds.length === 0 || !confirmChecklist || !confirmResponsibility}
+                disabled={loading || isSubmitting || selectedItemIds.length === 0 || !allConfirmed}
                 onClick={handleQueueDispatch}
                 className={`px-5 py-2.5 text-xs font-bold text-white rounded-lg shadow-lg flex items-center gap-2 transition-all ${
-                  loading || isSubmitting || selectedItemIds.length === 0 || !confirmChecklist || !confirmResponsibility
+                  loading || isSubmitting || selectedItemIds.length === 0 || !allConfirmed
                     ? 'bg-gray-400 cursor-not-allowed opacity-60'
                     : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
                 }`}
               >
-                <span>{confirmChecklist && confirmResponsibility ? '📧' : '🔒'}</span>
+                <span>{allConfirmed ? '📧' : '🔒'}</span>
                 <span>
                   {isSubmitting
                     ? 'Processing...'
-                    : !confirmChecklist || !confirmResponsibility
+                    : !allConfirmed
                     ? 'Confirm Undertaking to Dispatch'
                     : (data?.test_mode || testMode)
                     ? `Send Test Dispatch`
