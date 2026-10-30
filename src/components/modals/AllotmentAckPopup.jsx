@@ -117,7 +117,7 @@ export function AllotmentAckPopup() {
                     />
                     <div className="flex gap-2">
                       <button type="button" disabled={busy} onClick={() => send(g, "not_received", { note })} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold">
-                        Submit "Not received"
+                        Submit &quot;Not received&quot;
                       </button>
                       <button type="button" onClick={() => { setDisputeFor(null); setNote(""); }} className="px-3 py-1.5 rounded-lg border text-xs">Back</button>
                     </div>

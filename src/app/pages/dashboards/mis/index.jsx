@@ -284,7 +284,7 @@ export default function MisSampleFlow() {
         {tab === "acks" && (
           <div className="space-y-3">
             <p className="text-xs text-gray-600">
-              Testing phase. People allotted a TRF / inward are asked to confirm they received it. "Not received" answers are disputes to resolve; "No response" lists allotments nobody has answered yet.
+              Testing phase. People allotted a TRF / inward are asked to confirm they received it. &quot;Not received&quot; answers are disputes to resolve; &quot;No response&quot; lists allotments nobody has answered yet.
             </p>
             <div className="flex items-center gap-2 text-xs">
               <label>Last
