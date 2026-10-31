@@ -3,6 +3,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import axios from "utils/axios";
 import { toast } from "sonner";
 import { Page } from "components/shared/Page";
+import * as XLSX from "xlsx";
 
 const MANAGEMENT_IDS = [31, 113, 65, 37, 32, 90, 97, 41, 34, 33, 110, 136];
 
@@ -33,6 +34,54 @@ function Card({ label, value, tone }) {
   );
 }
 
+function SortIcon({ active, direction }) {
+  return (
+    <span className={`inline-flex items-center ml-1 ${active ? "text-blue-600" : "text-gray-400"}`}>
+      {active ? (
+        direction === "asc" ? (
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+          </svg>
+        ) : (
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        )
+      ) : (
+        <svg className="w-3 h-3 opacity-40 hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
+const TRACKER_COLUMNS = [
+  { key: "stage", label: "Stage", minWidth: "140px", render: (r) => <span className="font-semibold whitespace-nowrap">{r.stage}</span> },
+  { key: "days_since_booking", label: "Days", minWidth: "80px", render: (r) => r.days_since_booking },
+  { key: "testing_status", label: "Testing", minWidth: "110px", render: (r) => <Chip value={r.testing_status} /> },
+  { key: "report_status", label: "Report", minWidth: "110px", render: (r) => <Chip value={r.report_status} /> },
+  { key: "type", label: "Type", minWidth: "85px", render: (r) => r.type },
+  { key: "lrn", label: "LRN", minWidth: "130px", render: (r) => <span className="font-mono font-semibold">{r.lrn}</span> },
+  { key: "booking_date", label: "Booking", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.booking_date?.slice(0, 10)}</span> },
+  { key: "package", label: "Package", minWidth: "180px", render: (r) => <span className="max-w-[200px] truncate block" title={r.package}>{r.package}</span> },
+  { key: "customer", label: "Customer", minWidth: "180px", render: (r) => <span className="max-w-[180px] truncate block" title={r.customer}>{r.customer}</span> },
+  { key: "po_no", label: "PO", minWidth: "120px", render: (r) => r.po_no },
+  { key: "department", label: "Department", minWidth: "130px", render: (r) => r.department },
+  { key: "priority", label: "Priority", minWidth: "85px", render: (r) => r.priority === "Urgent" ? <b className="text-red-600">Urgent</b> : "Normal" },
+  { key: "test_due_date", label: "Test due", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.test_due_date}</span> },
+  { key: "report_due_date", label: "Report due", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.report_due_date}</span> },
+  { key: "transfer_date", label: "Transferred", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.transfer_date}</span> },
+  { key: "allocated_to", label: "Allocated to", minWidth: "120px", render: (r) => r.allocated_to },
+  { key: "allocation_date", label: "Allocated on", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.allocation_date}</span> },
+  { key: "results_date", label: "Results", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.results_date}</span> },
+  { key: "authorised_date", label: "Authorised", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.authorised_date}</span> },
+  { key: "dispatch_date", label: "Dispatched", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.dispatch_date}</span> },
+  { key: "docket", label: "Docket / mode", minWidth: "120px", render: (r) => r.docket },
+  { key: "emailed_date", label: "Emailed", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.emailed_date}</span> },
+  { key: "invoice_no", label: "Invoice", minWidth: "110px", render: (r) => <span className="whitespace-nowrap">{r.invoice_no}</span> },
+];
+
 export default function MisSampleFlow() {
   const isManagement =
     MANAGEMENT_IDS.includes(Number(localStorage.getItem("userId"))) ||
@@ -47,6 +96,8 @@ export default function MisSampleFlow() {
   const [stageFilter, setStageFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [q, setQ] = useState("");
+  const [colFilters, setColFilters] = useState({});
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
 
@@ -108,25 +159,82 @@ export default function MisSampleFlow() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        if (prev.direction === "asc") return { key, direction: "desc" };
+        return { key: null, direction: "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
   const rows = useMemo(() => {
     let r = data?.rows || [];
     if (department) r = r.filter((x) => x.department === department);
     if (stageFilter) r = r.filter((x) => x.stage === stageFilter);
     if (statusFilter) r = r.filter((x) => x.testing_status === statusFilter || x.report_status === statusFilter);
+
+    // Apply per-column text filters
+    Object.entries(colFilters).forEach(([colKey, val]) => {
+      if (!val || !val.trim()) return;
+      const searchVal = val.trim().toLowerCase();
+      r = r.filter((row) => {
+        const cellVal = String(row[colKey] ?? "").toLowerCase();
+        return cellVal.includes(searchVal);
+      });
+    });
+
+    // Apply sorting
+    if (sortConfig.key) {
+      const { key, direction } = sortConfig;
+      r = [...r].sort((a, b) => {
+        let valA = a[key] ?? "";
+        let valB = b[key] ?? "";
+        if (typeof valA === "number" || typeof valB === "number" || key === "days_since_booking") {
+          const numA = Number(valA) || 0;
+          const numB = Number(valB) || 0;
+          return direction === "asc" ? numA - numB : numB - numA;
+        }
+        valA = String(valA).toLowerCase();
+        valB = String(valB).toLowerCase();
+        if (valA < valB) return direction === "asc" ? -1 : 1;
+        if (valA > valB) return direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
     return r;
-  }, [data, department, stageFilter, statusFilter]);
+  }, [data, department, stageFilter, statusFilter, colFilters, sortConfig]);
 
   const departments = useMemo(() => [...new Set((data?.rows || []).map((x) => x.department))].sort(), [data]);
   const stages = ["Not transferred", "Awaiting allocation", "Testing", "Results submitted", "Ready to dispatch", "Bill pending", "Closed"];
 
   const exportCsv = () => {
-    const cols = ["type", "lrn", "booking_date", "package", "customer", "po_no", "department", "priority", "test_due_date", "report_due_date", "transfer_date", "allocated_to", "allocation_date", "results_date", "authorised_date", "dispatch_date", "docket", "emailed_date", "invoice_no", "invoice_date", "stage", "days_since_booking", "testing_status", "report_status"];
+    if (!rows.length) return;
+    const cols = TRACKER_COLUMNS.map((c) => c.key);
+    const headers = TRACKER_COLUMNS.map((c) => c.label);
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const csv = "﻿" + [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\r\n");
+    const csv = "\uFEFF" + [headers.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\r\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     a.download = `MIS_sample_flow_${isoDate(new Date())}.csv`;
     a.click();
+  };
+
+  const exportExcel = () => {
+    if (!rows.length) return;
+    const exportData = rows.map((r) => {
+      const rowObj = {};
+      TRACKER_COLUMNS.forEach((col) => {
+        rowObj[col.label] = r[col.key] ?? "";
+      });
+      return rowObj;
+    });
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "MIS Sample Flow");
+    XLSX.writeFile(workbook, `MIS_sample_flow_${isoDate(new Date())}.xlsx`);
   };
 
   const saveTat = async () => {
@@ -192,7 +300,14 @@ export default function MisSampleFlow() {
               </label>
               <label>Search LRN / customer / PO<input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} className="block border rounded-lg p-1.5" /></label>
               <button type="button" onClick={load} disabled={loading} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold">{loading ? "Loading..." : "Load"}</button>
-              <button type="button" onClick={exportCsv} disabled={!rows.length} className="px-4 py-2 rounded-lg border font-semibold">Export CSV</button>
+              <button type="button" onClick={exportCsv} disabled={!rows.length} className="px-3 py-2 rounded-lg border font-semibold hover:bg-gray-50 flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Export CSV
+              </button>
+              <button type="button" onClick={exportExcel} disabled={!rows.length} className="px-3 py-2 rounded-lg border font-semibold bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 shadow-sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Export Excel (.xlsx)
+              </button>
             </div>
 
             {data?.truncated && (
@@ -248,7 +363,7 @@ export default function MisSampleFlow() {
               </>
             )}
 
-            <div className="flex flex-wrap gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
               <select value={department} onChange={(e) => setDepartment(e.target.value)} className="border rounded-lg p-1.5">
                 <option value="">All departments</option>{departments.map((d) => <option key={d}>{d}</option>)}
               </select>
@@ -258,35 +373,69 @@ export default function MisSampleFlow() {
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border rounded-lg p-1.5">
                 <option value="">All statuses</option>{["OVERDUE", "Due soon", "On track", "Done", "No due date"].map((d) => <option key={d}>{d}</option>)}
               </select>
-              <span className="self-center text-gray-500">{rows.length} rows</span>
+              <span className="self-center font-semibold text-gray-600">{rows.length} rows</span>
+              {(Object.values(colFilters).some(Boolean) || sortConfig.key) && (
+                <button
+                  type="button"
+                  onClick={() => { setColFilters({}); setSortConfig({ key: null, direction: "asc" }); }}
+                  className="ml-2 px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md border border-red-200 transition-colors"
+                >
+                  Reset Sort & Column Filters
+                </button>
+              )}
             </div>
 
             <div className="overflow-auto border rounded-xl max-h-[65vh]">
               <table className="min-w-[1500px] w-full text-xs">
-                <thead className="bg-gray-50 text-gray-500 sticky top-0"><tr>
-                  {["Type", "LRN", "Booking", "Package", "Customer", "PO", "Department", "Priority", "Test due", "Report due", "Transferred", "Allocated to", "Allocated on", "Results", "Authorised", "Dispatched", "Docket / mode", "Emailed", "Invoice", "Stage", "Days", "Testing", "Report"].map((h) => <th key={h} className="p-2 text-left whitespace-nowrap">{h}</th>)}
-                </tr></thead>
+                <thead className="bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 sticky top-0 z-10 shadow-sm">
+                  <tr>
+                    {TRACKER_COLUMNS.map((col) => {
+                      const isSorted = sortConfig.key === col.key;
+                      return (
+                        <th
+                          key={col.key}
+                          className="p-2 text-left whitespace-nowrap align-top border-b border-gray-200 dark:border-gray-600"
+                          style={{ minWidth: col.minWidth || "110px" }}
+                        >
+                          <div
+                            onClick={() => handleSort(col.key)}
+                            className="flex items-center justify-between gap-1 cursor-pointer select-none hover:text-blue-600"
+                            title={`Sort by ${col.label}`}
+                          >
+                            <span className="font-semibold text-[11px] uppercase tracking-wider">{col.label}</span>
+                            <SortIcon active={isSorted} direction={sortConfig.direction} />
+                          </div>
+                          <div className="mt-1">
+                            <input
+                              type="text"
+                              placeholder="Search..."
+                              value={colFilters[col.key] || ""}
+                              onChange={(e) => setColFilters((prev) => ({ ...prev, [col.key]: e.target.value }))}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 text-[11px] font-normal text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={`${r.type}-${r.lrn}-${r.department}-${i}`} className="border-t hover:bg-blue-50/40">
-                      <td className="p-2">{r.type}</td><td className="p-2 font-mono font-semibold">{r.lrn}</td>
-                      <td className="p-2 whitespace-nowrap">{r.booking_date?.slice(0, 10)}</td>
-                      <td className="p-2 max-w-[200px] truncate" title={r.package}>{r.package}</td>
-                      <td className="p-2 max-w-[180px] truncate" title={r.customer}>{r.customer}</td>
-                      <td className="p-2">{r.po_no}</td><td className="p-2">{r.department}</td>
-                      <td className="p-2">{r.priority === "Urgent" ? <b className="text-red-600">Urgent</b> : "Normal"}</td>
-                      <td className="p-2 whitespace-nowrap">{r.test_due_date}</td><td className="p-2 whitespace-nowrap">{r.report_due_date}</td>
-                      <td className="p-2 whitespace-nowrap">{r.transfer_date}</td><td className="p-2">{r.allocated_to}</td>
-                      <td className="p-2 whitespace-nowrap">{r.allocation_date}</td><td className="p-2 whitespace-nowrap">{r.results_date}</td>
-                      <td className="p-2 whitespace-nowrap">{r.authorised_date}</td><td className="p-2 whitespace-nowrap">{r.dispatch_date}</td>
-                      <td className="p-2">{r.docket}</td><td className="p-2 whitespace-nowrap">{r.emailed_date}</td>
-                      <td className="p-2 whitespace-nowrap">{r.invoice_no}</td>
-                      <td className="p-2 whitespace-nowrap font-semibold">{r.stage}</td><td className="p-2">{r.days_since_booking}</td>
-                      <td className="p-2"><Chip value={r.testing_status} /></td><td className="p-2"><Chip value={r.report_status} /></td>
+                      {TRACKER_COLUMNS.map((col) => (
+                        <td key={col.key} className="p-2">
+                          {col.render ? col.render(r) : r[col.key]}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                   {!rows.length && !loading && (
-                    <tr><td colSpan={23} className="p-6 text-center text-gray-500">No rows for these filters.</td></tr>
+                    <tr>
+                      <td colSpan={TRACKER_COLUMNS.length} className="p-6 text-center text-gray-500">
+                        No rows for these filters.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
