@@ -100,6 +100,7 @@ export default function MisSampleFlow() {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
+  const [userScope, setUserScope] = useState(null);
 
   const [tat, setTat] = useState({ table_ready: true, data: [], allowance_days: 1 });
   const [acks, setAcks] = useState(null);
@@ -113,8 +114,16 @@ export default function MisSampleFlow() {
     setLoading(true);
     try {
       const res = await axios.get("/mis/tracker", { params: { from, to, type, q: q || undefined } });
-      if (res.data?.status) setData(res.data.data);
-      else toast.error(res.data?.message || "Could not load the MIS.");
+      if (res.data?.status) {
+        setData(res.data.data);
+        if (res.data.data?.user_scope) {
+          const scope = res.data.data.user_scope;
+          setUserScope(scope);
+          if (!scope.is_management && scope.allowed_departments?.length > 0 && !department) {
+            setDepartment(scope.allowed_departments[0]);
+          }
+        }
+      } else toast.error(res.data?.message || "Could not load the MIS.");
     } catch (err) {
       toast.error(err.response?.data?.message || "Could not load the MIS.");
     } finally {
@@ -269,20 +278,33 @@ export default function MisSampleFlow() {
       <div className="p-4 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Sample Flow Tracker</h2>
-            <p className="text-xs text-gray-500">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Sample Flow Tracker</h2>
+              {userScope && (
+                userScope.is_management ? (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-200 shadow-xs">
+                    🏢 Executive Company-Wide View (Top Management)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800 border border-blue-200 shadow-xs">
+                    🔒 Department View: {userScope.department_name} ({userScope.user_name})
+                  </span>
+                )
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5">
               As on {data?.as_on || "-"} · one row per LRN per department · read-only (nothing here changes any record)
             </p>
           </div>
           <div className="flex gap-2">
-            {["tracker", "acks", "mail", "tat"].map((t) => (
+            {["tracker", "acks", "mail", ...(userScope?.is_management !== false ? ["tat"] : [])].map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTab(t)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${tab === t ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-300"}`}
               >
-                {t === "tracker" ? "Tracker & Dashboard" : t === "acks" ? "Allotment confirmations" : t === "mail" ? "Email log" : "TAT Master"}
+                {t === "tracker" ? "Tracker & Dashboard" : t === "acks" ? (userScope && !userScope.is_management ? `${userScope.department_name} Confirmations` : "Allotment confirmations") : t === "mail" ? "Email log" : "TAT Master"}
               </button>
             ))}
           </div>
@@ -364,9 +386,25 @@ export default function MisSampleFlow() {
             )}
 
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <select value={department} onChange={(e) => setDepartment(e.target.value)} className="border rounded-lg p-1.5">
-                <option value="">All departments</option>{departments.map((d) => <option key={d}>{d}</option>)}
-              </select>
+              {userScope && !userScope.is_management ? (
+                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1 text-blue-900 font-medium">
+                  <span className="text-[11px] text-blue-600 uppercase font-semibold">Department:</span>
+                  <select
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="bg-transparent font-semibold focus:outline-none"
+                    disabled={userScope.allowed_departments?.length <= 1}
+                  >
+                    {userScope.allowed_departments?.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <select value={department} onChange={(e) => setDepartment(e.target.value)} className="border rounded-lg p-1.5">
+                  <option value="">All departments</option>{departments.map((d) => <option key={d}>{d}</option>)}
+                </select>
+              )}
               <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} className="border rounded-lg p-1.5">
                 <option value="">All stages</option>{stages.map((d) => <option key={d}>{d}</option>)}
               </select>
