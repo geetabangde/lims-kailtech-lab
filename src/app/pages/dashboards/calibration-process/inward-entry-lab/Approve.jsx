@@ -9,6 +9,8 @@ function Approve() {
   const [approveDate, setApproveDate] = useState('');
   const [reasonForAction, setReasonForAction] = useState('');
   const [showValidation, setShowValidation] = useState(false);
+  const [confirmReviewed, setConfirmReviewed] = useState(false);
+  const [confirmResponsibility, setConfirmResponsibility] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingType, setLoadingType] = useState(''); // 'approve' or 'reject'
   const [inwardId, setInwardId] = useState('');
@@ -157,7 +159,9 @@ function Approve() {
         itemid: instId ? instId.toString() : "", // Make it optional if not available
         reason: reasonForAction.trim(),
         type: actionType, // 'reject' or 'approve'
-        reviewdate: approveDate // Using approveDate for the date
+        reviewdate: approveDate, // Using approveDate for the date
+        declaration_reviewed: confirmReviewed ? 1 : 0,
+        declaration_responsibility: confirmResponsibility ? 1 : 0
       };
 
       console.log('Sending payload:', payload);
@@ -304,6 +308,35 @@ function Approve() {
               </p>
             )}
           </div>
+
+          {/* Mandatory Approver Declarations */}
+          <div className="bg-blue-50/70 border border-blue-200 rounded-lg p-4 space-y-3">
+            <div className="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🛡️</span> Mandatory Approver Declarations (Required to Approve)
+            </div>
+            <label className="flex items-start gap-2.5 text-xs text-gray-800 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={confirmReviewed}
+                onChange={(e) => setConfirmReviewed(e.target.checked)}
+                className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>
+                <strong>1. Technical Verification & Data Integrity:</strong> I confirm that I have thoroughly reviewed the complete calibration results, calculations, observation worksheets, uncertainties, and equipment traceability records, and I certify that they are accurate, verified, and in full compliance with laboratory quality standards.
+              </span>
+            </label>
+            <label className="flex items-start gap-2.5 text-xs text-gray-800 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={confirmResponsibility}
+                onChange={(e) => setConfirmResponsibility(e.target.checked)}
+                className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>
+                <strong>2. Technical Accountability & Responsibility:</strong> I acknowledge and confirm that as the authorized approving authority, I assume full technical responsibility for this approval and authorization, including addressing any future client inquiries, quality audits, or disputes regarding this certificate.
+              </span>
+            </label>
+          </div>
         </div>
 
         {/* Footer */}
@@ -330,9 +363,9 @@ function Approve() {
           </Button>
           <Button
             onClick={handleApprove}
-            disabled={isLoading}
-            className={`px-6 py-2 rounded-md font-medium transition-all duration-200 ${isLoading
-                ? 'bg-gray-400 cursor-not-allowed text-white'
+            disabled={isLoading || !confirmReviewed || !confirmResponsibility}
+            className={`px-6 py-2 rounded-md font-medium transition-all duration-200 ${(isLoading || !confirmReviewed || !confirmResponsibility)
+                ? 'bg-gray-300 cursor-not-allowed text-gray-500'
                 : 'bg-indigo-500 hover:bg-fuchsia-500 active:bg-fuchsia-600 text-white shadow-md hover:shadow-lg'
               }`}
           >

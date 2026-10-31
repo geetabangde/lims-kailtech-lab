@@ -136,6 +136,8 @@ const PerformCalibration = () => {
     const [selectedPerson, setSelectedPerson] = useState('');
     const [showApproveModal, setShowApproveModal] = useState(false);
     const [approveReason, setApproveReason] = useState('');
+    const [confirmReviewed, setConfirmReviewed] = useState(false);
+    const [confirmResponsibility, setConfirmResponsibility] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [reviewReason, setReviewReason] = useState('');
     const [showEditCalibPointModal, setShowEditCalibPointModal] = useState(false);
@@ -1006,7 +1008,9 @@ const PerformCalibration = () => {
                 itemid: Array.isArray(selectedItems) ? selectedItems.join(",") : String(selectedItems),
                 type: "approve",
                 reviewdate: new Date().toISOString().split('T')[0], // "YYYY-MM-DD"
-                reason: approveReason
+                reason: approveReason,
+                declaration_reviewed: confirmReviewed ? 1 : 0,
+                declaration_responsibility: confirmResponsibility ? 1 : 0
             });
             if (response.data.status) {
                 toast.success("Items approved successfully!");
@@ -1157,6 +1161,8 @@ const PerformCalibration = () => {
     const handleCloseApproveModal = () => {
         setShowApproveModal(false);
         setApproveReason('');
+        setConfirmReviewed(false);
+        setConfirmResponsibility(false);
     };
 
     const handleCloseReviewModal = () => {
@@ -1950,8 +1956,8 @@ const PerformCalibration = () => {
                                 </button>
                             </div>
 
-                            <div className="p-6">
-                                <div className="mb-6">
+                            <div className="p-6 space-y-4">
+                                <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Reason For Action
                                     </label>
@@ -1960,9 +1966,38 @@ const PerformCalibration = () => {
                                         onChange={(e) => setApproveReason(e.target.value)}
                                         className="w-full px-3 py-2 bg-yellow-100 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                                         placeholder="Reason For Accept / Reject"
-                                        rows={4}
+                                        rows={3}
                                     />
                                     <p className="text-red-500 text-xs mt-1">This field is required *</p>
+                                </div>
+
+                                {/* Mandatory Approver Declarations */}
+                                <div className="bg-blue-50/70 border border-blue-200 rounded-lg p-3 space-y-2.5">
+                                    <div className="text-[11px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                                        <span>🛡️</span> Mandatory Approver Declarations (Required to Approve)
+                                    </div>
+                                    <label className="flex items-start gap-2 text-xs text-gray-800 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={confirmReviewed}
+                                            onChange={(e) => setConfirmReviewed(e.target.checked)}
+                                            className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span>
+                                            <strong>1. Technical Verification & Data Integrity:</strong> I confirm that I have thoroughly reviewed the complete calibration results, calculations, observation worksheets, uncertainties, and equipment traceability records, and I certify that they are accurate, verified, and in full compliance with laboratory standards.
+                                        </span>
+                                    </label>
+                                    <label className="flex items-start gap-2 text-xs text-gray-800 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={confirmResponsibility}
+                                            onChange={(e) => setConfirmResponsibility(e.target.checked)}
+                                            className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span>
+                                            <strong>2. Technical Accountability & Responsibility:</strong> I acknowledge and confirm that as the authorized approving authority, I assume full technical responsibility for this approval and authorization, including addressing any future client inquiries, quality audits, or disputes regarding this certificate.
+                                        </span>
+                                    </label>
                                 </div>
                             </div>
 
@@ -1975,7 +2010,11 @@ const PerformCalibration = () => {
                                 </Button>
                                 <Button
                                     onClick={handleApproveSubmit}
-                                    className="bg-indigo-500 hover:bg-fuchsia-500 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                                    disabled={!confirmReviewed || !confirmResponsibility}
+                                    className={`px-4 py-2 rounded text-sm font-medium transition-colors ${(!confirmReviewed || !confirmResponsibility)
+                                        ? 'bg-gray-300 cursor-not-allowed text-gray-500'
+                                        : 'bg-indigo-500 hover:bg-fuchsia-500 text-white shadow-sm'
+                                    }`}
                                 >
                                     Approve
                                 </Button>

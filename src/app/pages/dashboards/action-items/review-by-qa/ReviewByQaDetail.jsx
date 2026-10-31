@@ -107,28 +107,71 @@ ReTestButton.propTypes = { testEventId: PropTypes.any, onSuccess: PropTypes.func
 // POST /actionitem/approve-submit-ulr  { hid }
 function QaApproveButton({ hid, onSuccess }) {
   const [loading, setLoading] = useState(false);
+  const [confirmReviewed, setConfirmReviewed] = useState(false);
+  const [confirmResponsibility, setConfirmResponsibility] = useState(false);
+
   const handle = useCallback(async () => {
+    if (!confirmReviewed || !confirmResponsibility) {
+      toast.error("Please confirm both mandatory verification checkboxes before approving.");
+      return;
+    }
     setLoading(true);
     try {
-      await axios.post("/actionitem/approve-submit-ulr", { hid });
+      await axios.post("/actionitem/approve-submit-ulr", {
+        hid,
+        declaration_reviewed: 1,
+        declaration_responsibility: 1
+      });
       toast.success("Approved & Submitted for ULR ✅");
       onSuccess?.();
     } catch (err) {
       toast.error(err?.response?.data?.message ?? "Submission failed ❌");
     } finally { setLoading(false); }
-  }, [hid, onSuccess]);
+  }, [hid, confirmReviewed, confirmResponsibility, onSuccess]);
 
   return (
-    <button
-      onClick={handle}
-      disabled={loading}
-      className={clsx(
-        "w-full rounded-lg bg-green-600 py-3 text-sm font-semibold text-white shadow transition hover:bg-green-700",
-        loading && "cursor-not-allowed opacity-60"
-      )}
-    >
-      {loading ? "Submitting..." : "Approve & Submit For ULR"}
-    </button>
+    <div className="space-y-3">
+      <div className="bg-blue-50/70 border border-blue-200 rounded-lg p-3 space-y-2 text-left">
+        <div className="text-[11px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+          <span>🛡️</span> Mandatory QA Approver Declarations
+        </div>
+        <label className="flex items-start gap-2 text-xs text-gray-800 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={confirmReviewed}
+            onChange={(e) => setConfirmReviewed(e.target.checked)}
+            className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span>
+            <strong>1. Technical Verification:</strong> I confirm that I have thoroughly reviewed the complete test results, calculations, observation worksheets, uncertainties, and equipment traceability records, and I certify that they are accurate and compliant with quality standards.
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-xs text-gray-800 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={confirmResponsibility}
+            onChange={(e) => setConfirmResponsibility(e.target.checked)}
+            className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span>
+            <strong>2. Technical Responsibility:</strong> I acknowledge and confirm that as the authorized approving authority, I assume full technical responsibility for this authorization and any future inquiries or audits.
+          </span>
+        </label>
+      </div>
+
+      <button
+        onClick={handle}
+        disabled={loading || !confirmReviewed || !confirmResponsibility}
+        className={clsx(
+          "w-full rounded-lg py-3 text-sm font-semibold text-white shadow transition",
+          loading || !confirmReviewed || !confirmResponsibility
+            ? "bg-gray-400 cursor-not-allowed opacity-60"
+            : "bg-green-600 hover:bg-green-700"
+        )}
+      >
+        {loading ? "Submitting..." : "Approve & Submit For ULR"}
+      </button>
+    </div>
   );
 }
 QaApproveButton.propTypes = { hid: PropTypes.any, onSuccess: PropTypes.func };
