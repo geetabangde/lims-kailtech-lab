@@ -105,7 +105,7 @@ ReTestButton.propTypes = { testEventId: PropTypes.any, onSuccess: PropTypes.func
 
 // PHP: finalpapproval.php / finalapproval.php
 // POST /actionitem/approve-submit-ulr  { hid }
-function QaApproveButton({ hid, onSuccess }) {
+function QaApproveButton({ hid, remark = '', onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [confirmReviewed, setConfirmReviewed] = useState(false);
   const [confirmResponsibility, setConfirmResponsibility] = useState(false);
@@ -119,6 +119,7 @@ function QaApproveButton({ hid, onSuccess }) {
     try {
       await axios.post("/actionitem/approve-submit-ulr", {
         hid,
+        remark,
         declaration_reviewed: 1,
         declaration_responsibility: 1
       });
@@ -127,7 +128,7 @@ function QaApproveButton({ hid, onSuccess }) {
     } catch (err) {
       toast.error(err?.response?.data?.message ?? "Submission failed ❌");
     } finally { setLoading(false); }
-  }, [hid, confirmReviewed, confirmResponsibility, onSuccess]);
+  }, [hid, remark, confirmReviewed, confirmResponsibility, onSuccess]);
 
   return (
     <div className="space-y-3">
@@ -195,6 +196,14 @@ export default function ReviewByQaDetail() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editableRemark, setEditableRemark] = useState("");
+
+  useEffect(() => {
+    if (report) {
+      const hr = report?.hod_remark ?? report?.remarks?.hod_remark ?? "";
+      setEditableRemark(hr);
+    }
+  }, [report]);
 
   // ── Fetch report ─────────────────────────────────────────────────────────
   // GET /actionitem/view-test-report?tid={tid}&hid={hid}
@@ -593,15 +602,36 @@ export default function ReviewByQaDetail() {
               )}
             </div>
 
-            {/* ── Remarks ──────────────────────────────────────────────── */}
-            {remarkLines.length > 0 && (
-              <div className="mb-4 rounded-lg bg-gray-50 px-4 py-3 text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-300">
-                <strong>Remark: </strong>
-                {remarkLines.map((line, i) => (
-                  <span key={i}>{i > 0 && <br />}{line}</span>
-                ))}
+            {/* ── Remarks (Editable by QA) ────────────────────────────── */}
+            <div className="mb-4 rounded-lg bg-gray-50 p-4 text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600">
+              <div className="flex items-center justify-between mb-2">
+                <strong className="text-gray-800 dark:text-gray-200 flex items-center gap-1.5 font-bold">
+                  <span>✏️</span> Report Remark:
+                </strong>
+                {showQaApprove && (
+                  <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold">
+                    Editable by QA before approval
+                  </span>
+                )}
               </div>
-            )}
+              {showQaApprove ? (
+                <textarea
+                  rows={3}
+                  value={editableRemark}
+                  onChange={(e) => setEditableRemark(e.target.value)}
+                  placeholder="Enter or modify report remark..."
+                  className="w-full rounded-md border border-gray-300 p-2.5 text-xs text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-dark-800 dark:text-gray-100"
+                />
+              ) : (
+                <div>
+                  {editableRemark ? editableRemark : (
+                    remarkLines.map((line, i) => (
+                      <span key={i}>{i > 0 && <br />}{line}</span>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* PHP: if ($tid != "1356") */}
             {String(tid) !== "1356" && (
@@ -700,7 +730,7 @@ export default function ReviewByQaDetail() {
                   </div>
                 )}
 
-                <QaApproveButton hid={effectiveHid} onSuccess={() => navigate(-1)} />
+                <QaApproveButton hid={effectiveHid} remark={editableRemark} onSuccess={() => navigate(-1)} />
               </div>
             )}
 

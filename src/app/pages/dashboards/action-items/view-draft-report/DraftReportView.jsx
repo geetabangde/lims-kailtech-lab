@@ -71,7 +71,8 @@ function resultColorClass(rowOrResult, specification, rmin, rmax, rmininclude, r
   const resultRaw =
     row.result !== undefined && row.result !== null ? String(row.result).trim() : "";
   if (!resultRaw) return "";
-  const val = parseFloat(resultRaw);
+  const cleanedResult = resultRaw.replace(/^[<>\s]+/, "");
+  const val = parseFloat(cleanedResult);
   if (isNaN(val)) return "";
 
   // 4. Permissible numeric bounds (PHP: pvaluemin / pvaluemax)

@@ -7,6 +7,49 @@ import { Button, Input, Select } from "components/ui";
 import { Page } from "components/shared/Page";
 import ReactSelect from "react-select";
 
+// Phone and Email dynamic management helpers
+const parsePhoneNumbers = (raw) => {
+  if (!raw || typeof raw !== 'string') return [{ type: 'Mobile', number: '' }];
+  const parts = raw.split(/[\n,]+/).map(p => p.trim()).filter(Boolean);
+  if (parts.length === 0) return [{ type: 'Mobile', number: '' }];
+  return parts.map(part => {
+    let type = 'Mobile';
+    let number = part;
+    const colonMatch = part.match(/^(Mobile|WhatsApp|Landline)\s*:\s*(.+)$/i);
+    if (colonMatch) {
+      const t = colonMatch[1].toLowerCase();
+      type = t === 'whatsapp' ? 'WhatsApp' : (t === 'landline' ? 'Landline' : 'Mobile');
+      number = colonMatch[2].trim();
+    } else {
+      const parenMatch = part.match(/^(.+?)\s*\((Mobile|WhatsApp|Landline)\)$/i);
+      if (parenMatch) {
+        const t = parenMatch[2].toLowerCase();
+        type = t === 'whatsapp' ? 'WhatsApp' : (t === 'landline' ? 'Landline' : 'Mobile');
+        number = parenMatch[1].trim();
+      }
+    }
+    return { type, number };
+  });
+};
+
+const serializePhoneNumbers = (phoneList) => {
+  if (!Array.isArray(phoneList) || phoneList.length === 0) return '';
+  const valid = phoneList.filter(p => p.number && p.number.trim());
+  if (valid.length === 0) return '';
+  return valid.map(p => `${p.type}: ${p.number.trim()}`).join(', ');
+};
+
+const parseEmails = (raw) => {
+  if (!raw || typeof raw !== 'string') return [''];
+  const parts = raw.split(/[\n,;]+/).map(e => e.trim()).filter(Boolean);
+  return parts.length > 0 ? parts : [''];
+};
+
+const serializeEmails = (emailList) => {
+  if (!Array.isArray(emailList) || emailList.length === 0) return '';
+  return emailList.map(e => e.trim()).filter(Boolean).join(', ');
+};
+
 export default function EditCustomer() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -43,6 +86,57 @@ export default function EditCustomer() {
   const [verticals, setVerticals] = useState([]);
   const [isIndianCountry, setIsIndianCountry] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+
+  const [phoneNumbers, setPhoneNumbers] = useState([{ type: 'Mobile', number: '' }]);
+  const [emailsList, setEmailsList] = useState(['']);
+
+  const handleAddPhoneNumber = () => {
+    setPhoneNumbers((prev) => [...prev, { type: "Mobile", number: "" }]);
+  };
+
+  const handleRemovePhoneNumber = (index) => {
+    setPhoneNumbers((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [{ type: "Mobile", number: "" }];
+    });
+  };
+
+  const handlePhoneNumberChange = (index, value) => {
+    setPhoneNumbers((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], number: value };
+      return next;
+    });
+    if (errors.mobile) setErrors((prev) => ({ ...prev, mobile: false }));
+  };
+
+  const handlePhoneTypeChange = (index, value) => {
+    setPhoneNumbers((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], type: value };
+      return next;
+    });
+  };
+
+  const handleAddEmail = () => {
+    setEmailsList((prev) => [...prev, ""]);
+  };
+
+  const handleRemoveEmail = (index) => {
+    setEmailsList((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [""];
+    });
+  };
+
+  const handleEmailChange = (index, value) => {
+    setEmailsList((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+    if (errors.email) setErrors((prev) => ({ ...prev, email: false }));
+  };
 
   // Address & Contact management
   const [addresses, setAddresses] = useState([]);
@@ -171,6 +265,9 @@ export default function EditCustomer() {
           thumb_image: null,
           existing_thumb: mainCustomer.thumb_image || ""
         });
+
+        setPhoneNumbers(parsePhoneNumbers(mainCustomer.mobile));
+        setEmailsList(parseEmails(mainCustomer.email));
       } catch (err) {
         toast.error("An unexpected error occurred");
         console.error(err);
@@ -314,6 +411,9 @@ export default function EditCustomer() {
     const newErrors = {};
     const newValidationErrors = {};
     const requiredFields = getRequiredFields();
+
+    formData.mobile = serializePhoneNumbers(phoneNumbers);
+    formData.email = serializeEmails(emailsList);
 
     // Check all required fields
     Object.keys(requiredFields).forEach(field => {
@@ -531,16 +631,55 @@ export default function EditCustomer() {
             )}
           </div>
 
-          <div>
-            <Input
-              label="Mobile"
-              name="mobile"
-              value={formData.mobile}
-              onChange={handleInputChange}
-              className={errors.mobile ? "border-red-500 bg-red-50" : ""}
-            />
+          {/* Dynamic Phone Numbers */}
+          <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-700 dark:bg-dark-700/60">
+            <div className="mb-2 flex items-center justify-between">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                Contact Numbers (Mobile / WhatsApp / Landline) <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleAddPhoneNumber}
+                className="inline-flex items-center gap-1 rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                <span className="text-sm font-bold">+</span> Add Number
+              </button>
+            </div>
+            <div className="space-y-2.5">
+              {phoneNumbers.map((phone, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <select
+                    value={phone.type}
+                    onChange={(e) => handlePhoneTypeChange(idx, e.target.value)}
+                    className="w-36 rounded-md border border-gray-300 bg-white px-2.5 py-2 text-xs font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-dark-800 dark:text-gray-100"
+                  >
+                    <option value="Mobile">📱 Mobile</option>
+                    <option value="WhatsApp">💬 WhatsApp</option>
+                    <option value="Landline">☎️ Landline</option>
+                  </select>
+                  <div className="flex-1">
+                    <Input
+                      placeholder={`Enter ${phone.type} number`}
+                      value={phone.number}
+                      onChange={(e) => handlePhoneNumberChange(idx, e.target.value)}
+                      className={errors.mobile && idx === 0 && !phone.number ? "border-red-500 bg-red-50" : ""}
+                    />
+                  </div>
+                  {phoneNumbers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoneNumber(idx)}
+                      title="Remove Number"
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-red-300 text-sm font-bold text-red-600 transition hover:bg-red-600 hover:text-white dark:border-red-700 dark:text-red-400"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
             {errors.mobile && (
-              <p className="text-red-600 text-sm mt-1">This field is required</p>
+              <p className="mt-1.5 text-xs text-red-600">At least one contact number is required</p>
             )}
           </div>
 
@@ -570,17 +709,47 @@ export default function EditCustomer() {
             )}
           </div>
 
-          <div>
-            <Input
-              label="Email"
-              name="email"
-              type="text"
-              value={formData.email}
-              onChange={handleInputChange}
-              className={errors.email ? "border-red-500 bg-red-50" : ""}
-            />
+          {/* Dynamic Emails */}
+          <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-700 dark:bg-dark-700/60">
+            <div className="mb-2 flex items-center justify-between">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200">
+                Email Addresses <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleAddEmail}
+                className="inline-flex items-center gap-1 rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                <span className="text-sm font-bold">+</span> Add Email
+              </button>
+            </div>
+            <div className="space-y-2.5">
+              {emailsList.map((em, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Input
+                      type="email"
+                      placeholder="Enter email address (e.g. client@example.com)"
+                      value={em}
+                      onChange={(e) => handleEmailChange(idx, e.target.value)}
+                      className={errors.email && idx === 0 && !em ? "border-red-500 bg-red-50" : ""}
+                    />
+                  </div>
+                  {emailsList.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEmail(idx)}
+                      title="Remove Email"
+                      className="flex h-9 w-9 items-center justify-center rounded-md border border-red-300 text-sm font-bold text-red-600 transition hover:bg-red-600 hover:text-white dark:border-red-700 dark:text-red-400"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
             {errors.email && (
-              <p className="text-red-600 text-sm mt-1">This field is required</p>
+              <p className="mt-1.5 text-xs text-red-600">At least one valid email address is required</p>
             )}
           </div>
 

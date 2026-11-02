@@ -113,14 +113,14 @@ InfoRow.propTypes = { label: PropTypes.string, value: PropTypes.any };
 //      sendForm('hakuna', hid, 'submitforpqa.php', 'resultid', 'hodsubmit')
 // POST /actionitem/approve-hod  { hid, hodremark, items:[{qid,department,remnant,remark}] }
 // ─────────────────────────────────────────────────────────────────────────────
-function HodApproveSection({ hid, allottedItems, disposable, onSuccess }) {
+function HodApproveSection({ hid, allottedItems, disposable, initialHodRemark = '', onSuccess }) {
   const [loading, setLoading] = useState(false);
-  const [hodremark, setHodremark] = useState("");
+  const [hodremark, setHodremark] = useState(initialHodRemark || "");
 
   // PHP: name="remnant[]" and name="remark[]" per allotted item row
   const activeItems = (allottedItems ?? []).filter((item) => (item.qleft ?? 0) > 0);
   const [itemInputs, setItemInputs] = useState(() =>
-    activeItems.map(() => ({ remnant: "", remark: "" }))
+    activeItems.map((item) => ({ remnant: item.remnant ?? item.qleft ?? "", remark: item.remark ?? "" }))
   );
 
   const setItemField = (idx, field, val) =>
@@ -133,7 +133,7 @@ function HodApproveSection({ hid, allottedItems, disposable, onSuccess }) {
         aid: hid,
         hodremark,
         qid: activeItems.map((item) => item.qid ?? item.id),
-        remnant: activeItems.map(() => 0),
+        remnant: itemInputs.map((r) => r.remnant !== "" && r.remnant !== null ? Number(r.remnant) : 0),
         remark: itemInputs.map((r) => r.remark ?? ""),
         itemdepartment: activeItems.map((item) => item.department_id ?? item.department),
       };
@@ -175,7 +175,7 @@ function HodApproveSection({ hid, allottedItems, disposable, onSuccess }) {
           <table className="w-full text-xs">
             <thead className="bg-gray-100 dark:bg-dark-700">
               <tr>
-                {["ID", "Quantity", "Allotted", "Left", "Department", "Remark"].map((h) => (
+                {["ID", "Quantity", "Allotted", "Left", "Department", "Remnant", "Remark"].map((h) => (
                   <th key={h} className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
                     {h}
                   </th>
@@ -190,6 +190,19 @@ function HodApproveSection({ hid, allottedItems, disposable, onSuccess }) {
                   <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{renderVal(item.alloted)}</td>
                   <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{renderVal(item.qleft)}</td>
                   <td className="px-3 py-2 text-center text-gray-700 dark:text-gray-300">{renderVal(item.department_name)}</td>
+
+                  {/* Remnant Quantity Input */}
+                  <td className="px-2 py-1.5 text-center">
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={itemInputs[i]?.remnant ?? ""}
+                      onChange={(e) => setItemField(i, "remnant", e.target.value)}
+                      placeholder="Remnant qty"
+                      className="w-24 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-700 px-2 py-1 text-center text-xs text-gray-800 dark:text-gray-200 focus:border-blue-500 focus:outline-none"
+                    />
+                  </td>
 
                   {/* PHP: <textarea name="remark[]" placeholder="Remark for remnant"> */}
                   <td className="px-2 py-1.5">
@@ -206,7 +219,7 @@ function HodApproveSection({ hid, allottedItems, disposable, onSuccess }) {
             </tbody>
             <tfoot className="bg-gray-50 dark:bg-dark-800">
               <tr>
-                {["ID", "Quantity", "Allotted", "Left", "Department", "Remark"].map((h) => (
+                {["ID", "Quantity", "Allotted", "Left", "Department", "Remnant", "Remark"].map((h) => (
                   <th key={h} className="border-t border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold text-gray-700 dark:text-gray-300">
                     {h}
                   </th>
@@ -769,6 +782,7 @@ export default function ReviewByHodDetail() {
                 hid={hid}
                 allottedItems={allotted_items}
                 disposable={Number(disposable)}
+                initialHodRemark={hodRemark}
                 onSuccess={() => navigate(-1)}
               />
             )}
