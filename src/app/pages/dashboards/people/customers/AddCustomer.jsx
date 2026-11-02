@@ -30,6 +30,8 @@ export default function AddCustomer() {
     modeofpayment: "",
     creditdays: "",
     creditamount: "",
+    address: "",
+    billing_address: "",
     mobile: "",
     pname: "",
     pnumber: "",
@@ -53,6 +55,32 @@ export default function AddCustomer() {
 
   const [phoneNumbers, setPhoneNumbers] = useState([{ type: 'Mobile', number: '' }]);
   const [emailsList, setEmailsList] = useState(['']);
+  const [billingSameAsReporting, setBillingSameAsReporting] = useState(false);
+  const [contactPersons, setContactPersons] = useState([
+    { id: null, name: "", department: "", designation: "", mobile: "", landline: "", email: "" }
+  ]);
+
+  const handleAddContactPerson = () => {
+    setContactPersons((prev) => [
+      ...prev,
+      { id: null, name: "", department: "", designation: "", mobile: "", landline: "", email: "" }
+    ]);
+  };
+
+  const handleRemoveContactPerson = (index) => {
+    setContactPersons((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [{ id: null, name: "", department: "", designation: "", mobile: "", landline: "", email: "" }];
+    });
+  };
+
+  const handleContactPersonChange = (index, field, value) => {
+    setContactPersons((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
 
   const handleAddPhoneNumber = () => {
     setPhoneNumbers((prev) => [...prev, { type: "Mobile", number: "" }]);
@@ -110,8 +138,6 @@ export default function AddCustomer() {
       creditdays: "Credit Days",
       creditamount: "Credit Amount",
       mobile: "Mobile",
-      pname: "Contact Person Name",
-      pnumber: "Contact Person Number",
       email: "Email",
       country: "Country",
       city: "City",
@@ -350,6 +376,15 @@ export default function AddCustomer() {
 
       // Add sapua field (from PHP: <input name="sapua" value="1" type="hidden" />)
       payload.append("sapua", "1");
+
+      payload.set("billing_address", billingSameAsReporting ? (formData.address || "") : (formData.billing_address || ""));
+      payload.append("contacts", JSON.stringify(contactPersons));
+      if (!formData.pname && contactPersons[0]?.name) {
+        payload.set("pname", contactPersons[0].name);
+      }
+      if (!formData.pnumber && contactPersons[0]?.mobile) {
+        payload.set("pnumber", contactPersons[0].mobile || "-");
+      }
 
       Object.entries(formData).forEach(([key, value]) => {
         if (key === "customertype") {
@@ -611,33 +646,178 @@ export default function AddCustomer() {
             )}
           </div>
 
-          <div>
-            <Input
-              label="Contact Person Name"
-              name="pname"
-              placeholder="Contact person name"
-              onChange={handleInputChange}
-              value={formData.pname}
-              className={errors.pname ? "border-red-500 bg-red-50" : ""}
-            />
-            {errors.pname && (
-              <p className="text-red-600 text-sm mt-1">This field is required</p>
-            )}
+          {/* Reporting & Billing Addresses */}
+          <div className="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-dark-700/60 shadow-xs">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              Address Details
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Reporting Address
+                </label>
+                <textarea
+                  name="address"
+                  rows={3}
+                  placeholder="Enter reporting address..."
+                  value={formData.address || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      address: val,
+                      billing_address: billingSameAsReporting ? val : prev.billing_address
+                    }));
+                  }}
+                  className="w-full rounded-lg border border-gray-300 bg-white p-2.5 text-xs text-gray-800 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-dark-800 dark:text-white"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Billing Address
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={billingSameAsReporting}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setBillingSameAsReporting(checked);
+                        if (checked) {
+                          setFormData(prev => ({ ...prev, billing_address: prev.address || "" }));
+                        }
+                      }}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    Both same (Same as Reporting)
+                  </label>
+                </div>
+                <textarea
+                  name="billing_address"
+                  rows={3}
+                  placeholder={billingSameAsReporting ? "Same as Reporting Address" : "Enter billing address..."}
+                  disabled={billingSameAsReporting}
+                  value={billingSameAsReporting ? (formData.address || "") : (formData.billing_address || "")}
+                  onChange={(e) => setFormData(prev => ({ ...prev, billing_address: e.target.value }))}
+                  className={`w-full rounded-lg border p-2.5 text-xs focus:ring-1 dark:bg-dark-800 dark:text-white ${
+                    billingSameAsReporting
+                      ? "border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed dark:border-gray-700 dark:bg-dark-900"
+                      : "border-gray-300 bg-white text-gray-800 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600"
+                  }`}
+                />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <Input
-              label="Contact Person Number"
-              name="pnumber"
-              type="tel"
-              placeholder="Contact person number"
-              onChange={handleInputChange}
-              value={formData.pnumber}
-              className={errors.pnumber ? "border-red-500 bg-red-50" : ""}
-            />
-            {errors.pnumber && (
-              <p className="text-red-600 text-sm mt-1">This field is required</p>
-            )}
+          {/* Contact Persons Directory */}
+          <div className="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-dark-700/60 shadow-xs">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                  Contact Persons Directory ({contactPersons.length})
+                </h4>
+                <p className="text-[11px] text-gray-500 mt-0.5">Add department contacts (name, department, designation, mobile, landline, email) for report & invoice dispatch</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddContactPerson}
+                className="inline-flex items-center gap-1 rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+              >
+                <span className="text-sm font-bold">+</span> Add Contact Person
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {contactPersons.map((cp, idx) => (
+                <div key={idx} className="rounded-lg border border-gray-200 bg-white p-3 shadow-xs dark:border-gray-700 dark:bg-dark-800">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-2 dark:border-gray-700/60">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-300">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                        {idx + 1}
+                      </span>
+                      Contact Person #{idx + 1}
+                      {cp.name && <span className="text-gray-500 font-normal">({cp.name})</span>}
+                    </span>
+                    {contactPersons.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveContactPerson(idx)}
+                        title="Remove this contact"
+                        className="flex h-6 w-6 items-center justify-center rounded border border-red-200 text-xs font-bold text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/30"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-0.5">Name</label>
+                      <input
+                        type="text"
+                        placeholder="Name"
+                        value={cp.name || ""}
+                        onChange={(e) => handleContactPersonChange(idx, "name", e.target.value)}
+                        className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-600 dark:bg-dark-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-0.5">Department</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Quality / QA"
+                        value={cp.department || ""}
+                        onChange={(e) => handleContactPersonChange(idx, "department", e.target.value)}
+                        className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-600 dark:bg-dark-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-0.5">Designation</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Manager"
+                        value={cp.designation || ""}
+                        onChange={(e) => handleContactPersonChange(idx, "designation", e.target.value)}
+                        className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-600 dark:bg-dark-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-0.5">Mobile</label>
+                      <input
+                        type="text"
+                        placeholder="10-digit mobile"
+                        value={cp.mobile || ""}
+                        onChange={(e) => handleContactPersonChange(idx, "mobile", e.target.value)}
+                        className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-600 dark:bg-dark-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-0.5">Landline</label>
+                      <input
+                        type="text"
+                        placeholder="Landline / Ext."
+                        value={cp.landline || ""}
+                        onChange={(e) => handleContactPersonChange(idx, "landline", e.target.value)}
+                        className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-600 dark:bg-dark-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-0.5">Email</label>
+                      <input
+                        type="email"
+                        placeholder="email@company.com"
+                        value={cp.email || ""}
+                        onChange={(e) => handleContactPersonChange(idx, "email", e.target.value)}
+                        className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-xs dark:border-gray-600 dark:bg-dark-700"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Dynamic Emails */}

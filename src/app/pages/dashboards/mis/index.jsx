@@ -25,11 +25,30 @@ function Chip({ value }) {
   );
 }
 
-function Card({ label, value, tone }) {
+function Card({ label, value, tone, active, onClick }) {
   return (
-    <div className={`rounded-xl border p-3 ${tone === "red" ? "border-red-200 bg-red-50" : tone === "amber" ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700"}`}>
-      <div className="text-[11px] uppercase tracking-wide text-gray-500">{label}</div>
-      <div className="text-2xl font-bold text-gray-900 dark:text-white">{value ?? "-"}</div>
+    <div
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      title={`Click to filter tracker by ${label}`}
+      className={`rounded-xl border p-3 cursor-pointer select-none transition-all duration-150 transform hover:-translate-y-0.5 hover:shadow-md ${
+        active
+          ? "ring-2 ring-blue-600 border-blue-600 bg-blue-50 dark:bg-blue-900/40"
+          : tone === "red"
+          ? "border-red-200 bg-red-50 hover:bg-red-100/80"
+          : tone === "amber"
+          ? "border-amber-200 bg-amber-50 hover:bg-amber-100/80"
+          : "border-gray-200 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700"
+      }`}
+    >
+      <div className="flex items-center justify-between text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <span className="truncate">{label}</span>
+        {active && (
+          <span className="inline-flex h-2 w-2 rounded-full bg-blue-600 animate-pulse" title="Active Filter" />
+        )}
+      </div>
+      <div className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{value ?? "-"}</div>
     </div>
   );
 }
@@ -95,6 +114,7 @@ export default function MisSampleFlow() {
   const [department, setDepartment] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [activeKpi, setActiveKpi] = useState(null);
   const [q, setQ] = useState("");
   const [colFilters, setColFilters] = useState({});
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -184,6 +204,61 @@ export default function MisSampleFlow() {
     if (stageFilter) r = r.filter((x) => x.stage === stageFilter);
     if (statusFilter) r = r.filter((x) => x.testing_status === statusFilter || x.report_status === statusFilter);
 
+    // Apply active KPI card filter
+    if (activeKpi) {
+      switch (activeKpi) {
+        case "samples_booked":
+          break;
+        case "open_samples":
+          r = r.filter((x) => !x.dispatch_date && !x.emailed_date);
+          break;
+        case "in_testing":
+          r = r.filter((x) => x.stage === "Testing" || (!x.results_date && x.stage !== "Not transferred" && x.stage !== "Awaiting allocation"));
+          break;
+        case "awaiting_authorisation":
+          r = r.filter((x) => x.stage === "Awaiting authorisation" || (x.results_date && !x.authorised_date));
+          break;
+        case "ready_to_dispatch":
+          r = r.filter((x) => x.stage === "Ready to dispatch");
+          break;
+        case "reports_overdue":
+          r = r.filter((x) => x.report_status === "OVERDUE");
+          break;
+        case "reports_due_soon":
+          r = r.filter((x) => x.report_status === "Due soon");
+          break;
+        case "bill_pending":
+          r = r.filter((x) => (x.dispatch_date || x.emailed_date) && !x.invoice_no);
+          break;
+        case "not_transferred":
+          r = r.filter((x) => x.stage === "Not transferred");
+          break;
+        case "awaiting_allocation":
+          r = r.filter((x) => x.stage === "Awaiting allocation");
+          break;
+        case "dept_in_testing":
+          r = r.filter((x) => x.stage === "Testing");
+          break;
+        case "testing_overdue":
+          r = r.filter((x) => x.testing_status === "OVERDUE");
+          break;
+        case "testing_due_soon":
+          r = r.filter((x) => x.testing_status === "Due soon");
+          break;
+        case "results_submitted":
+          r = r.filter((x) => x.results_date || x.stage === "Results submitted");
+          break;
+        case "urgent_open":
+          r = r.filter((x) => x.priority === "Urgent" && !x.results_date);
+          break;
+        case "tat_conflicts":
+          r = r.filter((x) => Number(x.tat_conflict) === 1);
+          break;
+        default:
+          break;
+      }
+    }
+
     // Apply per-column text filters
     Object.entries(colFilters).forEach(([colKey, val]) => {
       if (!val || !val.trim()) return;
@@ -214,7 +289,7 @@ export default function MisSampleFlow() {
     }
 
     return r;
-  }, [data, department, stageFilter, statusFilter, colFilters, sortConfig]);
+  }, [data, department, stageFilter, statusFilter, activeKpi, colFilters, sortConfig]);
 
   const departments = useMemo(() => [...new Set((data?.rows || []).map((x) => x.department))].sort(), [data]);
   const stages = ["Not transferred", "Awaiting allocation", "Testing", "Results submitted", "Ready to dispatch", "Bill pending", "Closed"];
@@ -344,24 +419,24 @@ export default function MisSampleFlow() {
             {s && (
               <>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
-                  <Card label="Samples booked (LRN)" value={s.samples_booked} />
-                  <Card label="Open (report not sent)" value={s.open_samples} />
-                  <Card label="In testing" value={s.in_testing} />
-                  <Card label="Awaiting authorisation" value={s.awaiting_authorisation} />
-                  <Card label="Ready to dispatch" value={s.ready_to_dispatch} />
-                  <Card label="Reports OVERDUE" value={s.reports_overdue} tone={s.reports_overdue ? "red" : undefined} />
-                  <Card label="Reports due today/tomorrow" value={s.reports_due_soon} tone={s.reports_due_soon ? "amber" : undefined} />
-                  <Card label="Bill pending" value={s.bill_pending} />
+                  <Card label="Samples booked (LRN)" value={s.samples_booked} active={activeKpi === "samples_booked"} onClick={() => setActiveKpi(prev => prev === "samples_booked" ? null : "samples_booked")} />
+                  <Card label="Open (report not sent)" value={s.open_samples} active={activeKpi === "open_samples"} onClick={() => setActiveKpi(prev => prev === "open_samples" ? null : "open_samples")} />
+                  <Card label="In testing" value={s.in_testing} active={activeKpi === "in_testing"} onClick={() => setActiveKpi(prev => prev === "in_testing" ? null : "in_testing")} />
+                  <Card label="Awaiting authorisation" value={s.awaiting_authorisation} active={activeKpi === "awaiting_authorisation"} onClick={() => setActiveKpi(prev => prev === "awaiting_authorisation" ? null : "awaiting_authorisation")} />
+                  <Card label="Ready to dispatch" value={s.ready_to_dispatch} active={activeKpi === "ready_to_dispatch"} onClick={() => setActiveKpi(prev => prev === "ready_to_dispatch" ? null : "ready_to_dispatch")} />
+                  <Card label="Reports OVERDUE" value={s.reports_overdue} tone={s.reports_overdue ? "red" : undefined} active={activeKpi === "reports_overdue"} onClick={() => setActiveKpi(prev => prev === "reports_overdue" ? null : "reports_overdue")} />
+                  <Card label="Reports due today/tomorrow" value={s.reports_due_soon} tone={s.reports_due_soon ? "amber" : undefined} active={activeKpi === "reports_due_soon"} onClick={() => setActiveKpi(prev => prev === "reports_due_soon" ? null : "reports_due_soon")} />
+                  <Card label="Bill pending" value={s.bill_pending} active={activeKpi === "bill_pending"} onClick={() => setActiveKpi(prev => prev === "bill_pending" ? null : "bill_pending")} />
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
-                  <Card label="Not transferred" value={s.not_transferred} />
-                  <Card label="Awaiting allocation" value={s.awaiting_allocation} />
-                  <Card label="Dept rows in testing" value={s.dept_in_testing} />
-                  <Card label="Testing OVERDUE" value={s.testing_overdue} tone={s.testing_overdue ? "red" : undefined} />
-                  <Card label="Testing due soon" value={s.testing_due_soon} tone={s.testing_due_soon ? "amber" : undefined} />
-                  <Card label="Results submitted" value={s.results_submitted} />
-                  <Card label="Urgent open" value={s.urgent_open} />
-                  <Card label="TAT conflicts" value={s.tat_conflicts} />
+                  <Card label="Not transferred" value={s.not_transferred} active={activeKpi === "not_transferred"} onClick={() => setActiveKpi(prev => prev === "not_transferred" ? null : "not_transferred")} />
+                  <Card label="Awaiting allocation" value={s.awaiting_allocation} active={activeKpi === "awaiting_allocation"} onClick={() => setActiveKpi(prev => prev === "awaiting_allocation" ? null : "awaiting_allocation")} />
+                  <Card label="Dept rows in testing" value={s.dept_in_testing} active={activeKpi === "dept_in_testing"} onClick={() => setActiveKpi(prev => prev === "dept_in_testing" ? null : "dept_in_testing")} />
+                  <Card label="Testing OVERDUE" value={s.testing_overdue} tone={s.testing_overdue ? "red" : undefined} active={activeKpi === "testing_overdue"} onClick={() => setActiveKpi(prev => prev === "testing_overdue" ? null : "testing_overdue")} />
+                  <Card label="Testing due soon" value={s.testing_due_soon} tone={s.testing_due_soon ? "amber" : undefined} active={activeKpi === "testing_due_soon"} onClick={() => setActiveKpi(prev => prev === "testing_due_soon" ? null : "testing_due_soon")} />
+                  <Card label="Results submitted" value={s.results_submitted} active={activeKpi === "results_submitted"} onClick={() => setActiveKpi(prev => prev === "results_submitted" ? null : "results_submitted")} />
+                  <Card label="Urgent open" value={s.urgent_open} active={activeKpi === "urgent_open"} onClick={() => setActiveKpi(prev => prev === "urgent_open" ? null : "urgent_open")} />
+                  <Card label="TAT conflicts" value={s.tat_conflicts} active={activeKpi === "tat_conflicts"} onClick={() => setActiveKpi(prev => prev === "tat_conflicts" ? null : "tat_conflicts")} />
                 </div>
 
                 <div className="overflow-x-auto border rounded-xl">
@@ -412,6 +487,19 @@ export default function MisSampleFlow() {
                 <option value="">All statuses</option>{["OVERDUE", "Due soon", "On track", "Done", "No due date"].map((d) => <option key={d}>{d}</option>)}
               </select>
               <span className="self-center font-semibold text-gray-600">{rows.length} rows</span>
+              {activeKpi && (
+                <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-blue-200 text-xs px-2.5 py-1 rounded-full font-semibold shadow-xs">
+                  <span>KPI Filter: <b>{activeKpi.replace(/_/g, " ")}</b></span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveKpi(null)}
+                    className="ml-1 hover:text-red-600 font-bold"
+                    title="Clear KPI filter"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
               {(Object.values(colFilters).some(Boolean) || sortConfig.key) && (
                 <button
                   type="button"

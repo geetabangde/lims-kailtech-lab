@@ -795,6 +795,85 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                   </div>
                 </div>
 
+                {/* Available Customer Contacts Quick Picker */}
+                {data?.recipients?.available_contacts && data.recipients.available_contacts.length > 0 && (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5 dark:border-blue-800 dark:bg-blue-950/30">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-bold text-blue-950 dark:text-blue-100 flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        Customer Directory Contacts ({data.recipients.available_contacts.length})
+                      </span>
+                      <span className="text-[11px] text-blue-700 dark:text-blue-300">Click to add email to To / CC or send via WhatsApp</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {data.recipients.available_contacts.map((contact) => (
+                        <div key={contact.id} className="flex items-center justify-between rounded-lg border border-blue-100 bg-white p-2.5 shadow-2xs dark:border-gray-700 dark:bg-gray-800">
+                          <div className="min-w-0 pr-2">
+                            <div className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{contact.name}</div>
+                            <div className="text-[11px] text-gray-500 truncate">
+                              {contact.department && contact.department !== '-' && <span>{contact.department} · </span>}
+                              {contact.designation && contact.designation !== '-' && <span>{contact.designation} · </span>}
+                              {contact.email && <span className="font-mono text-blue-600">{contact.email}</span>}
+                              {contact.mobile && contact.mobile !== '-' && <span className="text-gray-600"> ({contact.mobile})</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {contact.email && contact.email.includes('@') && (
+                              <>
+                                <button
+                                  type="button"
+                                  title="Add to 'To' recipient list"
+                                  onClick={() => {
+                                    const em = contact.email.trim();
+                                    if (!toRecipients.includes(em)) {
+                                      setToRecipients(prev => [...prev, em]);
+                                      toast.success(`Added ${contact.name} to To`);
+                                    }
+                                  }}
+                                  className="rounded bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-200 dark:bg-blue-900/60 dark:text-blue-200"
+                                >
+                                  + To
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Add to 'CC' recipient list"
+                                  onClick={() => {
+                                    const em = contact.email.trim();
+                                    if (!ccRecipients.includes(em)) {
+                                      setCcRecipients(prev => [...prev, em]);
+                                      toast.success(`Added ${contact.name} to CC`);
+                                    }
+                                  }}
+                                  className="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-200"
+                                >
+                                  + CC
+                                </button>
+                              </>
+                            )}
+                            {contact.mobile && contact.mobile !== '-' && (
+                              <button
+                                type="button"
+                                title={`Open WhatsApp chat with ${contact.name} (${contact.mobile})`}
+                                onClick={() => {
+                                  const num = contact.mobile.replace(/[^0-9]/g, '');
+                                  const fullNum = num.length === 10 ? `91${num}` : num;
+                                  const text = encodeURIComponent(
+                                    `Hello ${contact.name}, Kailtech Test & Research Centre has completed your report against PO ${poNumber || '-'}. Copies dispatched to email. Thank you!`
+                                  );
+                                  window.open(`https://api.whatsapp.com/send?phone=${fullNum}&text=${text}`, '_blank');
+                                }}
+                                className="rounded bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-700 shadow-2xs"
+                              >
+                                📱 WhatsApp
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               {/* Items & Certificate Table */}
