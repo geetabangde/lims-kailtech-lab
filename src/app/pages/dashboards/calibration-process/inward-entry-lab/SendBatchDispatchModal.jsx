@@ -1041,7 +1041,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                         className="mt-0.5 rounded text-indigo-600 focus:ring-0"
                       />
                       <span className="text-xs text-gray-800 dark:text-gray-200 font-medium">
-                        During testing, I (the approver / tester) am solely responsible for the emails and documents received at the address(es) I entered above. The software developers hold the approver / tester accountable for this test dispatch.
+                        During testing, I (the approver / tester) am solely responsible for the emails and documents received at the address(es) I entered above.
                       </span>
                     </label>
                   )}
