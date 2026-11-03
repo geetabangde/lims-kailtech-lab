@@ -53,6 +53,60 @@ function Card({ label, value, tone, active, onClick }) {
   );
 }
 
+const LC_CARDS = [
+  { no: 3, label: "Sample Booked" },
+  { no: 4, label: "Allotted to Dept" },
+  { no: 5, label: "Assigned to Chemist" },
+  { no: 6, label: "Review & Authorization" },
+  { no: 9, label: "Ready for Dispatch" },
+  { no: 11, label: "Billing" },
+];
+
+// Card health: green = nothing overdue, amber = up to 10% overdue, red = more than 10% overdue or anything more than 3 days late.
+function lcHealth(total, overdue, anyGt3) {
+  if (!overdue) return "green";
+  if (anyGt3 || overdue / Math.max(total, 1) > 0.1) return "red";
+  return "amber";
+}
+
+const LC_TONE = {
+  green: { box: "border-emerald-300 bg-emerald-50", strip: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+  amber: { box: "border-amber-300 bg-amber-50", strip: "bg-amber-100 text-amber-900 border-amber-300" },
+  red: { box: "border-red-300 bg-red-50", strip: "bg-red-100 text-red-800 border-red-300" },
+};
+
+function LifecycleCard({ card, stat, health, active, overdueActive, onMain, onOverdue }) {
+  const tone = LC_TONE[health] || LC_TONE.green;
+  const hasOverdue = card.no !== 3 && stat.overdue > 0;
+  return (
+    <div className="flex flex-col">
+      <div
+        onClick={onMain}
+        role="button"
+        tabIndex={0}
+        title={`Show all samples at: ${card.label}`}
+        className={`rounded-t-xl border p-3 cursor-pointer select-none transition-all duration-150 hover:shadow-md ${tone.box} ${active && !overdueActive ? "ring-2 ring-blue-600" : ""}`}
+      >
+        <div className="text-[11px] uppercase tracking-wide text-gray-600 truncate">{card.label}</div>
+        <div className="flex items-end justify-between mt-0.5">
+          <span className="text-2xl font-bold text-gray-900">{stat.total}</span>
+          {stat.urgent > 0 && (
+            <span className="text-[10px] font-bold text-red-700 bg-red-100 rounded-full px-1.5 py-0.5" title="Urgent samples at this stage">{stat.urgent} urgent</span>
+          )}
+        </div>
+      </div>
+      <div
+        onClick={hasOverdue ? onOverdue : undefined}
+        role={hasOverdue ? "button" : undefined}
+        title={hasOverdue ? `Show only overdue samples at: ${card.label}` : undefined}
+        className={`rounded-b-xl border border-t-0 px-3 py-1 text-[11px] font-semibold select-none ${hasOverdue ? `${tone.strip} cursor-pointer hover:brightness-95` : "bg-gray-50 text-gray-400 border-gray-200"} ${overdueActive ? "ring-2 ring-blue-600" : ""}`}
+      >
+        {card.no === 3 ? "all booked" : hasOverdue ? `${stat.overdue} overdue` : "0 overdue"}
+      </div>
+    </div>
+  );
+}
+
 function SortIcon({ active, direction }) {
   return (
     <span className={`inline-flex items-center ml-1 ${active ? "text-blue-600" : "text-gray-400"}`}>
@@ -76,28 +130,48 @@ function SortIcon({ active, direction }) {
 }
 
 const TRACKER_COLUMNS = [
-  { key: "stage", label: "Stage", minWidth: "140px", render: (r) => <span className="font-semibold whitespace-nowrap">{r.stage}</span> },
+  { key: "lrn", label: "LRN", minWidth: "130px", stickyLeft: 0, render: (r) => <span className="font-mono font-semibold">{r.lrn}</span> },
+  { key: "stage", label: "Stage", minWidth: "140px", stickyLeft: 130, render: (r) => <span className="font-semibold whitespace-nowrap">{r.stage}</span> },
+  { key: "lifecycle_label", label: "Lifecycle", minWidth: "170px", render: (r) => <span className="whitespace-nowrap">{r.lifecycle_label}</span> },
+  { key: "holder", label: "With / since", minWidth: "210px", render: (r) => (
+    <span className="block leading-tight">
+      <span className="font-medium">{r.holder_name || r.holder_role || "-"}</span>
+      {r.holder_name && r.holder_role ? <span className="text-gray-500"> ({r.holder_role})</span> : null}
+      {r.holder_since ? <span className="block text-[10px] text-gray-500">since {r.holder_since}</span> : null}
+    </span>
+  ) },
+  { key: "overdue_days", label: "Overdue (days)", minWidth: "110px", render: (r) => (
+    Number(r.overdue_days) > 0
+      ? <b className={Number(r.overdue_days) > 3 ? "text-red-700" : "text-amber-700"}>{r.overdue_days}</b>
+      : <span className="text-gray-400">-</span>
+  ) },
   { key: "days_since_booking", label: "Days", minWidth: "80px", render: (r) => r.days_since_booking },
   { key: "testing_status", label: "Testing", minWidth: "110px", render: (r) => <Chip value={r.testing_status} /> },
   { key: "report_status", label: "Report", minWidth: "110px", render: (r) => <Chip value={r.report_status} /> },
   { key: "type", label: "Type", minWidth: "85px", render: (r) => r.type },
-  { key: "lrn", label: "LRN", minWidth: "130px", render: (r) => <span className="font-mono font-semibold">{r.lrn}</span> },
+  { key: "category", label: "Category", minWidth: "130px", render: (r) => <span className="whitespace-nowrap">{r.category}</span> },
   { key: "booking_date", label: "Booking", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.booking_date?.slice(0, 10)}</span> },
   { key: "package", label: "Package", minWidth: "180px", render: (r) => <span className="max-w-[200px] truncate block" title={r.package}>{r.package}</span> },
+  { key: "nabl", label: "NABL (ULR) / SLR", minWidth: "130px", render: (r) => (
+    <span className="whitespace-nowrap">{r.nabl || "-"}{r.ulr_no ? <span className="block text-[10px] font-mono text-gray-500">{r.ulr_no}</span> : null}</span>
+  ) },
   { key: "customer", label: "Customer", minWidth: "180px", render: (r) => <span className="max-w-[180px] truncate block" title={r.customer}>{r.customer}</span> },
   { key: "po_no", label: "PO", minWidth: "120px", render: (r) => r.po_no },
   { key: "department", label: "Department", minWidth: "130px", render: (r) => r.department },
   { key: "priority", label: "Priority", minWidth: "85px", render: (r) => r.priority === "Urgent" ? <b className="text-red-600">Urgent</b> : "Normal" },
-  { key: "test_due_date", label: "Test due", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.test_due_date}</span> },
+  { key: "test_due_date", label: "Test due", minWidth: "105px", render: (r) => (
+    <span className="whitespace-nowrap">{r.test_due_date || "-"}{Number(r.default_tat) === 1 ? <span className="ml-1 text-[9px] font-semibold text-slate-600 bg-slate-100 border border-slate-300 rounded px-1" title="Package not in TAT Master: 10-day default used">default TAT</span> : null}</span>
+  ) },
   { key: "report_due_date", label: "Report due", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.report_due_date}</span> },
-  { key: "transfer_date", label: "Transferred", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.transfer_date}</span> },
+  { key: "transfer_date", label: "Transferred", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.transfer_date || "-"}</span> },
   { key: "allocated_to", label: "Allocated to", minWidth: "120px", render: (r) => r.allocated_to },
-  { key: "allocation_date", label: "Allocated on", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.allocation_date}</span> },
-  { key: "results_date", label: "Results", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.results_date}</span> },
-  { key: "authorised_date", label: "Authorised", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.authorised_date}</span> },
-  { key: "dispatch_date", label: "Dispatched", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.dispatch_date}</span> },
+  { key: "allocation_date", label: "Allocated on", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.allocation_date || "-"}</span> },
+  { key: "results_date", label: "Results", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.results_date || "-"}</span> },
+  { key: "authorised_date", label: "Authorised", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.authorised_date || "-"}</span> },
+  { key: "dispatch_date", label: "Dispatched", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.dispatch_date || "-"}</span> },
   { key: "docket", label: "Docket / mode", minWidth: "120px", render: (r) => r.docket },
-  { key: "emailed_date", label: "Emailed", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.emailed_date}</span> },
+  { key: "sent_via", label: "Sent via", minWidth: "150px", render: (r) => <span className="whitespace-nowrap">{r.sent_via || "-"}</span> },
+  { key: "emailed_date", label: "Emailed", minWidth: "105px", render: (r) => <span className="whitespace-nowrap">{r.emailed_date || "-"}</span> },
   { key: "invoice_no", label: "Invoice", minWidth: "110px", render: (r) => <span className="whitespace-nowrap">{r.invoice_no}</span> },
 ];
 
@@ -107,6 +181,7 @@ export default function MisSampleFlow() {
     ["admin", "4"].includes(localStorage.getItem("userRole"));
 
   const today = new Date();
+  const myId = Number(localStorage.getItem("userId"));
   const [tab, setTab] = useState("tracker");
   const [from, setFrom] = useState(isoDate(new Date(today.getTime() - 60 * 86400000)));
   const [to, setTo] = useState(isoDate(today));
@@ -115,6 +190,12 @@ export default function MisSampleFlow() {
   const [stageFilter, setStageFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [activeKpi, setActiveKpi] = useState(null);
+  const [lcStage, setLcStage] = useState(null); // lifecycle card number (4,5,6,9,11)
+  const [lcStatus, setLcStatus] = useState(""); // "", Done, Pending, Overdue
+  const [gt3Only, setGt3Only] = useState(false);
+  const [urgentOnly, setUrgentOnly] = useState(false);
+  const [myOnly, setMyOnly] = useState(false);
+  const [catFilter, setCatFilter] = useState(""); // PROVISIONAL category: BIS (IS standard) / General / Calibration
   const [q, setQ] = useState("");
   const [colFilters, setColFilters] = useState({});
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
@@ -259,6 +340,21 @@ export default function MisSampleFlow() {
       }
     }
 
+    // Lifecycle card / status / quick filters
+    if (lcStage && lcStage !== 3) r = r.filter((x) => Number(x.lifecycle_no) === lcStage);
+    if (lcStatus) {
+      r = r.filter((x) => {
+        const no = Number(x.lifecycle_no);
+        if (lcStatus === "Done") return lcStage && lcStage !== 3 ? no > lcStage : no === 12;
+        if (lcStatus === "Pending") return no !== 12 && x.lifecycle_status === "Pending";
+        return x.lifecycle_status === "Overdue";
+      });
+    }
+    if (gt3Only) r = r.filter((x) => Number(x.overdue_gt3) === 1);
+    if (urgentOnly) r = r.filter((x) => x.priority === "Urgent");
+    if (myOnly) r = r.filter((x) => Number(x.allocated_to_id) === myId);
+    if (catFilter) r = r.filter((x) => x.category === catFilter);
+
     // Apply per-column text filters
     Object.entries(colFilters).forEach(([colKey, val]) => {
       if (!val || !val.trim()) return;
@@ -286,12 +382,50 @@ export default function MisSampleFlow() {
         if (valA > valB) return direction === "asc" ? 1 : -1;
         return 0;
       });
+    } else if (lcStage || lcStatus || gt3Only) {
+      // default order for lifecycle views: urgent + overdue first, then most days overdue
+      r = [...r].sort((a, b) => {
+        const ua = a.priority === "Urgent" && a.lifecycle_status === "Overdue" ? 1 : 0;
+        const ub = b.priority === "Urgent" && b.lifecycle_status === "Overdue" ? 1 : 0;
+        return ub - ua || (Number(b.overdue_days) || 0) - (Number(a.overdue_days) || 0);
+      });
     }
 
     return r;
-  }, [data, department, stageFilter, statusFilter, activeKpi, colFilters, sortConfig]);
+  }, [data, department, stageFilter, statusFilter, activeKpi, colFilters, sortConfig, lcStage, lcStatus, gt3Only, urgentOnly, myOnly, catFilter, myId]);
 
   const departments = useMemo(() => [...new Set((data?.rows || []).map((x) => x.department))].sort(), [data]);
+  const lcGt3 = useMemo(() => {
+    const m = {};
+    (data?.rows || []).forEach((x) => { if (Number(x.overdue_gt3) === 1) m[Number(x.lifecycle_no)] = true; });
+    return m;
+  }, [data]);
+  const deptLc = useMemo(() => {
+    const m = {};
+    (data?.rows || []).forEach((x) => {
+      const d = (m[x.department] = m[x.department] || { review: 0, gt3: 0 });
+      if (Number(x.lifecycle_no) === 6) d.review += 1;
+      if (Number(x.overdue_gt3) === 1) d.gt3 += 1;
+    });
+    return m;
+  }, [data]);
+
+  const myCount = useMemo(
+    () => (data?.rows || []).filter((x) => Number(x.allocated_to_id) === myId && Number(x.lifecycle_no) !== 12).length,
+    [data, myId]
+  );
+
+  const pickLifecycle = (no, status) => {
+    setActiveKpi(null);
+    if (no === 3 || (lcStage === no && lcStatus === status)) {
+      setLcStage(null);
+      setLcStatus("");
+      return;
+    }
+    setLcStage(no);
+    setLcStatus(status);
+    setTimeout(() => document.getElementById("mis-table")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
   const stages = ["Not transferred", "Awaiting allocation", "Testing", "Results submitted", "Ready to dispatch", "Bill pending", "Closed"];
 
   const exportCsv = () => {
@@ -418,31 +552,58 @@ export default function MisSampleFlow() {
 
             {s && (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+                <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Sample lifecycle - click a card to see its samples, click the strip below it to see only the overdue ones</div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {LC_CARDS.map((c) => {
+                    const stat = s.lifecycle?.[c.no] || { total: 0, overdue: 0, urgent: 0 };
+                    return (
+                      <LifecycleCard
+                        key={c.no}
+                        card={c}
+                        stat={stat}
+                        health={lcHealth(stat.total, stat.overdue, !!lcGt3[c.no])}
+                        active={lcStage === c.no}
+                        overdueActive={lcStage === c.no && lcStatus === "Overdue"}
+                        onMain={() => pickLifecycle(c.no, "")}
+                        onOverdue={() => pickLifecycle(c.no, "Overdue")}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="text-[11px] text-gray-600 bg-gray-50 border rounded-lg p-2">
+                  Cards count samples (LRN) at their least advanced department; the table shows one row per department. Overdue = past the TAT due date (testing) or more than 1 day waiting at a later step.
+                  Colour: green = nothing overdue, amber = up to 10% overdue, red = more than 10% overdue or anything more than 3 days late. Numbers differ from the earlier screen because empty dates
+                  (0000-00-00) are no longer counted as completed steps. "default TAT" = the 10-day fallback is used because the package is not in the TAT Master. Provisional: the BIS category (packages "as per IS ####"), the gate-entry tile and OES shown under Chemical will follow the client's final rules.
+                </div>
+                <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Overview</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
                   <Card label="Samples booked (LRN)" value={s.samples_booked} active={activeKpi === "samples_booked"} onClick={() => setActiveKpi(prev => prev === "samples_booked" ? null : "samples_booked")} />
                   <Card label="Open (report not sent)" value={s.open_samples} active={activeKpi === "open_samples"} onClick={() => setActiveKpi(prev => prev === "open_samples" ? null : "open_samples")} />
-                  <Card label="In testing" value={s.in_testing} active={activeKpi === "in_testing"} onClick={() => setActiveKpi(prev => prev === "in_testing" ? null : "in_testing")} />
-                  <Card label="Awaiting authorisation" value={s.awaiting_authorisation} active={activeKpi === "awaiting_authorisation"} onClick={() => setActiveKpi(prev => prev === "awaiting_authorisation" ? null : "awaiting_authorisation")} />
-                  <Card label="Ready to dispatch" value={s.ready_to_dispatch} active={activeKpi === "ready_to_dispatch"} onClick={() => setActiveKpi(prev => prev === "ready_to_dispatch" ? null : "ready_to_dispatch")} />
                   <Card label="Reports OVERDUE" value={s.reports_overdue} tone={s.reports_overdue ? "red" : undefined} active={activeKpi === "reports_overdue"} onClick={() => setActiveKpi(prev => prev === "reports_overdue" ? null : "reports_overdue")} />
                   <Card label="Reports due today/tomorrow" value={s.reports_due_soon} tone={s.reports_due_soon ? "amber" : undefined} active={activeKpi === "reports_due_soon"} onClick={() => setActiveKpi(prev => prev === "reports_due_soon" ? null : "reports_due_soon")} />
                   <Card label="Bill pending" value={s.bill_pending} active={activeKpi === "bill_pending"} onClick={() => setActiveKpi(prev => prev === "bill_pending" ? null : "bill_pending")} />
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
-                  <Card label="Not transferred" value={s.not_transferred} active={activeKpi === "not_transferred"} onClick={() => setActiveKpi(prev => prev === "not_transferred" ? null : "not_transferred")} />
-                  <Card label="Awaiting allocation" value={s.awaiting_allocation} active={activeKpi === "awaiting_allocation"} onClick={() => setActiveKpi(prev => prev === "awaiting_allocation" ? null : "awaiting_allocation")} />
-                  <Card label="Dept rows in testing" value={s.dept_in_testing} active={activeKpi === "dept_in_testing"} onClick={() => setActiveKpi(prev => prev === "dept_in_testing" ? null : "dept_in_testing")} />
-                  <Card label="Testing OVERDUE" value={s.testing_overdue} tone={s.testing_overdue ? "red" : undefined} active={activeKpi === "testing_overdue"} onClick={() => setActiveKpi(prev => prev === "testing_overdue" ? null : "testing_overdue")} />
-                  <Card label="Testing due soon" value={s.testing_due_soon} tone={s.testing_due_soon ? "amber" : undefined} active={activeKpi === "testing_due_soon"} onClick={() => setActiveKpi(prev => prev === "testing_due_soon" ? null : "testing_due_soon")} />
-                  <Card label="Results submitted" value={s.results_submitted} active={activeKpi === "results_submitted"} onClick={() => setActiveKpi(prev => prev === "results_submitted" ? null : "results_submitted")} />
                   <Card label="Urgent open" value={s.urgent_open} active={activeKpi === "urgent_open"} onClick={() => setActiveKpi(prev => prev === "urgent_open" ? null : "urgent_open")} />
                   <Card label="TAT conflicts" value={s.tat_conflicts} active={activeKpi === "tat_conflicts"} onClick={() => setActiveKpi(prev => prev === "tat_conflicts" ? null : "tat_conflicts")} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-gray-200 bg-white p-3 text-xs">
+                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Dispatch transmission (info)</div>
+                    <div className="mt-0.5"><b className="text-lg">{s.transmission?.sent ?? 0}</b> samples sent - {s.transmission?.email ?? 0} by email, {s.transmission?.courier ?? 0} with courier docket</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">Pending hard-copy tracking starts once the Hard Copy Required flag is added.</div>
+                  </div>
+                  {s.gate && (
+                    <div className="rounded-xl border border-gray-200 bg-white p-3 text-xs">
+                      <div className="text-[11px] uppercase tracking-wide text-gray-500">Gate entries still open, last 30 days (info only)</div>
+                      <div className="mt-0.5"><b className="text-lg">{s.gate.open_total}</b> open - {s.gate.age_0_1} today/yesterday, {s.gate.age_2_3} for 2-3 days, {s.gate.age_4_plus} for 4+ days</div>
+                      <div className="text-[10px] text-gray-500 mt-0.5">Not a judgement: gate entries are not linked to bookings and are rarely closed, so older ones are mostly not real backlog.</div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto border rounded-xl">
                   <table className="w-full text-xs">
                     <thead className="bg-gray-50 text-gray-500"><tr>
-                      {["Department", "Awaiting allocation", "In testing", "OVERDUE", "Due soon", "Results submitted", "Testing on-time %"].map((h) => <th key={h} className="p-2 text-left">{h}</th>)}
+                      {["Department", "Awaiting allocation", "In testing", "OVERDUE", "Due soon", "Results submitted", "Testing on-time %", "In review / sign-off", "Overdue > 3 days"].map((h) => <th key={h} className="p-2 text-left">{h}</th>)}
                     </tr></thead>
                     <tbody>
                       {(s.by_department || []).map((d) => (
@@ -452,6 +613,8 @@ export default function MisSampleFlow() {
                           <td className="p-2 text-red-700 font-semibold">{d.overdue}</td><td className="p-2">{d.due_soon}</td>
                           <td className="p-2">{d.results_submitted}</td>
                           <td className="p-2">{d.done_total ? `${Math.round((d.done_on_time / d.done_total) * 100)}%` : "-"}</td>
+                          <td className="p-2">{deptLc[d.department]?.review ?? 0}</td>
+                          <td className="p-2 text-red-700 font-semibold">{deptLc[d.department]?.gt3 ?? 0}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -486,7 +649,24 @@ export default function MisSampleFlow() {
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border rounded-lg p-1.5">
                 <option value="">All statuses</option>{["OVERDUE", "Due soon", "On track", "Done", "No due date"].map((d) => <option key={d}>{d}</option>)}
               </select>
+              <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="border rounded-lg p-1.5" title="Provisional: BIS = testing packages written 'as per IS ####'. Will follow the client's rule once confirmed.">
+                <option value="">All categories</option>
+                {["BIS (IS standard)", "General", "Calibration"].map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <select value={lcStatus} onChange={(e) => setLcStatus(e.target.value)} className="border rounded-lg p-1.5" title="Done / Pending / Overdue for the selected lifecycle card (or for all samples)">
+                <option value="">Lifecycle: all</option>
+                {["Done", "Pending", "Overdue"].map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <button type="button" onClick={() => setGt3Only((v) => !v)} className={`px-2.5 py-1 rounded-full border font-semibold ${gt3Only ? "bg-red-600 text-white border-red-600" : "bg-white text-red-700 border-red-300 hover:bg-red-50"}`}>Overdue &gt; 3 days</button>
+              <button type="button" onClick={() => setUrgentOnly((v) => !v)} className={`px-2.5 py-1 rounded-full border font-semibold ${urgentOnly ? "bg-red-600 text-white border-red-600" : "bg-white text-red-700 border-red-300 hover:bg-red-50"}`}>Urgent only</button>
+              <button type="button" onClick={() => setMyOnly((v) => !v)} className={`px-2.5 py-1 rounded-full border font-semibold ${myOnly ? "bg-blue-600 text-white border-blue-600" : "bg-white text-blue-700 border-blue-300 hover:bg-blue-50"}`} title="Open items allotted to you">&#128276; My items ({myCount})</button>
               <span className="self-center font-semibold text-gray-600">{rows.length} rows</span>
+              {lcStage && (
+                <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-900 text-xs px-2.5 py-1 rounded-full font-semibold">
+                  <span>Showing: <b>{LC_CARDS.find((c) => c.no === lcStage)?.label}{lcStatus ? ` - ${lcStatus}` : ""}</b></span>
+                  <button type="button" onClick={() => { setLcStage(null); setLcStatus(""); }} className="ml-1 hover:text-red-600 font-bold" title="Clear lifecycle filter">x</button>
+                </span>
+              )}
               {activeKpi && (
                 <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-blue-200 text-xs px-2.5 py-1 rounded-full font-semibold shadow-xs">
                   <span>KPI Filter: <b>{activeKpi.replace(/_/g, " ")}</b></span>
@@ -511,7 +691,7 @@ export default function MisSampleFlow() {
               )}
             </div>
 
-            <div className="overflow-auto border rounded-xl max-h-[65vh]">
+            <div id="mis-table" className="overflow-auto border rounded-xl max-h-[65vh]">
               <table className="min-w-[1500px] w-full text-xs">
                 <thead className="bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 sticky top-0 z-10 shadow-sm">
                   <tr>
@@ -520,8 +700,8 @@ export default function MisSampleFlow() {
                       return (
                         <th
                           key={col.key}
-                          className="p-2 text-left whitespace-nowrap align-top border-b border-gray-200 dark:border-gray-600"
-                          style={{ minWidth: col.minWidth || "110px" }}
+                          className={`p-2 text-left whitespace-nowrap align-top border-b border-gray-200 dark:border-gray-600 ${col.stickyLeft !== undefined ? "bg-gray-50 dark:bg-gray-700" : ""}`}
+                          style={{ minWidth: col.minWidth || "110px", ...(col.stickyLeft !== undefined ? { position: "sticky", left: col.stickyLeft, zIndex: 20 } : {}) }}
                         >
                           <div
                             onClick={() => handleSort(col.key)}
@@ -550,7 +730,11 @@ export default function MisSampleFlow() {
                   {rows.map((r, i) => (
                     <tr key={`${r.type}-${r.lrn}-${r.department}-${i}`} className="border-t hover:bg-blue-50/40">
                       {TRACKER_COLUMNS.map((col) => (
-                        <td key={col.key} className="p-2">
+                        <td
+                          key={col.key}
+                          className={`p-2 ${col.stickyLeft !== undefined ? "bg-white dark:bg-gray-800 border-r border-gray-200" : ""}`}
+                          style={col.stickyLeft !== undefined ? { position: "sticky", left: col.stickyLeft, zIndex: 5 } : undefined}
+                        >
                           {col.render ? col.render(r) : r[col.key]}
                         </td>
                       ))}
