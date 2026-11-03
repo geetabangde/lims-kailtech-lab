@@ -427,6 +427,11 @@ export default function MisSampleFlow() {
     setTimeout(() => document.getElementById("mis-table")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
   const stages = ["Not transferred", "Awaiting allocation", "Testing", "Results submitted", "Ready to dispatch", "Bill pending", "Closed"];
+  const categoryList = useMemo(() => {
+    const set = new Set();
+    (data?.rows || []).forEach((r) => { if (r.category) set.add(r.category); });
+    return Array.from(set).sort();
+  }, [data?.rows]);
 
   const exportCsv = () => {
     if (!rows.length) return;
@@ -649,9 +654,9 @@ export default function MisSampleFlow() {
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border rounded-lg p-1.5">
                 <option value="">All statuses</option>{["OVERDUE", "Due soon", "On track", "Done", "No due date"].map((d) => <option key={d}>{d}</option>)}
               </select>
-              <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="border rounded-lg p-1.5" title="Provisional: BIS = testing packages written 'as per IS ####'. Will follow the client's rule once confirmed.">
+              <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} className="border rounded-lg p-1.5" title="Category / Specific Purpose">
                 <option value="">All categories</option>
-                {["BIS (IS standard)", "General", "Calibration"].map((d) => <option key={d} value={d}>{d}</option>)}
+                {categoryList.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
               <select value={lcStatus} onChange={(e) => setLcStatus(e.target.value)} className="border rounded-lg p-1.5" title="Done / Pending / Overdue for the selected lifecycle card (or for all samples)">
                 <option value="">Lifecycle: all</option>
