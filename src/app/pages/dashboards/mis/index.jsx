@@ -573,7 +573,7 @@ export default function MisSampleFlow() {
                 <div className="text-[11px] text-gray-600 bg-gray-50 border rounded-lg p-2">
                   Cards count samples (LRN) at their least advanced department; the table shows one row per department. Overdue = past the TAT due date (testing) or more than 1 day waiting at a later step.
                   Colour: green = nothing overdue, amber = up to 10% overdue, red = more than 10% overdue or anything more than 3 days late. Numbers differ from the earlier screen because empty dates
-                  (0000-00-00) are no longer counted as completed steps. "default TAT" = the 10-day fallback is used because the package is not in the TAT Master. Provisional: the BIS category (packages "as per IS ####"), the gate-entry tile and OES shown under Chemical will follow the client's final rules.
+                  (0000-00-00) are no longer counted as completed steps. &quot;default TAT&quot; = the 10-day fallback is used because the package is not in the TAT Master. Provisional: the BIS category (packages &quot;as per IS ####&quot;), the gate-entry tile and OES shown under Chemical will follow the client&apos;s final rules.
                 </div>
                 <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Overview</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
