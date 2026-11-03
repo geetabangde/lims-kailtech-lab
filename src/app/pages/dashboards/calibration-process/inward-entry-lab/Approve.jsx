@@ -9,8 +9,8 @@ function Approve() {
   const [approveDate, setApproveDate] = useState('');
   const [reasonForAction, setReasonForAction] = useState('');
   const [showValidation, setShowValidation] = useState(false);
-  const [confirmReviewed, setConfirmReviewed] = useState(false);
-  const [confirmResponsibility, setConfirmResponsibility] = useState(false);
+  const [confirmReviewed, setConfirmReviewed] = useState(true);
+  const [confirmResponsibility, setConfirmResponsibility] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingType, setLoadingType] = useState(''); // 'approve' or 'reject'
   const [inwardId, setInwardId] = useState('');

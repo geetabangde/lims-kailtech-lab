@@ -107,8 +107,8 @@ ReTestButton.propTypes = { testEventId: PropTypes.any, onSuccess: PropTypes.func
 // POST /actionitem/approve-submit-ulr  { hid }
 function QaApproveButton({ hid, remark = '', onSuccess }) {
   const [loading, setLoading] = useState(false);
-  const [confirmReviewed, setConfirmReviewed] = useState(false);
-  const [confirmResponsibility, setConfirmResponsibility] = useState(false);
+  const [confirmReviewed, setConfirmReviewed] = useState(true);
+  const [confirmResponsibility, setConfirmResponsibility] = useState(true);
 
   const handle = useCallback(async () => {
     if (!confirmReviewed || !confirmResponsibility) {
