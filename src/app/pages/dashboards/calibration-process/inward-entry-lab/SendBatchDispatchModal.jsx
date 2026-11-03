@@ -89,6 +89,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
       if (res.data?.status && res.data?.data) {
         const d = res.data.data;
         setData(d);
+        setTestMode(Boolean(d.test_mode)); // follow the server setting (DISPATCH_ALLOW_LIVE_CLIENTS); stays true until preview loads
         setToRecipients(d.recipients?.to || []);
         setCcRecipients(d.recipients?.cc || []);
         setPoNumber(d.po_options?.recommended || '');
