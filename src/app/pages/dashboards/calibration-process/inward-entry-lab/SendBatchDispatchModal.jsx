@@ -27,6 +27,8 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
   // Testing Phase Safeguard State
   const [testMode, setTestMode] = useState(true);
   const [testRecipientEmail, setTestRecipientEmail] = useState('');
+  const [includeInvoice, setIncludeInvoice] = useState(false);
+  const [sendWhatsApp, setSendWhatsApp] = useState(false);
 
   // Active Hold Countdown State
   const [queuedLogId, setQueuedLogId] = useState(null);
@@ -97,6 +99,8 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
           .filter((item) => item.is_approved)
           .map((item) => item.id);
         setSelectedItemIds(approvedIds);
+        setIncludeInvoice(Boolean(d.invoices && d.invoices.length > 0));
+        setSendWhatsApp(Boolean(d.whatsapp_ready));
       } else {
         toast.error(res.data?.message || 'Failed to load dispatch preview.');
       }
@@ -238,6 +242,9 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
         test_mode: testMode,
         test_recipient_email: parseTestRecipients(testRecipientEmail).join(', '),
         declaration_confirmed: true,
+        include_invoice: includeInvoice,
+        send_whatsapp: sendWhatsApp,
+        whatsapp_phone: data?.recipients?.whatsapp || null,
       };
 
       const res = await axios.post('/dispatch/queue', payload);
@@ -364,7 +371,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
       if (!it.pdf_exists) {
         list.push({ item_id: it.id, certificate: it.certificateno, name: it.name, reason: 'The certificate PDF file is missing on the server, so it cannot be attached.' });
       }
-      if (it.invoice_ok === false) {
+      if (includeInvoice && it.invoice_ok === false) {
         list.push({ item_id: it.id, certificate: it.certificateno, name: it.name, reason: it.invoice_reason || 'No tax invoice is ready for this certificate.' });
       }
       return list;
