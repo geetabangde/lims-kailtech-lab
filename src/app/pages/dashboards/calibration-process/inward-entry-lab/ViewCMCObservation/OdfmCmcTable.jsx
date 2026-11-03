@@ -11,7 +11,7 @@ export const OdfmCmcTable = ({ data }) => (
           <th colSpan="8" className="border border-gray-300 px-1 py-2 bg-gray-200 font-semibold text-xs">
             Type B Factor
           </th>
-          <th colSpan="5" className="border border-gray-300 px-1 py-2 bg-gray-200 font-semibold text-xs">
+          <th colSpan="6" className="border border-gray-300 px-1 py-2 bg-gray-200 font-semibold text-xs">
             Uncertainty Measurement
           </th>
         </tr>
@@ -39,6 +39,7 @@ export const OdfmCmcTable = ({ data }) => (
           <th className="border border-gray-300 px-1 py-2">Degree of Freedom</th>
           <th className="border border-gray-300 px-1 py-2">Coverage Factor (k)</th>
           <th className="border border-gray-300 px-1 py-2">Expanded Uncertainty in Value</th>
+          <th className="border border-gray-300 px-1 py-2">CMC Scope</th>
           <th className="border border-gray-300 px-1 py-2">CMC Taken</th>
         </tr>
       </thead>
@@ -68,6 +69,7 @@ export const OdfmCmcTable = ({ data }) => (
             <td className="border border-gray-300 px-1 py-2">{row.degreeOfFreedom === '-' ? '-' : (typeof row.degreeOfFreedom === 'number' ? row.degreeOfFreedom.toFixed(2) : row.degreeOfFreedom)}</td>
             <td className="border border-gray-300 px-1 py-2">{typeof row.coverageFactor === 'number' ? row.coverageFactor.toFixed(2) : row.coverageFactor}</td>
             <td className="border border-gray-300 px-1 py-2">{typeof row.expandedUncertaintyValue === 'number' ? row.expandedUncertaintyValue.toFixed(6) : row.expandedUncertaintyValue}</td>
+            <td className="border border-gray-300 px-1 py-2">{typeof row.cmcScope === 'number' ? row.cmcScope.toFixed(6) : (row.cmcScope ?? '-')}</td>
             <td className="border border-gray-300 px-1 py-2">{typeof row.cmcUncertainty === 'number' ? row.cmcUncertainty.toFixed(6) : row.cmcUncertainty}</td>
           </tr>
         ))}

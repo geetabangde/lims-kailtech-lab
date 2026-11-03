@@ -714,6 +714,7 @@ export default function ViewCMCCalculation() {
               coverageFactor: item.coverage_factor,
               expandedUncertaintyValue: item.expanded_uncertainty_value,
               cmcUncertainty: item.cmc_uncertainty,
+              cmcScope: item.cmc_scope,
             }));
             setData(mappedData);
           } else if (instrumentSuffix === "ppg") {
