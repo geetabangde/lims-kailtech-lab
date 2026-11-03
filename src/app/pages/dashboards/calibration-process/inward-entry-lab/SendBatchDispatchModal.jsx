@@ -251,12 +251,12 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
       const res = await axios.post('/dispatch/queue', payload);
       if (res.data?.status) {
         toast.success(res.data.message || 'Dispatch scheduled successfully! 📧');
-        if (res.data.test_mode) {
-          setSentLogId(res.data.log_id);
-          setShowFeedbackCard(true);
-        } else if (res.data.undo_window_minutes > 0) {
+        if (res.data.undo_window_minutes > 0) {
           setQueuedLogId(res.data.log_id);
           setCountdownSeconds(res.data.undo_window_minutes * 60);
+        } else if (res.data.test_mode) {
+          setSentLogId(res.data.log_id);
+          setShowFeedbackCard(true);
         } else {
           onSuccess && onSuccess(res.data);
           onClose();
@@ -671,59 +671,63 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                   )}
                 </div>
 
-                {/* Testing Phase Safeguard Card (2-Day Trial Enforced) */}
-                <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50/80 dark:bg-amber-950/40 dark:border-amber-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={true}
-                        disabled={true}
-                        readOnly={true}
-                        className="rounded text-amber-600 focus:ring-0 opacity-80 cursor-not-allowed"
-                      />
-                      <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                        Initial 2-Day Test Mode Enforced (Real Clients 100% Untouched)
+                {/* Testing Phase Safeguard Card (2-Day Trial Enforced) - Visible ONLY in Test Mode */}
+                {(testMode || data?.test_mode) && (
+                  <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50/80 dark:bg-amber-950/40 dark:border-amber-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={true}
+                          disabled={true}
+                          readOnly={true}
+                          className="rounded text-amber-600 focus:ring-0 opacity-80 cursor-not-allowed"
+                        />
+                        <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                          Initial 2-Day Test Mode Enforced (Real Clients 100% Untouched)
+                        </span>
+                      </label>
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-200 text-amber-800">
+                        Safe Test Phase
                       </span>
-                    </label>
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-200 text-amber-800">
-                      Safe Test Phase
-                    </span>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-amber-900 dark:text-amber-300 mb-1">
+                        Send Pilot Test Email To (up to 5 addresses, separated by commas):
+                      </label>
+                      <input
+                        type="text"
+                        autoComplete="off"
+                        value={testRecipientEmail}
+                        onChange={(e) => setTestRecipientEmail(e.target.value)}
+                        placeholder="e.g. yourname@kailtech.in, yourname@gmail.com"
+                        className="w-full text-xs rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 p-2 outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                      />
+                      <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
+                        Confidentiality Safeguard: For safety during pilot testing, emails are dispatched ONLY to the address(es) entered here. Customers will receive NOTHING. Temporary / disposable email addresses are not allowed. You are solely responsible for the documents once sent.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-amber-900 dark:text-amber-300 mb-1">
-                      Send Pilot Test Email To (up to 5 addresses, separated by commas):
-                    </label>
-                    <input
-                      type="text"
-                      autoComplete="off"
-                      value={testRecipientEmail}
-                      onChange={(e) => setTestRecipientEmail(e.target.value)}
-                      placeholder="e.g. yourname@kailtech.in, yourname@gmail.com"
-                      className="w-full text-xs rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 p-2 outline-none focus:ring-2 focus:ring-amber-500 font-mono"
-                    />
-                    <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
-                      Confidentiality Safeguard: For safety during pilot testing, emails are dispatched ONLY to the address(es) entered here. Customers will receive NOTHING. Temporary / disposable email addresses are not allowed. You are solely responsible for the documents once sent.
-                    </p>
-                  </div>
-                </div>
+                )}
 
-                {/* Display Intended Customer Recipients for Verification */}
-                <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs space-y-1">
-                  <div className="font-bold text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
-                    <span>ℹ️</span>
-                    <span>When live, this dispatch would be delivered to:</span>
+                {/* Display Intended Customer Recipients for Verification - Visible ONLY in Test Mode */}
+                {(testMode || data?.test_mode) && (
+                  <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs space-y-1">
+                    <div className="font-bold text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
+                      <span>ℹ️</span>
+                      <span>When live, this dispatch would be delivered to:</span>
+                    </div>
+                    <div className="text-blue-900 dark:text-blue-300 pl-5 text-[11px]">
+                      <div><strong>Customer Primary (To):</strong> {toRecipients.join(', ') || 'No customer email registered'}</div>
+                      {ccRecipients.length > 0 && (
+                        <div><strong>Customer Accounts (CC):</strong> {ccRecipients.join(', ')}</div>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-blue-600 dark:text-blue-400 pl-5 italic">
+                      (Verify these customer addresses are correct in directory records before live rollout)
+                    </div>
                   </div>
-                  <div className="text-blue-900 dark:text-blue-300 pl-5 text-[11px]">
-                    <div><strong>Customer Primary (To):</strong> {toRecipients.join(', ') || 'No customer email registered'}</div>
-                    {ccRecipients.length > 0 && (
-                      <div><strong>Customer Accounts (CC):</strong> {ccRecipients.join(', ')}</div>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-blue-600 dark:text-blue-400 pl-5 italic">
-                    (Verify these customer addresses are correct in directory records before live rollout)
-                  </div>
-                </div>
+                )}
 
                 {/* TO field */}
                 {(testMode || data?.test_mode) ? (
@@ -1191,11 +1195,9 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                     ? 'Processing...'
                     : !allConfirmed
                     ? 'Confirm Undertaking to Dispatch'
-                    : (data?.test_mode || testMode)
-                    ? `Send Test Dispatch`
                     : skipUndoBuffer
-                    ? 'Send to Client Immediately'
-                    : 'Schedule Dispatch (15-Min Safety Hold)'}
+                    ? ((data?.test_mode || testMode) ? 'Send Test Dispatch Immediately' : 'Send to Client Immediately')
+                    : ((data?.test_mode || testMode) ? 'Schedule Test Dispatch (15-Min Hold)' : 'Schedule Dispatch (15-Min Safety Hold)')}
                 </span>
               </button>
               {(data?.test_mode || testMode) && (
