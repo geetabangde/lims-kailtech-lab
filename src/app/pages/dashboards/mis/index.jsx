@@ -190,6 +190,11 @@ export default function MisSampleFlow() {
   const [stageFilter, setStageFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [activeKpi, setActiveKpi] = useState(null);
+  const [activeTopCard, setActiveTopCard] = useState(null); // 'testing', 'calibration', 'bis_dues', 'general_dues'
+  const handleTopCardClick = (key) => {
+    setActiveTopCard((prev) => (prev === key ? null : key));
+    setTimeout(() => document.getElementById("mis-table")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
   const [lcStage, setLcStage] = useState(null); // lifecycle card number (4,5,6,9,11)
   const [showAllDepts, setShowAllDepts] = useState(false); // false = one row per sample (matches the card count)
   const [lcStatus, setLcStatus] = useState(""); // "", Done, Pending, Overdue
@@ -312,6 +317,34 @@ export default function MisSampleFlow() {
     if (department) r = r.filter((x) => x.department === department);
     if (stageFilter) r = r.filter((x) => x.stage === stageFilter);
     if (statusFilter) r = r.filter((x) => x.testing_status === statusFilter || x.report_status === statusFilter);
+
+    // Apply active Top Card filter (Testing, Calibration, BIS Dues, General Dues)
+    if (activeTopCard) {
+      switch (activeTopCard) {
+        case "testing":
+          r = r.filter((x) => x.type === "Testing" || x.type !== "Calibration");
+          break;
+        case "calibration":
+          r = r.filter((x) => x.type === "Calibration");
+          break;
+        case "bis_dues":
+          r = r.filter((x) => {
+            const isBis = String(x.category || "").toLowerCase().includes("bis") || String(x.package || "").toLowerCase().includes("is");
+            const isDue = x.report_status === "OVERDUE" || x.testing_status === "OVERDUE" || x.lifecycle_status === "Overdue";
+            return isBis && isDue;
+          });
+          break;
+        case "general_dues":
+          r = r.filter((x) => {
+            const isBis = String(x.category || "").toLowerCase().includes("bis") || String(x.package || "").toLowerCase().includes("is");
+            const isDue = x.report_status === "OVERDUE" || x.testing_status === "OVERDUE" || x.lifecycle_status === "Overdue";
+            return !isBis && isDue;
+          });
+          break;
+        default:
+          break;
+      }
+    }
 
     // Apply active KPI card filter
     if (activeKpi) {
@@ -591,35 +624,94 @@ export default function MisSampleFlow() {
 
             {s && (
               <>
-                {/* Top KPI Header: Sample Types & Standard Due Split */}
+                {/* Top KPI Header: Sample Types & Standard Due Split (Clickable) */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                  <div className="rounded-xl border border-blue-200 bg-blue-50/70 dark:bg-blue-950/30 p-2.5 flex items-center justify-between">
+                  <div
+                    onClick={() => handleTopCardClick("testing")}
+                    role="button"
+                    tabIndex={0}
+                    title="Click to filter table by Testing Samples"
+                    className={`rounded-xl border p-2.5 flex items-center justify-between cursor-pointer select-none transition-all hover:shadow-md ${
+                      activeTopCard === "testing"
+                        ? "border-blue-600 bg-blue-100 dark:bg-blue-900/60 ring-2 ring-blue-600"
+                        : "border-blue-200 bg-blue-50/70 dark:bg-blue-950/30 hover:border-blue-400"
+                    }`}
+                  >
                     <div>
                       <div className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">🔬 Testing Samples</div>
                       <div className="text-xl font-extrabold text-blue-950 dark:text-blue-100">{s.split_counts?.testing ?? 0}</div>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-blue-200/80 text-blue-900">Total Booked</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-colors ${
+                      activeTopCard === "testing" ? "bg-blue-600 text-white" : "bg-blue-200/80 text-blue-900"
+                    }`}>
+                      {activeTopCard === "testing" ? "Filtered ✓" : "Total Booked"}
+                    </span>
                   </div>
-                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 dark:bg-indigo-950/30 p-2.5 flex items-center justify-between">
+
+                  <div
+                    onClick={() => handleTopCardClick("calibration")}
+                    role="button"
+                    tabIndex={0}
+                    title="Click to filter table by Calibration Samples"
+                    className={`rounded-xl border p-2.5 flex items-center justify-between cursor-pointer select-none transition-all hover:shadow-md ${
+                      activeTopCard === "calibration"
+                        ? "border-indigo-600 bg-indigo-100 dark:bg-indigo-900/60 ring-2 ring-indigo-600"
+                        : "border-indigo-200 bg-indigo-50/70 dark:bg-indigo-950/30 hover:border-indigo-400"
+                    }`}
+                  >
                     <div>
                       <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">📐 Calibration Samples</div>
                       <div className="text-xl font-extrabold text-indigo-950 dark:text-indigo-100">{s.split_counts?.calibration ?? 0}</div>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-indigo-200/80 text-indigo-900">Total Booked</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-colors ${
+                      activeTopCard === "calibration" ? "bg-indigo-600 text-white" : "bg-indigo-200/80 text-indigo-900"
+                    }`}>
+                      {activeTopCard === "calibration" ? "Filtered ✓" : "Total Booked"}
+                    </span>
                   </div>
-                  <div className="rounded-xl border border-red-200 bg-red-50/70 dark:bg-red-950/30 p-2.5 flex items-center justify-between">
+
+                  <div
+                    onClick={() => handleTopCardClick("bis_dues")}
+                    role="button"
+                    tabIndex={0}
+                    title="Click to filter table by Overdue BIS / IS Standard Samples"
+                    className={`rounded-xl border p-2.5 flex items-center justify-between cursor-pointer select-none transition-all hover:shadow-md ${
+                      activeTopCard === "bis_dues"
+                        ? "border-red-600 bg-red-100 dark:bg-red-900/60 ring-2 ring-red-600"
+                        : "border-red-200 bg-red-50/70 dark:bg-red-950/30 hover:border-red-400"
+                    }`}
+                  >
                     <div>
                       <div className="text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-300">📜 BIS / IS Standard Dues</div>
                       <div className="text-xl font-extrabold text-red-950 dark:text-red-100">{s.split_counts?.bis_dues ?? 0}</div>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-red-200/80 text-red-900">Overdue</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-colors ${
+                      activeTopCard === "bis_dues" ? "bg-red-600 text-white" : "bg-red-200/80 text-red-900"
+                    }`}>
+                      {activeTopCard === "bis_dues" ? "Filtered ✓" : "Overdue"}
+                    </span>
                   </div>
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 dark:bg-amber-950/30 p-2.5 flex items-center justify-between">
+
+                  <div
+                    onClick={() => handleTopCardClick("general_dues")}
+                    role="button"
+                    tabIndex={0}
+                    title="Click to filter table by Overdue General Standard Samples"
+                    className={`rounded-xl border p-2.5 flex items-center justify-between cursor-pointer select-none transition-all hover:shadow-md ${
+                      activeTopCard === "general_dues"
+                        ? "border-amber-600 bg-amber-100 dark:bg-amber-900/60 ring-2 ring-amber-600"
+                        : "border-amber-200 bg-amber-50/70 dark:bg-amber-950/30 hover:border-amber-400"
+                    }`}
+                  >
                     <div>
                       <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">📋 General Standard Dues</div>
                       <div className="text-xl font-extrabold text-amber-950 dark:text-amber-100">{s.split_counts?.general_dues ?? 0}</div>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-200/80 text-amber-900">Overdue</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold transition-colors ${
+                      activeTopCard === "general_dues" ? "bg-amber-600 text-white" : "bg-amber-200/80 text-amber-900"
+                    }`}>
+                      {activeTopCard === "general_dues" ? "Filtered ✓" : "Overdue"}
+                    </span>
                   </div>
                 </div>
 
@@ -742,6 +834,19 @@ export default function MisSampleFlow() {
                   <button type="button" onClick={() => { setLcStage(null); setLcStatus(""); setShowAllDepts(false); }} className="ml-1 hover:text-red-600 font-bold" title="Clear lifecycle filter">x</button>
                 </span>
               )}
+              {activeTopCard && (
+                <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-blue-200 text-xs px-2.5 py-1 rounded-full font-semibold shadow-xs">
+                  <span>Top Filter: <b>{activeTopCard === "testing" ? "Testing Samples" : activeTopCard === "calibration" ? "Calibration Samples" : activeTopCard === "bis_dues" ? "BIS / IS Standard Dues" : "General Standard Dues"}</b></span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTopCard(null)}
+                    className="ml-1 hover:text-red-600 font-bold"
+                    title="Clear filter"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
               {activeKpi && (
                 <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-blue-200 text-xs px-2.5 py-1 rounded-full font-semibold shadow-xs">
                   <span>KPI Filter: <b>{activeKpi.replace(/_/g, " ")}</b></span>
@@ -758,7 +863,7 @@ export default function MisSampleFlow() {
               {(Object.values(colFilters).some(Boolean) || sortConfig.key) && (
                 <button
                   type="button"
-                  onClick={() => { setColFilters({}); setSortConfig({ key: null, direction: "asc" }); }}
+                  onClick={() => { setColFilters({}); setSortConfig({ key: null, direction: "asc" }); setActiveTopCard(null); }}
                   className="ml-2 px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md border border-red-200 transition-colors"
                 >
                   Reset Sort & Column Filters
