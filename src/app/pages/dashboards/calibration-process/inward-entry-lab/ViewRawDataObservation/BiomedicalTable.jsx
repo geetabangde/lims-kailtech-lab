@@ -30,7 +30,9 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instru
     ['Electrical Safety', 'Measure'],
     ['Electrical Safety', 'Source'],
     ['Performance Test', 'Measure'],
-    ['Performance Test', 'Source'],
+    ['Performance Test', 'Source', 'plain'],
+    // PAT-BIO-UNITCONV-01: Source rows whose UUC unit differs from the master unit (backend sends unit_conversion) get their own table: 3 master readings in the master unit.
+    ['Performance Test', 'Source', 'conv'],
   ];
 
   const formatWithUnit = (val, decimals, leastCount, unit) => {
@@ -175,7 +177,7 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instru
           </table>
         </div>
       )}
-      {groups.map(([section, mode]) => {
+      {groups.map(([section, mode, variant]) => {
         const isElectricalGroup = section === 'Electrical Safety';
         const sectionVisible = isElectricalGroup ? showElectricalSafety : showPerformanceTest;
 
@@ -183,23 +185,28 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instru
 
         const points = (dynamicObservations || []).filter(
           (point) => point.biomedical_section === section && point.mode === mode
+            && (variant === 'conv' ? !!point.unit_conversion : variant === 'plain' ? !point.unit_conversion : true)
         );
         if (points.length === 0) return null;
+        const isConv = variant === 'conv';
+        const convInfo = isConv ? points[0].unit_conversion : null;
 
         const isMeasure = mode === 'Measure';
         const showSetPointAndDeviation = !isElectricalGroup;
         const showUncertaintyAndRemark = false;
-        const masterCount = isMeasure ? 1 : 5;
+        const masterCount = isMeasure ? 1 : (isConv ? 3 : 5);
         const uucCount = isElectricalGroup ? 0 : (isMeasure ? 5 : 1);
         // Radiant / Baby Warmer (master instrument 138): performance rows have no tolerance -> column not shown (all other instruments unchanged)
         const hideTolerance = !isElectricalGroup && Number(instrumentId) === 138;
 
         const tableTitle = isElectricalGroup
           ? (mode === 'Source' ? '3. ELECTRICAL SAFETY TEST (Source)' : '3. ELECTRICAL SAFETY TEST')
-          : (mode === 'Source' ? '4. PERFORMANCE TESTING (Source)' : '4. PERFORMANCE TESTING');
+          : (mode === 'Source'
+            ? (isConv ? `4. PERFORMANCE TESTING (Source) - UUC in ${convInfo?.uuc_unit ?? ''}, master in ${convInfo?.master_unit ?? ''}` : '4. PERFORMANCE TESTING (Source)')
+            : '4. PERFORMANCE TESTING');
 
         return (
-          <div key={`${section}-${mode}`} className="overflow-x-auto">
+          <div key={`${section}-${mode}-${variant ?? 'all'}`} className="overflow-x-auto">
             <table className="w-full border border-gray-300 text-sm">
               <thead>
                 <tr className="bg-gray-100">
@@ -304,6 +311,9 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instru
                           {showSetPointAndDeviation && (
                             <td className="border border-gray-300 px-3 py-2">
                               {formatWithUnit(point.set_point, point.lc_decimals, point.least_count, pointUucUnit)}
+                              {point.unit_conversion && (
+                                <div className="text-xs text-gray-600">= {point.unit_conversion.converted_set_point} {point.unit_conversion.master_unit}</div>
+                              )}
                             </td>
                           )}
                           {showSetPointAndDeviation && uucCount > 1 && (
@@ -324,6 +334,12 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instru
                           {masterCount > 1 && (
                             <td className="border border-gray-300 px-3 py-2">
                               {formatWithUnit(calcAvgFromReadings(point.master_readings, point.mlc_decimals) ?? point.average_master, point.mlc_decimals, null, pointMasterUnit)}
+                              {point.unit_conversion && Number(point.unit_conversion.factor) > 0 && (() => {
+                                const avgBar = parseFloat(calcAvgFromReadings(point.master_readings, point.mlc_decimals) ?? point.average_master);
+                                return Number.isFinite(avgBar) ? (
+                                  <div className="text-xs text-gray-600">= {(avgBar / Number(point.unit_conversion.factor)).toFixed(3)} {point.unit_conversion.uuc_unit}</div>
+                                ) : null;
+                              })()}
                             </td>
                           )}
                         </>
