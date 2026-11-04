@@ -480,7 +480,7 @@ export default function MisSampleFlow() {
     }
 
     return r;
-  }, [data, department, stageFilter, statusFilter, activeKpi, colFilters, sortConfig, lcStage, lcStatus, showAllDepts, countedRows, gt3Only, urgentOnly, myOnly, catFilter, myId]);
+  }, [data, department, stageFilter, statusFilter, activeTopCard, activeKpi, colFilters, sortConfig, lcStage, lcStatus, showAllDepts, countedRows, gt3Only, urgentOnly, myOnly, catFilter, myId]);
 
   const departments = useMemo(() => [...new Set((data?.rows || []).map((x) => x.department))].sort(), [data]);
   const lcGt3 = useMemo(() => {
