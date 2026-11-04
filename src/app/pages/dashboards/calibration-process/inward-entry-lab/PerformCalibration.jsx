@@ -659,6 +659,63 @@ const PerformCalibration = () => {
                     break;
                 }
 
+                case 'downloadDraftCertificates': {
+                    if (selectedItems.length === 0) {
+                        toast.error("Please select at least one item to download drafts");
+                        return;
+                    }
+
+                    try {
+                        const token = localStorage.getItem('authToken');
+                        toast.info("Preparing draft certificates for download... this can take a minute for many items", { duration: 4000 });
+
+                        const response = await axios.get('/calibrationprocess/download-draft-certificates-zip', {
+                            params: {
+                                inwardid: inwardId,
+                                instid: selectedItems.join(',')
+                            },
+                            responseType: 'blob',
+                            timeout: 600000,
+                            headers: token ? { Authorization: `Bearer ${token}` } : {}
+                        });
+
+                        const included = response.headers['x-certificates-included'];
+                        const missing = response.headers['x-certificates-missing'];
+
+                        const contentDisposition = response.headers['content-disposition'];
+                        let filename = `draft_certificates_${inwardId}.zip`;
+                        if (contentDisposition) {
+                            const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                            if (filenameMatch && filenameMatch.length > 1) {
+                                filename = filenameMatch[1];
+                            }
+                        }
+
+                        const url = window.URL.createObjectURL(new Blob([response.data]));
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.setAttribute('download', filename);
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                        window.URL.revokeObjectURL(url);
+
+                        let successMessage = `Successfully downloaded draft certificates!`;
+                        if (included) successMessage = `Successfully downloaded ${included} draft certificates!`;
+                        if (missing && missing !== '0') successMessage += ` (${missing} skipped - only draft items can be downloaded here)`;
+                        toast.success(successMessage);
+
+                    } catch (error) {
+                        if (error.response && error.response.status === 404) {
+                            toast.error("No draft certificates found for the selected items");
+                        } else {
+                            console.error('Download draft certificates error:', error);
+                            toast.error("Failed to download draft certificates");
+                        }
+                    }
+                    break;
+                }
+
                 default:
                     console.log('Unknown bulk action:', action);
             }
@@ -1620,6 +1677,12 @@ const PerformCalibration = () => {
                                 className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
                             >
                                 Download Certificates
+                            </Button>
+                            <Button
+                                onClick={() => handleBulkAction('downloadDraftCertificates')}
+                                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                            >
+                                Download Drafts
                             </Button>
                         </div>
                     </div>
