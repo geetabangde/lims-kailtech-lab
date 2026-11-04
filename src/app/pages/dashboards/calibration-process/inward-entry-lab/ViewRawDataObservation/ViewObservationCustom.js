@@ -281,15 +281,19 @@ export const createCustomRows = (dataArray, currentRawdata, observationData) => 
           const isStdUuc = (instrumentSettings?.error === 'stduuc' || instrumentSettings?.error_type === 'stduuc' || instrumentSettings?.custom_error === 'stduuc');
           const diff = isStdUuc ? (masterVal - uucVal) : (uucVal - masterVal);
           
+          const getValDecimals = (val) => {
+            if (val === undefined || val === null) return 0;
+            const str = val.toString();
+            const p = str.split('.');
+            return p.length > 1 ? p[1].length : 0;
+          };
           let dynamicDecimals = errorDecimals;
           if (masterDecimals === null && uucDecimals === null) {
-            const getValDecimals = (val) => {
-              if (val === undefined || val === null) return 0;
-              const str = val.toString();
-              const p = str.split('.');
-              return p.length > 1 ? p[1].length : 0;
-            };
             dynamicDecimals = Math.max(getValDecimals(masterRaw), getValDecimals(uucRaw), 0);
+          } else if (uucDecimals === 0 && getValDecimals(masterRaw) === 0 && getValDecimals(uucRaw) === 0) {
+            // UUC reads whole numbers and both readings are whole numbers: a finer master
+            // least count on one range (e.g. 0.1) must not print "4.0" beside "5", "9".
+            dynamicDecimals = 0;
           }
 
           row[layout.errorIdx] = diff.toFixed(dynamicDecimals);
