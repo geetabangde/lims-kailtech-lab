@@ -212,8 +212,9 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
       toast.error('Please specify a P.O. Number or Reference.');
       return;
     }
-    if (testMode || data?.test_mode) {
-      const testList = parseTestRecipients(testRecipientEmail);
+    if (testMode) {
+      const effectiveTestEmail = testRecipientEmail.trim() || TEST_TO_EMAIL;
+      const testList = parseTestRecipients(effectiveTestEmail);
       if (testList.length === 0 || testList.some((a) => !isValidEmail(a))) {
         toast.error('Pilot testing requires valid test recipient email address(es), separated by commas.');
         return;
@@ -241,7 +242,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
         custom_note: customNote.trim() || null,
         skip_undo_buffer: skipUndoBuffer,
         test_mode: testMode,
-        test_recipient_email: parseTestRecipients(testRecipientEmail).join(', '),
+        test_recipient_email: parseTestRecipients(testRecipientEmail.trim() || TEST_TO_EMAIL).join(', '),
         declaration_confirmed: true,
         include_invoice: includeInvoice,
         send_whatsapp: sendWhatsApp,
@@ -671,25 +672,75 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                   )}
                 </div>
 
-                {/* Testing Phase Safeguard Card (2-Day Trial Enforced) - Visible ONLY in Test Mode */}
-                {(testMode || data?.test_mode) && (
+                {/* Dispatch Target Mode Toggle: Live Client vs Test Mode */}
+                <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">
+                        Dispatch Target Mode:
+                      </span>
+                      {testMode ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300">
+                          🧪 Test Mode (Clients Safe)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300">
+                          🚀 Official Live Client Dispatch
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                      {testMode
+                        ? "Test copies will be delivered ONLY to your specified test address (e.g. reports@kailtech.in). Real clients receive nothing."
+                        : "Official Release: Documents will be transmitted directly to the client's Quality Desk & Accounts Desk."}
+                    </p>
+                  </div>
+
+                  <div className="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 p-0.5 bg-white dark:bg-gray-900 shadow-sm shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setTestMode(false)}
+                      disabled={Boolean(data?.test_mode)}
+                      title={data?.test_mode ? 'Server is currently locked in safe staging mode (DISPATCH_ALLOW_LIVE_CLIENTS=false)' : 'Switch to Live Customer Dispatch'}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                        !testMode
+                          ? 'bg-emerald-600 text-white shadow'
+                          : data?.test_mode
+                          ? 'text-gray-400 cursor-not-allowed opacity-50'
+                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      🚀 Live Client
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTestMode(true)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                        testMode
+                          ? 'bg-amber-500 text-white shadow'
+                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      🧪 Test Mode
+                    </button>
+                  </div>
+                </div>
+
+                {/* Testing Phase Safeguard Card - Visible in Test Mode */}
+                {testMode && (
                   <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50/80 dark:bg-amber-950/40 dark:border-amber-800 space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={true}
-                          disabled={true}
-                          readOnly={true}
-                          className="rounded text-amber-600 focus:ring-0 opacity-80 cursor-not-allowed"
-                        />
-                        <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                          Initial 2-Day Test Mode Enforced (Real Clients 100% Untouched)
-                        </span>
-                      </label>
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-200 text-amber-800">
-                        Safe Test Phase
+                      <span className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                        <span>🧪</span>
+                        <span>Internal Pilot Test — Real Clients 100% Untouched</span>
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => setTestRecipientEmail(TEST_TO_EMAIL)}
+                        className="text-[10px] underline font-bold text-amber-800 hover:text-amber-950 dark:text-amber-300"
+                      >
+                        + Use {TEST_TO_EMAIL}
+                      </button>
                     </div>
                     <div>
                       <label className="block text-[11px] font-semibold text-amber-900 dark:text-amber-300 mb-1">
@@ -700,11 +751,11 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                         autoComplete="off"
                         value={testRecipientEmail}
                         onChange={(e) => setTestRecipientEmail(e.target.value)}
-                        placeholder="e.g. yourname@kailtech.in, yourname@gmail.com"
+                        placeholder="e.g. reports@kailtech.in, yourname@kailtech.in"
                         className="w-full text-xs rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 p-2 outline-none focus:ring-2 focus:ring-amber-500 font-mono"
                       />
                       <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
-                        Confidentiality Safeguard: For safety during pilot testing, emails are dispatched ONLY to the address(es) entered here. Customers will receive NOTHING. Temporary / disposable email addresses are not allowed. You are solely responsible for the documents once sent.
+                        Confidentiality Safeguard: For safety during testing, emails are dispatched ONLY to the address(es) entered here. Customers will receive NOTHING. You are solely responsible for the documents once sent.
                       </p>
                     </div>
                   </div>
