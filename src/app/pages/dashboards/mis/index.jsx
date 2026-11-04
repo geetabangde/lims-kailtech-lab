@@ -191,6 +191,7 @@ export default function MisSampleFlow() {
   const [statusFilter, setStatusFilter] = useState("");
   const [activeKpi, setActiveKpi] = useState(null);
   const [lcStage, setLcStage] = useState(null); // lifecycle card number (4,5,6,9,11)
+  const [showAllDepts, setShowAllDepts] = useState(false); // false = one row per sample (matches the card count)
   const [lcStatus, setLcStatus] = useState(""); // "", Done, Pending, Overdue
   const [gt3Only, setGt3Only] = useState(false);
   const [urgentOnly, setUrgentOnly] = useState(false);
@@ -279,6 +280,33 @@ export default function MisSampleFlow() {
     });
   };
 
+  // Same rule as the backend lifecycle cards: one row per LRN, at its least advanced (not closed) stage;
+  // among departments at that stage prefer an overdue one so the red strip matches the table.
+  const countedRows = useMemo(() => {
+    const byLrn = new Map();
+    (data?.rows || []).forEach((x) => {
+      const k = String(x.lrn);
+      if (!byLrn.has(k)) byLrn.set(k, []);
+      byLrn.get(k).push(x);
+    });
+    const set = new Set();
+    byLrn.forEach((list) => {
+      let min = null;
+      list.forEach((x) => {
+        const n = Number(x.lifecycle_no);
+        if (n !== 12 && (min === null || n < min)) min = n;
+      });
+      const pool = min === null ? list : list.filter((x) => Number(x.lifecycle_no) === min);
+      set.add(pool.find((x) => x.lifecycle_status === "Overdue") || pool[0]);
+    });
+    return set;
+  }, [data]);
+  const allDeptCount = useMemo(() => {
+    if (!lcStage) return 0;
+    const all = data?.rows || [];
+    return lcStage === 3 ? all.length : all.filter((x) => Number(x.lifecycle_no) === lcStage).length;
+  }, [data, lcStage]);
+
   const rows = useMemo(() => {
     let r = data?.rows || [];
     if (department) r = r.filter((x) => x.department === department);
@@ -341,7 +369,12 @@ export default function MisSampleFlow() {
     }
 
     // Lifecycle card / status / quick filters
-    if (lcStage && lcStage !== 3) r = r.filter((x) => Number(x.lifecycle_no) === lcStage);
+    if (lcStage) {
+      // Cards count SAMPLES (one per LRN, at its least advanced department), so by default the table shows exactly
+      // those rows. "Done" looks at later stages, and the toggle shows every department row of the stage.
+      if (!showAllDepts && lcStatus !== "Done") r = r.filter((x) => countedRows.has(x) && (lcStage === 3 || Number(x.lifecycle_no) === lcStage));
+      else if (lcStage !== 3) r = r.filter((x) => Number(x.lifecycle_no) === lcStage);
+    }
     if (lcStatus) {
       r = r.filter((x) => {
         const no = Number(x.lifecycle_no);
@@ -392,7 +425,7 @@ export default function MisSampleFlow() {
     }
 
     return r;
-  }, [data, department, stageFilter, statusFilter, activeKpi, colFilters, sortConfig, lcStage, lcStatus, gt3Only, urgentOnly, myOnly, catFilter, myId]);
+  }, [data, department, stageFilter, statusFilter, activeKpi, colFilters, sortConfig, lcStage, lcStatus, showAllDepts, countedRows, gt3Only, urgentOnly, myOnly, catFilter, myId]);
 
   const departments = useMemo(() => [...new Set((data?.rows || []).map((x) => x.department))].sort(), [data]);
   const lcGt3 = useMemo(() => {
@@ -417,7 +450,8 @@ export default function MisSampleFlow() {
 
   const pickLifecycle = (no, status) => {
     setActiveKpi(null);
-    if (no === 3 || (lcStage === no && lcStatus === status)) {
+    setShowAllDepts(false);
+    if (lcStage === no && lcStatus === status) {
       setLcStage(null);
       setLcStatus("");
       return;
@@ -668,8 +702,13 @@ export default function MisSampleFlow() {
               <span className="self-center font-semibold text-gray-600">{rows.length} rows</span>
               {lcStage && (
                 <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-900 text-xs px-2.5 py-1 rounded-full font-semibold">
-                  <span>Showing: <b>{LC_CARDS.find((c) => c.no === lcStage)?.label}{lcStatus ? ` - ${lcStatus}` : ""}</b></span>
-                  <button type="button" onClick={() => { setLcStage(null); setLcStatus(""); }} className="ml-1 hover:text-red-600 font-bold" title="Clear lifecycle filter">x</button>
+                  <span>Showing: <b>{LC_CARDS.find((c) => c.no === lcStage)?.label}{lcStatus ? ` - ${lcStatus}` : ""}</b>{!showAllDepts && lcStatus !== "Done" ? ` - ${rows.length} samples` : ` - ${rows.length} department rows`}</span>
+                  {lcStatus !== "Done" && (
+                    <button type="button" onClick={() => setShowAllDepts((v) => !v)} className="underline hover:text-blue-700" title="Cards count one row per sample; this shows every department row">
+                      {showAllDepts ? "Show one row per sample" : `Show all departments (${allDeptCount} rows)`}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => { setLcStage(null); setLcStatus(""); setShowAllDepts(false); }} className="ml-1 hover:text-red-600 font-bold" title="Clear lifecycle filter">x</button>
                 </span>
               )}
               {activeKpi && (
