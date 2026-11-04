@@ -191,8 +191,22 @@ export default function MisSampleFlow() {
   const [statusFilter, setStatusFilter] = useState("");
   const [activeKpi, setActiveKpi] = useState(null);
   const [activeTopCard, setActiveTopCard] = useState(null); // 'testing', 'calibration', 'bis_dues', 'general_dues'
+
   const handleTopCardClick = (key) => {
+    setActiveKpi(null);
+    setLcStage(null);
+    setLcStatus("");
+    setShowAllDepts(false);
     setActiveTopCard((prev) => (prev === key ? null : key));
+    setTimeout(() => document.getElementById("mis-table")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+
+  const handleKpiCardClick = (key) => {
+    setActiveTopCard(null);
+    setLcStage(null);
+    setLcStatus("");
+    setShowAllDepts(false);
+    setActiveKpi((prev) => (prev === key ? null : key));
     setTimeout(() => document.getElementById("mis-table")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
   const [lcStage, setLcStage] = useState(null); // lifecycle card number (4,5,6,9,11)
@@ -319,26 +333,30 @@ export default function MisSampleFlow() {
     if (statusFilter) r = r.filter((x) => x.testing_status === statusFilter || x.report_status === statusFilter);
 
     // Apply active Top Card filter (Testing, Calibration, BIS Dues, General Dues)
+    // By default, shows 1 row per sample (matches card count exactly); toggle expands to all department rows.
     if (activeTopCard) {
+      if (!showAllDepts) {
+        r = r.filter((x) => countedRows.has(x));
+      }
       switch (activeTopCard) {
         case "testing":
-          r = r.filter((x) => x.type === "Testing" || x.type !== "Calibration");
+          r = r.filter((x) => (x.type || "") !== "Calibration");
           break;
         case "calibration":
-          r = r.filter((x) => x.type === "Calibration");
+          r = r.filter((x) => (x.type || "") === "Calibration");
           break;
         case "bis_dues":
           r = r.filter((x) => {
+            const isDue = x.report_status === "OVERDUE" || x.testing_status === "OVERDUE";
             const isBis = String(x.category || "").toLowerCase().includes("bis") || String(x.package || "").toLowerCase().includes("is");
-            const isDue = x.report_status === "OVERDUE" || x.testing_status === "OVERDUE" || x.lifecycle_status === "Overdue";
-            return isBis && isDue;
+            return isDue && isBis;
           });
           break;
         case "general_dues":
           r = r.filter((x) => {
+            const isDue = x.report_status === "OVERDUE" || x.testing_status === "OVERDUE";
             const isBis = String(x.category || "").toLowerCase().includes("bis") || String(x.package || "").toLowerCase().includes("is");
-            const isDue = x.report_status === "OVERDUE" || x.testing_status === "OVERDUE" || x.lifecycle_status === "Overdue";
-            return !isBis && isDue;
+            return isDue && !isBis;
           });
           break;
         default:
@@ -347,7 +365,11 @@ export default function MisSampleFlow() {
     }
 
     // Apply active KPI card filter
+    // Samples booked, open samples, reports overdue, due soon, and bill pending count unique samples (LRNs).
     if (activeKpi) {
+      if (!showAllDepts && ["samples_booked", "open_samples", "reports_overdue", "reports_due_soon", "bill_pending"].includes(activeKpi)) {
+        r = r.filter((x) => countedRows.has(x));
+      }
       switch (activeKpi) {
         case "samples_booked":
           break;
@@ -355,31 +377,31 @@ export default function MisSampleFlow() {
           r = r.filter((x) => !x.dispatch_date && !x.emailed_date);
           break;
         case "in_testing":
-          r = r.filter((x) => x.stage === "Testing" || (!x.results_date && x.stage !== "Not transferred" && x.stage !== "Awaiting allocation"));
+          r = r.filter((x) => x.stage === "Under testing" || x.stage === "Testing" || (!x.results_date && x.stage !== "Allotted to Dept" && x.stage !== "Not transferred" && x.stage !== "Awaiting allocation"));
           break;
         case "awaiting_authorisation":
-          r = r.filter((x) => x.stage === "Awaiting authorisation" || (x.results_date && !x.authorised_date));
+          r = r.filter((x) => x.stage === "Under HOD / QA" || x.stage === "Awaiting authorisation" || (x.results_date && !x.authorised_date));
           break;
         case "ready_to_dispatch":
           r = r.filter((x) => x.stage === "Ready to dispatch");
           break;
         case "reports_overdue":
-          r = r.filter((x) => x.report_status === "OVERDUE");
+          r = r.filter((x) => !x.dispatch_date && !x.emailed_date && x.report_status === "OVERDUE");
           break;
         case "reports_due_soon":
-          r = r.filter((x) => x.report_status === "Due soon");
+          r = r.filter((x) => !x.dispatch_date && !x.emailed_date && x.report_status === "Due soon");
           break;
         case "bill_pending":
           r = r.filter((x) => (x.dispatch_date || x.emailed_date) && !x.invoice_no);
           break;
         case "not_transferred":
-          r = r.filter((x) => x.stage === "Not transferred");
+          r = r.filter((x) => x.stage === "Allotted to Dept" || x.stage === "Not transferred");
           break;
         case "awaiting_allocation":
           r = r.filter((x) => x.stage === "Awaiting allocation");
           break;
         case "dept_in_testing":
-          r = r.filter((x) => x.stage === "Testing");
+          r = r.filter((x) => x.stage === "Under testing" || x.stage === "Testing");
           break;
         case "testing_overdue":
           r = r.filter((x) => x.testing_status === "OVERDUE");
@@ -388,7 +410,7 @@ export default function MisSampleFlow() {
           r = r.filter((x) => x.testing_status === "Due soon");
           break;
         case "results_submitted":
-          r = r.filter((x) => x.results_date || x.stage === "Results submitted");
+          r = r.filter((x) => x.results_date || x.stage === "Under HOD / QA" || x.stage === "Results submitted");
           break;
         case "urgent_open":
           r = r.filter((x) => x.priority === "Urgent" && !x.results_date);
@@ -483,6 +505,7 @@ export default function MisSampleFlow() {
 
   const pickLifecycle = (no, status) => {
     setActiveKpi(null);
+    setActiveTopCard(null);
     setShowAllDepts(false);
     if (lcStage === no && lcStatus === status) {
       setLcStage(null);
@@ -740,13 +763,13 @@ export default function MisSampleFlow() {
                 </div>
                 <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Overview</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-                  <Card label="Samples booked (LRN)" value={s.samples_booked} active={activeKpi === "samples_booked"} onClick={() => setActiveKpi(prev => prev === "samples_booked" ? null : "samples_booked")} />
-                  <Card label="Open (report not sent)" value={s.open_samples} active={activeKpi === "open_samples"} onClick={() => setActiveKpi(prev => prev === "open_samples" ? null : "open_samples")} />
-                  <Card label="Reports OVERDUE" value={s.reports_overdue} tone={s.reports_overdue ? "red" : undefined} active={activeKpi === "reports_overdue"} onClick={() => setActiveKpi(prev => prev === "reports_overdue" ? null : "reports_overdue")} />
-                  <Card label="Reports due today/tomorrow" value={s.reports_due_soon} tone={s.reports_due_soon ? "amber" : undefined} active={activeKpi === "reports_due_soon"} onClick={() => setActiveKpi(prev => prev === "reports_due_soon" ? null : "reports_due_soon")} />
-                  <Card label="Bill pending" value={s.bill_pending} active={activeKpi === "bill_pending"} onClick={() => setActiveKpi(prev => prev === "bill_pending" ? null : "bill_pending")} />
-                  <Card label="Urgent open" value={s.urgent_open} active={activeKpi === "urgent_open"} onClick={() => setActiveKpi(prev => prev === "urgent_open" ? null : "urgent_open")} />
-                  <Card label="TAT conflicts" value={s.tat_conflicts} active={activeKpi === "tat_conflicts"} onClick={() => setActiveKpi(prev => prev === "tat_conflicts" ? null : "tat_conflicts")} />
+                  <Card label="Samples booked (LRN)" value={s.samples_booked} active={activeKpi === "samples_booked"} onClick={() => handleKpiCardClick("samples_booked")} />
+                  <Card label="Open (report not sent)" value={s.open_samples} active={activeKpi === "open_samples"} onClick={() => handleKpiCardClick("open_samples")} />
+                  <Card label="Reports OVERDUE" value={s.reports_overdue} tone={s.reports_overdue ? "red" : undefined} active={activeKpi === "reports_overdue"} onClick={() => handleKpiCardClick("reports_overdue")} />
+                  <Card label="Reports due today/tomorrow" value={s.reports_due_soon} tone={s.reports_due_soon ? "amber" : undefined} active={activeKpi === "reports_due_soon"} onClick={() => handleKpiCardClick("reports_due_soon")} />
+                  <Card label="Bill pending" value={s.bill_pending} active={activeKpi === "bill_pending"} onClick={() => handleKpiCardClick("bill_pending")} />
+                  <Card label="Urgent open" value={s.urgent_open} active={activeKpi === "urgent_open"} onClick={() => handleKpiCardClick("urgent_open")} />
+                  <Card label="TAT conflicts" value={s.tat_conflicts} active={activeKpi === "tat_conflicts"} onClick={() => handleKpiCardClick("tat_conflicts")} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div className="rounded-xl border border-gray-200 bg-white p-3 text-xs">
@@ -836,10 +859,13 @@ export default function MisSampleFlow() {
               )}
               {activeTopCard && (
                 <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-blue-200 text-xs px-2.5 py-1 rounded-full font-semibold shadow-xs">
-                  <span>Top Filter: <b>{activeTopCard === "testing" ? "Testing Samples" : activeTopCard === "calibration" ? "Calibration Samples" : activeTopCard === "bis_dues" ? "BIS / IS Standard Dues" : "General Standard Dues"}</b></span>
+                  <span>Showing: <b>{activeTopCard === "testing" ? "Testing Samples" : activeTopCard === "calibration" ? "Calibration Samples" : activeTopCard === "bis_dues" ? "BIS / IS Standard Dues" : "General Standard Dues"}</b>{!showAllDepts ? ` - ${rows.length} samples` : ` - ${rows.length} department rows`}</span>
+                  <button type="button" onClick={() => setShowAllDepts((v) => !v)} className="underline hover:text-blue-700 font-normal ml-1" title="Cards count one row per sample; this shows every department row">
+                    {showAllDepts ? "Show one row per sample" : "Show all departments"}
+                  </button>
                   <button
                     type="button"
-                    onClick={() => setActiveTopCard(null)}
+                    onClick={() => { setActiveTopCard(null); setShowAllDepts(false); }}
                     className="ml-1 hover:text-red-600 font-bold"
                     title="Clear filter"
                   >
@@ -849,10 +875,13 @@ export default function MisSampleFlow() {
               )}
               {activeKpi && (
                 <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-blue-200 text-xs px-2.5 py-1 rounded-full font-semibold shadow-xs">
-                  <span>KPI Filter: <b>{activeKpi.replace(/_/g, " ")}</b></span>
+                  <span>Showing: <b>{activeKpi.replace(/_/g, " ")}</b>{!showAllDepts ? ` - ${rows.length} samples` : ` - ${rows.length} department rows`}</span>
+                  <button type="button" onClick={() => setShowAllDepts((v) => !v)} className="underline hover:text-blue-700 font-normal ml-1" title="Cards count one row per sample; this shows every department row">
+                    {showAllDepts ? "Show one row per sample" : "Show all departments"}
+                  </button>
                   <button
                     type="button"
-                    onClick={() => setActiveKpi(null)}
+                    onClick={() => { setActiveKpi(null); setShowAllDepts(false); }}
                     className="ml-1 hover:text-red-600 font-bold"
                     title="Clear KPI filter"
                   >
