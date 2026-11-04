@@ -10090,7 +10090,10 @@ const CalibrateStep3 = () => {
       }
 
       const devDecimals = Math.max(lcDec, mlcDec);
-      error = (avgUuc !== '' || avgMaster !== '') ? (finalUuc - finalMaster).toFixed(devDecimals) : '';
+      // PAT-BIO-UNITCONV-01: UUC in mmHg, master in bar -> bring the master mean to the UUC unit before taking the error
+      const convFactor = point.unit_conversion ? Number(point.unit_conversion.factor) : 0;
+      const masterForError = convFactor > 0 ? finalMaster / convFactor : finalMaster;
+      error = (avgUuc !== '' || avgMaster !== '') ? (finalUuc - masterForError).toFixed(devDecimals) : '';
     }
 
     return { avgUuc, avgMaster, error };

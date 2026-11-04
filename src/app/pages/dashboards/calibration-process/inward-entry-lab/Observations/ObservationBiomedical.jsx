@@ -463,6 +463,10 @@ const ObservationBiomedical = ({
       sourceSafety = observations.filter(p => p.mode === 'Source' && p.is_electrical_safety);
     }
 
+    // PAT-BIO-UNITCONV-01: Source performance points whose UUC unit differs from the master unit (backend sends unit_conversion) get their own table: 3 master readings in the master unit.
+    const sourcePerfConv = sourcePerf.filter(p => p && p.unit_conversion);
+    const sourcePerfPlain = sourcePerf.filter(p => !(p && p.unit_conversion));
+
     const renderTable = (sectionTitle, tablePoints, defaultMasterCount, defaultUucCount, showDevAndUnc, isSource = false, showRemark = true) => {
       if (!tablePoints || tablePoints.length === 0) return null;
 
@@ -501,7 +505,7 @@ const ObservationBiomedical = ({
                     value={displayValue}
                     readOnly={isMasterReadOnly}
                     title={!lcCheck.isValid ? lcCheck.error : undefined}
-                    placeholder={!isMasterReadOnly ? String(point.set_point ?? point.point ?? '') : ''}
+                    placeholder={!isMasterReadOnly ? String(point.unit_conversion?.converted_set_point ?? point.set_point ?? point.point ?? '') : ''}
                     onChange={!isMasterReadOnly ? (e) => handleBiomedicalInputChange(pointId, 'master', i, e.target.value, masterCount, uucCount) : undefined}
                     onBlur={!isMasterReadOnly ? (e) => handleBiomedicalInputBlur(pointId, 'master', i, e.target.value, masterCount, uucCount) : undefined}
                   />
@@ -629,6 +633,11 @@ const ObservationBiomedical = ({
                             value={point.set_point ?? point.point ?? ''}
                             readOnly
                           /> {point.set_point_unit ?? point.unit ?? ''}
+                          {point.unit_conversion && (
+                            <div className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                              = {point.unit_conversion.converted_set_point} {point.unit_conversion.master_unit}
+                            </div>
+                          )}
                         </td>
                       )}
 
@@ -676,7 +685,12 @@ const ObservationBiomedical = ({
                                   value={formatValueByLc(displayAvg, point.mlc_decimals, null)}
                                   readOnly
                                 />
-                                <span className="ml-1 text-xs text-gray-500">{point.masterunit || point.set_point_unit || point.unit || ''}</span>
+                                <span className="ml-1 text-xs text-gray-500">{point.unit_conversion?.master_unit || point.masterunit || point.set_point_unit || point.unit || ''}</span>
+                                {point.unit_conversion && displayAvg !== '' && displayAvg != null && !isNaN(parseFloat(displayAvg)) && Number(point.unit_conversion.factor) !== 0 && (
+                                  <div className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                                    = {(parseFloat(displayAvg) / Number(point.unit_conversion.factor)).toFixed(3)} {point.unit_conversion.uuc_unit}
+                                  </div>
+                                )}
                               </td>
                             );
                           })()}
@@ -700,7 +714,12 @@ const ObservationBiomedical = ({
                                   value={formatValueByLc(displayAvg, point.mlc_decimals, null)}
                                   readOnly
                                 />
-                                <span className="ml-1 text-xs text-gray-500">{point.masterunit || point.set_point_unit || point.unit || ''}</span>
+                                <span className="ml-1 text-xs text-gray-500">{point.unit_conversion?.master_unit || point.masterunit || point.set_point_unit || point.unit || ''}</span>
+                                {point.unit_conversion && displayAvg !== '' && displayAvg != null && !isNaN(parseFloat(displayAvg)) && Number(point.unit_conversion.factor) !== 0 && (
+                                  <div className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                                    = {(parseFloat(displayAvg) / Number(point.unit_conversion.factor)).toFixed(3)} {point.unit_conversion.uuc_unit}
+                                  </div>
+                                )}
                               </td>
                             );
                           })()}
@@ -850,7 +869,8 @@ const ObservationBiomedical = ({
         {showElectrical && measureSafety.length > 0 && renderTable("3. ELECTRICAL SAFETY TEST", measureSafety, 1, 0, false, false, false)}
         {showElectrical && sourceSafety.length > 0 && renderTable("3. ELECTRICAL SAFETY TEST (Source)", sourceSafety, 5, 0, false, true, false)}
         {showPerformance && measurePerf.length > 0 && renderTable("4. PERFORMANCE TESTING", measurePerf, 1, 5, true, false, false)}
-        {showPerformance && sourcePerf.length > 0 && renderTable("4. PERFORMANCE TESTING (Source)", sourcePerf, 5, 1, true, true, false)}
+        {showPerformance && sourcePerfPlain.length > 0 && renderTable("4. PERFORMANCE TESTING (Source)", sourcePerfPlain, 5, 1, true, true, false)}
+        {showPerformance && sourcePerfConv.length > 0 && renderTable("4. PERFORMANCE TESTING (Source) - UUC in mmHg, master in bar", sourcePerfConv, 3, 1, true, true, false)}
       </div>
     );
   };
