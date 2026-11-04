@@ -56,8 +56,8 @@ function Card({ label, value, tone, active, onClick }) {
 const LC_CARDS = [
   { no: 3, label: "Sample Booked" },
   { no: 4, label: "Allotted to Dept" },
-  { no: 5, label: "Assigned to Chemist" },
-  { no: 6, label: "Review & Authorization" },
+  { no: 5, label: "Under Testing" },
+  { no: 6, label: "Under HOD / QA" },
   { no: 9, label: "Ready for Dispatch" },
   { no: 11, label: "Billing" },
 ];
@@ -460,7 +460,7 @@ export default function MisSampleFlow() {
     setLcStatus(status);
     setTimeout(() => document.getElementById("mis-table")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
-  const stages = ["Not transferred", "Awaiting allocation", "Testing", "Results submitted", "Ready to dispatch", "Bill pending", "Closed"];
+  const stages = ["Allotted to Dept", "Awaiting allocation", "Under testing", "Under HOD / QA", "Ready to dispatch", "Bill pending", "Closed"];
   const categoryList = useMemo(() => {
     const set = new Set();
     (data?.rows || []).forEach((r) => { if (r.category) set.add(r.category); });
@@ -545,7 +545,7 @@ export default function MisSampleFlow() {
             </p>
           </div>
           <div className="flex gap-2">
-            {["tracker", "acks", "mail", ...(userScope?.is_management !== false ? ["tat"] : [])].map((t) => (
+            {["tracker", ...(userScope?.is_management !== false ? ["tat"] : []), "mail"].map((t) => (
               <button
                 key={t}
                 type="button"
@@ -591,6 +591,38 @@ export default function MisSampleFlow() {
 
             {s && (
               <>
+                {/* Top KPI Header: Sample Types & Standard Due Split */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                  <div className="rounded-xl border border-blue-200 bg-blue-50/70 dark:bg-blue-950/30 p-2.5 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">🔬 Testing Samples</div>
+                      <div className="text-xl font-extrabold text-blue-950 dark:text-blue-100">{s.split_counts?.testing ?? 0}</div>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-blue-200/80 text-blue-900">Total Booked</span>
+                  </div>
+                  <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 dark:bg-indigo-950/30 p-2.5 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">📐 Calibration Samples</div>
+                      <div className="text-xl font-extrabold text-indigo-950 dark:text-indigo-100">{s.split_counts?.calibration ?? 0}</div>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-indigo-200/80 text-indigo-900">Total Booked</span>
+                  </div>
+                  <div className="rounded-xl border border-red-200 bg-red-50/70 dark:bg-red-950/30 p-2.5 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-red-700 dark:text-red-300">📜 BIS / IS Standard Dues</div>
+                      <div className="text-xl font-extrabold text-red-950 dark:text-red-100">{s.split_counts?.bis_dues ?? 0}</div>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-red-200/80 text-red-900">Overdue</span>
+                  </div>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 dark:bg-amber-950/30 p-2.5 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">📋 General Standard Dues</div>
+                      <div className="text-xl font-extrabold text-amber-950 dark:text-amber-100">{s.split_counts?.general_dues ?? 0}</div>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-200/80 text-amber-900">Overdue</span>
+                  </div>
+                </div>
+
                 <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Sample lifecycle - click a card to see its samples, click the strip below it to see only the overdue ones</div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
                   {LC_CARDS.map((c) => {
@@ -642,15 +674,14 @@ export default function MisSampleFlow() {
                 <div className="overflow-x-auto border rounded-xl">
                   <table className="w-full text-xs">
                     <thead className="bg-gray-50 text-gray-500"><tr>
-                      {["Department", "Awaiting allocation", "In testing", "OVERDUE", "Due soon", "Results submitted", "Testing on-time %", "In review / sign-off", "Overdue > 3 days"].map((h) => <th key={h} className="p-2 text-left">{h}</th>)}
+                      {["Department", "Awaiting allocation", "Under testing", "OVERDUE", "Testing on-time %", "In review / sign-off", "Overdue > 3 days"].map((h) => <th key={h} className="p-2 text-left">{h}</th>)}
                     </tr></thead>
                     <tbody>
                       {(s.by_department || []).map((d) => (
                         <tr key={d.department} className="border-t">
                           <td className="p-2 font-semibold cursor-pointer text-blue-700" onClick={() => setDepartment(d.department === department ? "" : d.department)}>{d.department}</td>
                           <td className="p-2">{d.awaiting_allocation}</td><td className="p-2">{d.in_testing}</td>
-                          <td className="p-2 text-red-700 font-semibold">{d.overdue}</td><td className="p-2">{d.due_soon}</td>
-                          <td className="p-2">{d.results_submitted}</td>
+                          <td className="p-2 text-red-700 font-semibold">{d.overdue}</td>
                           <td className="p-2">{d.done_total ? `${Math.round((d.done_on_time / d.done_total) * 100)}%` : "-"}</td>
                           <td className="p-2">{deptLc[d.department]?.review ?? 0}</td>
                           <td className="p-2 text-red-700 font-semibold">{deptLc[d.department]?.gt3 ?? 0}</td>
