@@ -19,6 +19,8 @@ const serializeEmails = (emailList) => {
   return emailList.map(e => e.trim()).filter(Boolean).join(', ');
 };
 
+const SHOW_LEGACY_ADDRESS_BLOCK = false;
+
 export default function AddCustomer() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -646,7 +648,8 @@ export default function AddCustomer() {
             )}
           </div>
 
-          {/* Reporting & Billing Addresses */}
+          {/* Reporting & Billing Addresses: hidden (addresses are managed in the Addresses list; set the flag to true to show again) */}
+          {SHOW_LEGACY_ADDRESS_BLOCK && (
           <div className="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-dark-700/60 shadow-xs">
             <h4 className="text-sm font-bold uppercase tracking-wider text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -710,6 +713,8 @@ export default function AddCustomer() {
               </div>
             </div>
           </div>
+
+          )}
 
           {/* Contact Persons Directory */}
           <div className="md:col-span-2 rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-dark-700/60 shadow-xs">
