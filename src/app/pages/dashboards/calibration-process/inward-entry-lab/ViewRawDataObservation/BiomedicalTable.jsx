@@ -197,7 +197,8 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instru
         const masterCount = isMeasure ? 1 : (isConv ? 3 : 5);
         const uucCount = isElectricalGroup ? 0 : (isMeasure ? 5 : 1);
         // Radiant / Baby Warmer (master instrument 138): performance rows have no tolerance -> column not shown (all other instruments unchanged)
-        const hideTolerance = !isElectricalGroup && Number(instrumentId) === 138;
+        // Suction machine (231): performance testing shows no Tolerance column either (Prateek 2026-11-05); electrical safety unchanged
+        const hideTolerance = !isElectricalGroup && [138, 231].includes(Number(instrumentId));
 
         const tableTitle = isElectricalGroup
           ? (mode === 'Source' ? '3. ELECTRICAL SAFETY TEST (Source)' : '3. ELECTRICAL SAFETY TEST')
