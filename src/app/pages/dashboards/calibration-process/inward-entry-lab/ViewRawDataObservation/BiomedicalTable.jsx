@@ -237,7 +237,7 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instru
                     </>
                   ) : (
                     <>
-                      {uucCount > 0 && (
+                      {uucCount > 0 && !isConv && (
                         <th colSpan={uucCount} className="border border-gray-300 px-3 py-2 text-center">Reading on UUC</th>
                       )}
                       {uucCount > 1 && (
@@ -252,8 +252,10 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instru
                     </>
                   )}
                   {showSetPointAndDeviation && (
-                    <th className="border border-gray-300 px-3 py-2 text-left">Deviation</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">{isConv ? 'Deviation (bar)' : 'Deviation'}</th>
                   )}
+                  {isConv && <th className="border border-gray-300 px-3 py-2 text-left">Repeatability (bar)</th>}
+                  {isConv && <th className="border border-gray-300 px-3 py-2 text-left">Hysteresis (bar)</th>}
                   {!hideTolerance && (
                     <th className="border border-gray-300 px-3 py-2 text-left">Tolerance</th>
                   )}
@@ -335,17 +337,31 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instru
                           {masterCount > 1 && (
                             <td className="border border-gray-300 px-3 py-2">
                               {formatWithUnit(calcAvgFromReadings(point.master_readings, point.mlc_decimals) ?? point.average_master, point.mlc_decimals, null, pointMasterUnit)}
-                              {point.unit_conversion && Number(point.unit_conversion.factor) > 0 && (() => {
-                                const avgBar = parseFloat(calcAvgFromReadings(point.master_readings, point.mlc_decimals) ?? point.average_master);
-                                return Number.isFinite(avgBar) ? (
-                                  <div className="text-xs text-gray-600">= {(avgBar / Number(point.unit_conversion.factor)).toFixed(3)} {point.unit_conversion.uuc_unit}</div>
-                                ) : null;
-                              })()}
                             </td>
                           )}
                         </>
                       )}
-                      {showSetPointAndDeviation && (
+                      {isConv && showSetPointAndDeviation && (() => {
+                        // Suction machine (231): DPG-style values in bar (Deviation = set pressure bar - mean bar, Repeatability = |M3-M1|, Hysteresis = |M2-M1|)
+                        const mlcD = (point.mlc_decimals != null && point.mlc_decimals !== 'NA' && !isNaN(parseInt(point.mlc_decimals, 10))) ? parseInt(point.mlc_decimals, 10) : 3;
+                        const mv = (k) => {
+                          const r = point.master_readings?.[k];
+                          return parseFloat(typeof r === 'object' && r !== null ? r.value : r);
+                        };
+                        const m1 = mv(0), m2 = mv(1), m3 = mv(2);
+                        const avgBar = parseFloat(calcAvgFromReadings(point.master_readings, point.mlc_decimals) ?? point.average_master);
+                        const setBar = parseFloat(point.unit_conversion.converted_set_point);
+                        const unitTxt = point.unit_conversion.master_unit;
+                        const fmt = (v) => (Number.isFinite(v) ? `${v.toFixed(mlcD)} ${unitTxt}` : '-');
+                        return (
+                          <>
+                            <td className="border border-gray-300 px-3 py-2">{fmt(setBar - avgBar)}</td>
+                            <td className="border border-gray-300 px-3 py-2">{fmt(Math.abs(m3 - m1))}</td>
+                            <td className="border border-gray-300 px-3 py-2">{fmt(Math.abs(m2 - m1))}</td>
+                          </>
+                        );
+                      })()}
+                      {!isConv && showSetPointAndDeviation && (
                         <td className="border border-gray-300 px-3 py-2">
                           {formatWithUnit(
                             point.deviation,

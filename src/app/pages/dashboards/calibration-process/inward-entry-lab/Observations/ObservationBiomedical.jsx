@@ -472,6 +472,8 @@ const ObservationBiomedical = ({
 
       const masterCount = defaultMasterCount;
       const uucCount = defaultUucCount;
+      // Suction machine (231) mmHg UUC / bar master table: DPG-style columns in bar, no Tolerance column (Prateek 2026-11-05)
+      const isConv = tablePoints.some(p => p && p.unit_conversion);
 
       const thCls = 'p-2 border border-gray-300 dark:border-gray-600 font-medium text-gray-800 dark:text-white text-center';
       const tdCls = 'p-2 border border-gray-300 dark:border-gray-600 dark:text-white';
@@ -590,8 +592,10 @@ const ObservationBiomedical = ({
                       {uucCount > 1 && <th className={thCls}>Average On UUC</th>}
                     </>
                   )}
-                  {showDevAndUnc && <th className={thCls}>Deviation</th>}
-                  <th className={thCls}>Tolerance</th>
+                  {showDevAndUnc && <th className={thCls}>{isConv ? 'Deviation (bar)' : 'Deviation'}</th>}
+                  {isConv && <th className={thCls}>Repeatability (bar)</th>}
+                  {isConv && <th className={thCls}>Hysteresis (bar)</th>}
+                  {!isConv && <th className={thCls}>Tolerance</th>}
                   {showDevAndUnc && showRemark && <th className={thCls}>Remark</th>}
                 </tr>
               </thead>
@@ -686,11 +690,6 @@ const ObservationBiomedical = ({
                                   readOnly
                                 />
                                 <span className="ml-1 text-xs text-gray-500">{point.unit_conversion?.master_unit || point.masterunit || point.set_point_unit || point.unit || ''}</span>
-                                {point.unit_conversion && displayAvg !== '' && displayAvg != null && !isNaN(parseFloat(displayAvg)) && Number(point.unit_conversion.factor) !== 0 && (
-                                  <div className="mt-1 text-xs text-gray-600 dark:text-gray-300">
-                                    = {(parseFloat(displayAvg) / Number(point.unit_conversion.factor)).toFixed(3)} {point.unit_conversion.uuc_unit}
-                                  </div>
-                                )}
                               </td>
                             );
                           })()}
@@ -760,6 +759,41 @@ const ObservationBiomedical = ({
                           return s.includes('.') ? s.split('.')[1].length : 0;
                         };
                         const devDecimals = Math.max(pLcDec, pMlcDec, countDec(devVal));
+                        if (isConv) {
+                          // Display in bar; the saved 'error' value (mmHg) is unchanged and kept as a hidden input.
+                          const mlcD = Number.isFinite(pMlcDec) ? pMlcDec : 3;
+                          const mv = (i) => {
+                            const raw = tableInputValues[`${pointId}-master-${i}`];
+                            return parseFloat(raw !== undefined ? raw : point.master_readings?.[i]?.value);
+                          };
+                          const m1 = mv(0), m2 = mv(1), m3 = mv(2);
+                          const avgBar = parseFloat(tableInputValues[`${pointId}-averagemaster`] || calculateAverage(pointId, 'master', masterCount, point) || point.average_master);
+                          const setBar = parseFloat(point.unit_conversion.converted_set_point);
+                          const devBar = (!isNaN(avgBar) && !isNaN(setBar)) ? (setBar - avgBar).toFixed(mlcD) : '';
+                          const repBar = (!isNaN(m1) && !isNaN(m3)) ? Math.abs(m3 - m1).toFixed(mlcD) : '';
+                          const hysBar = (!isNaN(m1) && !isNaN(m2)) ? Math.abs(m2 - m1).toFixed(mlcD) : '';
+                          const roBox = 'w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white';
+                          return (
+                            <>
+                              <td className={tdCls}>
+                                <input type="hidden" name="calibrationpoint[]" value={pointId} />
+                                <input type="hidden" name="type[]" value="error" />
+                                <input type="hidden" name="repeatable[]" value="0" />
+                                <input type="hidden" name="value[]" id={`error${pointId}`} value={formatValueByLc(devVal, devDecimals)} />
+                                <input type="text" className={`${roBox} font-medium`} value={devBar} readOnly />
+                                <span className="ml-1 text-xs text-gray-500">{point.unit_conversion.master_unit}</span>
+                              </td>
+                              <td className={tdCls}>
+                                <input type="text" className={roBox} value={repBar} readOnly />
+                                <span className="ml-1 text-xs text-gray-500">{point.unit_conversion.master_unit}</span>
+                              </td>
+                              <td className={tdCls}>
+                                <input type="text" className={roBox} value={hysBar} readOnly />
+                                <span className="ml-1 text-xs text-gray-500">{point.unit_conversion.master_unit}</span>
+                              </td>
+                            </>
+                          );
+                        }
                         return (
                           <td className={tdCls}>
                             <input type="hidden" name="calibrationpoint[]" value={pointId} />
@@ -786,7 +820,7 @@ const ObservationBiomedical = ({
                           ? `${rawTol}%`
                           : String(rawTol || '');
                         return (
-                          <td className={tdCls}>
+                          <td className={isConv ? 'hidden' : tdCls}>
                             <input type="hidden" name="calibrationpoint[]" value={pointId} />
                             <input type="hidden" name="type[]" value="specification" />
                             <input type="hidden" name="repeatable[]" value="0" />
