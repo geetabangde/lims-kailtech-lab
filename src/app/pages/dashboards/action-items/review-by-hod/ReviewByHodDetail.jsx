@@ -555,6 +555,18 @@ export default function ReviewByHodDetail() {
               </table>
             </div>
 
+            {/* OES samples: Environmental Condition / Room Temperature row (Shaheen, PAT-ENV-01) - shown only when the backend sends a value */}
+            {report?.room_temperature ? (
+              <table className="mb-3 w-full border border-gray-300 text-xs dark:border-gray-600">
+                <tbody>
+                  <tr>
+                    <td className="w-1/2 border border-gray-300 px-3 py-2 font-bold dark:border-gray-600">Environmental Condition:</td>
+                    <td className="w-1/2 border border-gray-300 px-3 py-2 font-bold dark:border-gray-600">Room Temperature: {report.room_temperature}&deg;C</td>
+                  </tr>
+                </tbody>
+              </table>
+            ) : null}
+
             {/* ── TEST RESULTS ──────────────────────────────────────────── */}
             <div className="mb-4">
               <h3 className="mb-2 text-sm font-bold text-gray-800 dark:text-gray-100">TEST RESULTS</h3>
