@@ -276,7 +276,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
 
       const res = await axios.post('/dispatch/queue', payload);
       if (res.data?.status) {
-        toast.success(res.data.message || 'Dispatch scheduled successfully! 📧');
+        toast.success(res.data.message || 'Dispatch scheduled successfully.');
         if (res.data.undo_window_minutes > 0) {
           setQueuedLogId(res.data.log_id);
           setCountdownSeconds(res.data.undo_window_minutes * 60);
@@ -414,7 +414,6 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
         {/* Top Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">📧</span>
             <div>
               <h2 className="text-lg font-bold tracking-tight">
                 Send Reports & Tax Invoice to Client
@@ -428,7 +427,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
             onClick={onClose}
             className="text-gray-300 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
           >
-            ✕
+            &times;
           </button>
         </div>
 
@@ -444,7 +443,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
           ) : showFeedbackCard ? (
             <div className="py-8 px-4 space-y-6 text-center max-w-lg mx-auto">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl shadow-inner font-bold">
-                ✓
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 111.4-1.4l3.8 3.8 6.8-6.8a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -521,7 +520,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                   onClick={handleSubmitFeedback}
                   className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-md transition-all active:scale-95"
                 >
-                  {isSubmittingFeedback ? 'Saving Feedback...' : feedbackSubmitted ? '✓ Feedback Saved' : 'Submit Pilot Feedback'}
+                  {isSubmittingFeedback ? 'Saving Feedback...' : feedbackSubmitted ? 'Feedback Saved' : 'Submit Pilot Feedback'}
                 </button>
                 <button
                   type="button"
@@ -553,7 +552,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                     disabled={isCancelling}
                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow transition-colors"
                   >
-                    {isCancelling ? 'Cancelling...' : '❌ Cancel / Undo Dispatch'}
+                    {isCancelling ? 'Cancelling...' : 'Cancel / Undo Dispatch'}
                   </button>
                 </div>
               )}
@@ -561,7 +560,6 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
               {/* Transparent Test Mode Banner */}
               {(data?.test_mode || testMode) && (
                 <div className="p-3.5 bg-amber-500 text-white rounded-xl shadow-sm text-xs font-bold flex items-center gap-2">
-                  <span className="text-base">⚠️</span>
                   <span>TEST MODE. Emails are sent to internal test addresses only. Nothing is sent to the customer yet.</span>
                 </div>
               )}
@@ -570,7 +568,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
               {data?.duplicate_guard?.already_sent && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-xs flex items-center justify-between">
                   <span>
-                    ⚠️ <strong>Duplicate Dispatch Notice:</strong> This inward was already dispatched within the last 24 hours (
+                    <strong>Duplicate Dispatch Notice:</strong> This inward was already dispatched within the last 24 hours (
                     {new Date(data.duplicate_guard.last_sent_at).toLocaleString()} by {data.duplicate_guard.sent_by_name}).
                   </span>
                 </div>
@@ -594,7 +592,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                         : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
                     }`}
                   >
-                    {data?.financial_clearance?.cleared ? '✓ ' : '⚠️ '}
+                    {data?.financial_clearance?.cleared ? '' : ''}
                     {data?.financial_clearance?.reason}
                   </span>
                   {data?.summary?.missing_pdf_count > 0 && (
@@ -692,7 +690,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition-colors"
                     >
-                      <span>📲 Share via WhatsApp</span>
+                      <span>Share via WhatsApp</span>
                     </a>
                   )}
                 </div>
@@ -706,11 +704,11 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                       </span>
                       {testMode ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300">
-                          🧪 Test Mode (Clients Safe)
+                          Test Mode (Clients Safe)
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-300">
-                          🚀 Official Live Client Dispatch
+                          Official Live Client Dispatch
                         </span>
                       )}
                     </div>
@@ -735,7 +733,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                           : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 hover:bg-gray-100'
                       }`}
                     >
-                      🚀 Live Client
+                      Live Client
                     </button>
                     <button
                       type="button"
@@ -746,7 +744,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                           : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 hover:bg-gray-100'
                       }`}
                     >
-                      🧪 Test Mode
+                      Test Mode
                     </button>
                   </div>
                 </div>
@@ -756,7 +754,6 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                   <div className="p-3.5 rounded-xl border border-amber-300 bg-amber-50/80 dark:bg-amber-950/40 dark:border-amber-800 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                        <span>🧪</span>
                         <span>Internal Pilot Test — Real Clients 100% Untouched</span>
                       </span>
                       <button
@@ -790,7 +787,6 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                 {(testMode || data?.test_mode) && (
                   <div className="p-3 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs space-y-1">
                     <div className="font-bold text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
-                      <span>ℹ️</span>
                       <span>When live, this dispatch would be delivered to:</span>
                     </div>
                     <div className="text-blue-900 dark:text-blue-300 pl-5 text-[11px]">
@@ -1008,7 +1004,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                                 }}
                                 className="rounded bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-700 shadow-2xs"
                               >
-                                📱 WhatsApp
+                                WhatsApp
                               </button>
                             )}
                           </div>
@@ -1053,7 +1049,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                   <table className="w-full text-xs text-left">
                     <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 text-gray-500 border-b border-gray-200 dark:border-gray-700">
                       <tr>
-                        <th className="p-2.5 w-8 text-center">✓</th>
+                        <th className="p-2.5 w-8 text-center"></th>
                         <th className="p-2.5">Cert / Report No</th>
                         <th className="p-2.5">Instrument / Item</th>
                         <th className="p-2.5">Serial No</th>
@@ -1098,7 +1094,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                             {item.invoice_ok === undefined ? (
                               <span className="text-gray-400">-</span>
                             ) : item.invoice_ok ? (
-                              <span className="text-emerald-600 font-medium">✓ {item.invoice_no}</span>
+                              <span className="text-emerald-600 font-medium">{item.invoice_no}</span>
                             ) : (
                               <span className="text-red-500 font-semibold">Not ready</span>
                             )}
@@ -1106,7 +1102,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                           <td className="p-2.5 text-right">
                             {item.pdf_exists ? (
                               <span className="text-emerald-600 font-medium">
-                                ✓ {item.file_size_formatted}
+                                {item.file_size_formatted}
                               </span>
                             ) : (
                               <span className="text-red-500 font-semibold">Missing PDF</span>
@@ -1123,7 +1119,6 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
               {data?.invoices?.length > 0 && (
                 <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-between text-xs text-emerald-950 dark:text-emerald-200">
                   <div className="flex items-center gap-2">
-                    <span className="text-base">📄</span>
                     <div>
                       <span className="font-bold">Linked Tax Invoice: </span>
                       {data.invoices[0].invoiceno} (Dated: {data.invoices[0].date})
@@ -1147,11 +1142,11 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                 <div>
                   {data?.summary?.split_required ? (
                     <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">
-                      📦 Multi-Part Auto-Split ({data.summary.parts_count} Emails)
+                      Multi-Part Auto-Split ({data.summary.parts_count} Emails)
                     </span>
                   ) : (
                     <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">
-                      ✓ Single Consolidated Email
+                      Single Consolidated Email
                     </span>
                   )}
                 </div>
@@ -1175,7 +1170,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
               {(data?.items || []).some((it) => !it.is_approved) && (
                 <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200">
                   <div className="font-bold flex items-center gap-1.5 mb-1">
-                    <span>ℹ️</span> Notice for Approvers:
+                    Notice for Approvers:
                   </div>
                   <div className="text-[11px] text-amber-800 dark:text-amber-300">
                     Some items in this batch are still awaiting final HOD approval or digital signature. Only fully approved and signed reports can be selected for dispatch.
@@ -1187,7 +1182,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
               {(blockers.length > 0 || serverBlockers.length > 0) && (
                 <div className="p-4 rounded-xl border-2 border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800 space-y-2">
                   <div className="text-xs font-bold text-red-800 dark:text-red-300">
-                    ⛔ Dispatch is stopped - no email will be sent until these are resolved:
+                    Dispatch is stopped - no email will be sent until these are resolved:
                   </div>
                   <ul className="list-disc pl-5 space-y-1 text-[11px] text-red-900 dark:text-red-200">
                     {(blockers.length > 0 ? blockers : serverBlockers).map((b, i) => (
@@ -1212,7 +1207,6 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
               <div className="p-4 rounded-xl border-2 border-indigo-200 dark:border-indigo-900 bg-indigo-50/70 dark:bg-indigo-950/30 space-y-3">
                 <div className="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-800 pb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">⚖️</span>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-950 dark:text-indigo-200">
                       Authorized Approver Undertaking & Accountability
                     </h4>
@@ -1303,11 +1297,11 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
               {(!allConfirmed || selectedItemIds.length === 0) && (
                 <div className="text-[11px] text-amber-700 dark:text-amber-400 text-right font-medium max-w-sm">
                   {selectedItemIds.length === 0
-                    ? '⚠️ Please tick at least one approved report/certificate above.'
+                    ? 'Please tick at least one approved report/certificate above.'
                     : blockers.length > 0
-                    ? '⚠️ Dispatch stopped: please resolve the issues shown in red above.'
+                    ? 'Dispatch stopped: please resolve the issues shown in red above.'
                     : !confirmChecklist || !confirmResponsibility || (!confirmTestResponsibility && (data?.test_mode || testMode))
-                    ? '⚠️ Please tick all confirmation declaration checkboxes above to enable Send.'
+                    ? 'Please tick all confirmation declaration checkboxes above to enable Send.'
                     : ''}
                 </div>
               )}
@@ -1321,7 +1315,6 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                     : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
                 }`}
               >
-                <span>{allConfirmed ? '📧' : '🔒'}</span>
                 <span>
                   {isSubmitting
                     ? 'Processing...'

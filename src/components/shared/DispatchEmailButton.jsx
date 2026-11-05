@@ -18,7 +18,7 @@ export function DispatchEmailButton({ inwardId, trfId, className }) {
         onClick={() => setOpen(true)}
         className={className || "rounded-md bg-blue-600 px-2 py-1 text-center text-[10.5px] whitespace-nowrap font-semibold text-white shadow hover:bg-blue-700"}
       >
-        📧 Send Reports &amp; Invoice
+        Send Reports &amp; Invoice
       </button>
       <SendBatchDispatchModal isOpen={open} onClose={() => setOpen(false)} inwardId={inwardId} trfId={trfId} />
     </>

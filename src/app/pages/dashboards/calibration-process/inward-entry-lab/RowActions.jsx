@@ -242,7 +242,7 @@ export function RowActions({ row, table }) {
     ...(canSendDispatchEmail()
       ? [
           {
-            label: "📧 Send Reports & Invoice",
+            label: "Send Reports & Invoice",
             color: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm font-semibold",
             onClick: () => setDispatchModalOpen(true),
           },
