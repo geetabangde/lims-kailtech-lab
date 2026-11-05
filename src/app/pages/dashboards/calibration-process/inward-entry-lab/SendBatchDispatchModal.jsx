@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import axios from 'utils/axios';
 import { toast } from 'sonner';
 
+// WhatsApp number cleaner: digits only, 10-digit Indian numbers get the 91 prefix
+const cleanWaNumber = (v) => {
+  const d = String(v || '').replace(/[^0-9]/g, '');
+  return d.length === 10 ? `91${d}` : d;
+};
+
 export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfId, onSuccess }) {
   // Calibration batch = inwardId (default); Testing batch = trfId (reports of one TRF)
   const isTesting = !inwardId && !!trfId;
@@ -29,6 +35,8 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
   const [testRecipientEmail, setTestRecipientEmail] = useState('');
   const [includeInvoice, setIncludeInvoice] = useState(false);
   const [sendWhatsApp, setSendWhatsApp] = useState(false);
+  const [waNumbers, setWaNumbers] = useState([]); // WhatsApp numbers (pre-filled from the directory, fully editable)
+  const [newWaNumber, setNewWaNumber] = useState('');
 
   // Active Hold Countdown State
   const [queuedLogId, setQueuedLogId] = useState(null);
@@ -70,6 +78,8 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
     setServerBlockers([]);
     setTestMode(true);
     setTestRecipientEmail('');
+    setWaNumbers([]);
+    setNewWaNumber('');
     setQueuedLogId(null);
     setCountdownSeconds(0);
     setIsSubmitting(false);
@@ -102,6 +112,10 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
         setSelectedItemIds(approvedIds);
         setIncludeInvoice(Boolean(d.invoices && d.invoices.length > 0));
         setSendWhatsApp(Boolean(d.whatsapp_ready));
+        {
+          const pre = cleanWaNumber(d.recipients?.whatsapp);
+          setWaNumbers(pre.length >= 11 ? [pre] : []);
+        }
       } else {
         toast.error(res.data?.message || 'Failed to load dispatch preview.');
       }
@@ -146,6 +160,16 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
 
   const removeToEmail = (email) => {
     setToRecipients(toRecipients.filter((e) => e !== email));
+  };
+
+  const addWaNumber = () => {
+    const n = cleanWaNumber(newWaNumber);
+    if (n.length < 11 || n.length > 15) {
+      toast.error('Enter a valid WhatsApp number (10 digits, or with country code).');
+      return;
+    }
+    setWaNumbers((prev) => (prev.includes(n) ? prev : [...prev, n]));
+    setNewWaNumber('');
   };
 
   const removeCcEmail = (email) => {
@@ -245,8 +269,9 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
         test_recipient_email: parseTestRecipients(testRecipientEmail.trim() || TEST_TO_EMAIL).join(', '),
         declaration_confirmed: true,
         include_invoice: includeInvoice,
-        send_whatsapp: sendWhatsApp,
+        send_whatsapp: Boolean(data?.whatsapp_ready) && sendWhatsApp && waNumbers.length > 0,
         whatsapp_phone: data?.recipients?.whatsapp || null,
+        whatsapp_recipients: waNumbers,
       };
 
       const res = await axios.post('/dispatch/queue', payload);
@@ -858,6 +883,45 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                   </div>
                 </div>
 
+                {/* WhatsApp copy: shown ONLY when WhatsApp sending is configured on the server (whatsapp_ready) */}
+                {data?.whatsapp_ready && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5 dark:border-emerald-800 dark:bg-emerald-950/20">
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-800 dark:text-gray-100">
+                      <input
+                        type="checkbox"
+                        checked={sendWhatsApp}
+                        onChange={(e) => setSendWhatsApp(e.target.checked)}
+                      />
+                      Also send the same documents on WhatsApp (one message per number, same zip as the email)
+                    </label>
+                    {sendWhatsApp && (
+                      <div className="mt-2">
+                        <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 min-h-[42px]">
+                          {waNumbers.map((n) => (
+                            <span key={n} className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200 text-xs px-2.5 py-1 rounded-full font-medium">
+                              +{n}
+                              <button type="button" onClick={() => setWaNumbers((prev) => prev.filter((x) => x !== n))} className="hover:text-red-600 text-emerald-500">×</button>
+                            </span>
+                          ))}
+                          <input
+                            type="tel"
+                            value={newWaNumber}
+                            onChange={(e) => setNewWaNumber(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addWaNumber(); } }}
+                            placeholder={waNumbers.length === 0 ? 'Type WhatsApp number & press Enter...' : '+ add more...'}
+                            className="flex-1 min-w-[140px] text-xs bg-transparent border-none outline-none py-1"
+                          />
+                        </div>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                          {testMode
+                            ? 'Test Mode: WhatsApp goes ONLY to the lab test number, never to these client numbers.'
+                            : 'Pre-filled from the customer directory; edit, add or remove numbers as needed.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Available Customer Contacts Quick Picker */}
                 {data?.recipients?.available_contacts && data.recipients.available_contacts.length > 0 && (
                   <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5 dark:border-blue-800 dark:bg-blue-950/30">
@@ -912,6 +976,23 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                                   + CC
                                 </button>
                               </>
+                            )}
+                            {data?.whatsapp_ready && contact.mobile && contact.mobile !== '-' && (
+                              <button
+                                type="button"
+                                title="Add this mobile to the WhatsApp send list"
+                                onClick={() => {
+                                  const n = cleanWaNumber(contact.mobile);
+                                  if (n.length >= 11) {
+                                    setSendWhatsApp(true);
+                                    setWaNumbers((prev) => (prev.includes(n) ? prev : [...prev, n]));
+                                    toast.success(`Added ${contact.name} to WhatsApp`);
+                                  }
+                                }}
+                                className="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-200"
+                              >
+                                + WA
+                              </button>
                             )}
                             {contact.mobile && contact.mobile !== '-' && (
                               <button
