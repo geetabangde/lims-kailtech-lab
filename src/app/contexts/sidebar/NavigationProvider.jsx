@@ -25,7 +25,7 @@ export const NavigationProvider = ({ children }) => {
     if (!loading && labs.length > 0) {
       // Create dynamic navigation with fetched labs
       const dashboardsNav = createDashboardsNavigation(labs);
-      
+
       // You can add other navigation items here
       setNavigation([dashboardsNav /* , other nav items */]);
     }

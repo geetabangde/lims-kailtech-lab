@@ -65,8 +65,16 @@ export function ApprovedByCell({ getValue }) {
 }
 
 export function DaysCell({ row }) {
-  const { startdate, enddate } = row.original;
+  const { startdate, enddate, leaveType } = row.original;
   if (!startdate || !enddate) return <span className="text-gray-400">—</span>;
+
+  if (String(leaveType).toUpperCase() === "HCL" || String(leaveType).toUpperCase() === "UPHL") {
+    return (
+      <span className="font-semibold text-gray-800 dark:text-dark-100">
+        0.5 Day
+      </span>
+    );
+  }
 
   const d1 = dayjs(startdate).startOf("day");
   const d2 = dayjs(enddate).startOf("day");

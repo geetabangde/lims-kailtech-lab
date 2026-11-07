@@ -52,6 +52,7 @@ const customSelectStyles = {
 
 const leaveTypeOptions = [
   { value: "CL", label: "Casual Leave (CL)" },
+  { value: "HCL", label: "Half Day (HCL)" },
   { value: "SL", label: "Sick Leave (SL)" },
   { value: "EL", label: "Earned Leave (EL)" },
   { value: "CO", label: "Comp Off" },
@@ -63,6 +64,7 @@ export default function ApplyLeave() {
 
   const [formData, setFormData] = useState({
     leaveType: "",
+    session: "First Half",
     compoffdate: null,
     startdate: null,
     enddate: null,
@@ -109,6 +111,8 @@ export default function ApplyLeave() {
       const d2 = dayjs(formData.enddate);
       if (d2.isBefore(d1)) {
         newErrors.enddate = "End Date cannot be before Start Date";
+      } else if (formData.leaveType === "HCL" && !d1.isSame(d2, "day")) {
+        newErrors.enddate = "Half Day leave can only be applied for a single day";
       }
     }
 
@@ -147,18 +151,29 @@ export default function ApplyLeave() {
         toast.error("You are not allowed to apply for CL more than 3 days ❌");
         return;
       }
+    } else if (formData.leaveType === "HCL") {
+      if (daysDiff > 1) {
+        toast.error("Half day leave can only be applied for a single day ❌");
+        return;
+      }
     }
 
     setLoading(true);
 
+    const formattedReason =
+      formData.leaveType === "HCL" && formData.session && !formData.reason.includes(formData.session)
+        ? `${formData.reason.trim()} (${formData.session})`
+        : formData.reason;
+
     const payload = {
       leaveType: formData.leaveType,
+      session: formData.leaveType === "HCL" ? formData.session : "",
       compoffdate: formData.leaveType === "CO" && formData.compoffdate
         ? dayjs(formData.compoffdate).format("YYYY-MM-DD")
         : "",
       startdate: formData.startdate ? dayjs(formData.startdate).format("YYYY-MM-DD") : "",
       enddate: formData.enddate ? dayjs(formData.enddate).format("YYYY-MM-DD") : "",
-      reason: formData.reason,
+      reason: formattedReason,
     };
 
     try {
@@ -223,7 +238,12 @@ export default function ApplyLeave() {
                   options={leaveTypeOptions}
                   value={leaveTypeOptions.find((opt) => opt.value === formData.leaveType) || null}
                   onChange={(opt) => {
-                    setFormData((prev) => ({ ...prev, leaveType: opt ? opt.value : "" }));
+                    const val = opt ? opt.value : "";
+                    setFormData((prev) => ({
+                      ...prev,
+                      leaveType: val,
+                      enddate: val === "HCL" && prev.startdate ? prev.startdate : prev.enddate,
+                    }));
                     if (errors.leaveType) {
                       setErrors((prev) => ({ ...prev, leaveType: "" }));
                     }
@@ -237,6 +257,39 @@ export default function ApplyLeave() {
                   <p className="text-red-500 text-xs mt-1">{errors.leaveType}</p>
                 )}
               </div>
+
+              {/* Half Day Session (Conditional for HCL) */}
+              {formData.leaveType === "HCL" && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-dark-200 mb-1.5">
+                    Half Day Session *
+                  </label>
+                  <div className="flex items-center gap-6 pt-1">
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700 dark:text-dark-200">
+                      <input
+                        type="radio"
+                        name="session"
+                        value="First Half"
+                        checked={formData.session === "First Half"}
+                        onChange={() => setFormData((prev) => ({ ...prev, session: "First Half" }))}
+                        className="text-primary-600 focus:ring-primary-500"
+                      />
+                      First Half (Morning)
+                    </label>
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700 dark:text-dark-200">
+                      <input
+                        type="radio"
+                        name="session"
+                        value="Second Half"
+                        checked={formData.session === "Second Half"}
+                        onChange={() => setFormData((prev) => ({ ...prev, session: "Second Half" }))}
+                        className="text-primary-600 focus:ring-primary-500"
+                      />
+                      Second Half (Afternoon)
+                    </label>
+                  </div>
+                </div>
+              )}
 
               {/* Comp Off Date (Conditional) */}
               {formData.leaveType === "CO" && (
@@ -280,7 +333,11 @@ export default function ApplyLeave() {
                     allowInput: true,
                   }}
                   onChange={([date]) => {
-                    setFormData((prev) => ({ ...prev, startdate: date || null, enddate: null }));
+                    setFormData((prev) => ({
+                      ...prev,
+                      startdate: date || null,
+                      enddate: prev.leaveType === "HCL" ? (date || null) : null,
+                    }));
                     if (errors.startdate) setErrors((prev) => ({ ...prev, startdate: "" }));
                   }}
                   placeholder="DD/MM/YYYY"
@@ -304,7 +361,8 @@ export default function ApplyLeave() {
                   options={{
                     dateFormat: "d/m/Y",
                     minDate: formData.startdate || minStartDate,
-                    allowInput: true,
+                    maxDate: formData.leaveType === "HCL" ? (formData.startdate || undefined) : undefined,
+                    allowInput: formData.leaveType !== "HCL",
                   }}
                   onChange={([date]) => {
                     setFormData((prev) => ({ ...prev, enddate: date || null }));
@@ -313,9 +371,15 @@ export default function ApplyLeave() {
                   placeholder="DD/MM/YYYY"
                   className={clsx(
                     "form-input w-full rounded-lg border border-gray-300 bg-white px-3 h-9 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-dark-400 dark:bg-dark-800 dark:text-dark-100",
-                    errors.enddate && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    errors.enddate && "border-red-500 focus:border-red-500 focus:ring-red-500",
+                    formData.leaveType === "HCL" && "bg-gray-100 cursor-not-allowed opacity-80"
                   )}
                 />
+                {formData.leaveType === "HCL" && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    Half Day leave is for 0.5 day on the selected date.
+                  </p>
+                )}
                 {errors.enddate && (
                   <p className="text-red-500 text-xs mt-1">{errors.enddate}</p>
                 )}

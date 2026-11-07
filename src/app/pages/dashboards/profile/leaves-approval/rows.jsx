@@ -104,7 +104,15 @@ export function ApprovedByCell({ getValue }) {
 
 export function DaysCell({ row }) {
   // Prefer server-provided no_of_days; fall back to computing from dates
-  const { no_of_days, startdate, enddate } = row.original;
+  const { no_of_days, startdate, enddate, leaveType } = row.original;
+
+  if (String(leaveType).toUpperCase() === "HCL" || String(leaveType).toUpperCase() === "UPHL") {
+    return (
+      <span className="font-semibold text-gray-800 dark:text-dark-100">
+        0.5 Day
+      </span>
+    );
+  }
 
   let diffDays = no_of_days;
   if (!diffDays && startdate && enddate) {
