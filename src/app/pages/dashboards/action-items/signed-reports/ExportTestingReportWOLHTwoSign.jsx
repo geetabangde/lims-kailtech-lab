@@ -301,11 +301,19 @@ function HtmlDocWithoutLHTwoSign({ report }) {
               {String(data.tid) !== "1356" && (
                 <div style={SS.endOfReport}>**End of Report**</div>
               )}
-
-              <HtmlSignatories signatories={data.signatories} />
+              <div style={{ height: '24px' }}></div>
             </td>
           </tr>
         </tbody>
+
+        <tfoot style={{ display: 'table-footer-group' }}>
+          <tr>
+            <td style={{ border: 'none', padding: 0 }}>
+              <HtmlSignatories signatories={data.signatories} />
+              <div style={{ height: '15px' }}></div>
+            </td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   );

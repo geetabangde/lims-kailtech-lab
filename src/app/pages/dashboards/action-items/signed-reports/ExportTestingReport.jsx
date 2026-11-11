@@ -198,8 +198,8 @@ const SS = {
   endOfReport: { textAlign: 'center', fontWeight: 'bold', margin: '12px 0', fontSize: '11.5px' },
   remarkBox: { marginBottom: '8px', fontSize: '11.5px' },
 
-  sigRow: { display: 'flex', flexWrap: 'wrap', marginTop: '25px', marginBottom: '0px', justifyContent: 'space-between' },
-  sigRowSingle: { display: 'flex', flexWrap: 'wrap', marginTop: '25px', marginBottom: '0px', justifyContent: 'flex-start' },
+  sigRow: { display: 'flex', flexWrap: 'wrap', marginTop: '10px', marginBottom: '4px', justifyContent: 'space-between' },
+  sigRowSingle: { display: 'flex', flexWrap: 'wrap', marginTop: '10px', marginBottom: '4px', justifyContent: 'flex-start' },
   sigBox: { minWidth: '150px', fontSize: '11px', flex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   sigBoxSingle: { minWidth: '150px', fontSize: '11px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   sigImg: { width: '150px', height: '58px', objectFit: 'contain', marginBottom: '2px' },
@@ -577,7 +577,7 @@ export function HtmlDocWithLH({ report }) {
 
               <HtmlRemarks remarkLines={data.remarkLines} />
               <div style={SS.endOfReport}>**End of Report**</div>
-              <HtmlSignatories signatories={data.signatories} />
+              <div style={{ height: '24px' }}></div>
             </td>
           </tr>
         </tbody>
@@ -585,7 +585,8 @@ export function HtmlDocWithLH({ report }) {
         <tfoot style={{ display: 'table-footer-group' }}>
           <tr>
             <td style={{ border: 'none', padding: 0 }}>
-              <div style={{ height: '5px' }}></div>
+              <HtmlSignatories signatories={data.signatories} />
+              <div style={{ height: '6px' }}></div>
               <div style={S1.footer}>
                 <div>Plot No. 141 C, Electronic Complex, Pardeshipura, Indore – 452010 (INDIA)  Ph. +91 – 4787555 (30 Lines), 4046055, 4048055</div>
                 <div>Email : contact@kailtech.net, electronics@kailtech.net    Web : www.kailtech.net</div>

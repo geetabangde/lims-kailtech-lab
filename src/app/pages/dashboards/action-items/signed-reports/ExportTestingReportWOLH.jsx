@@ -214,10 +214,19 @@ function HtmlDocWithoutLH({ report }) {
 
               <HtmlRemarks remarkLines={data.remarkLines} />
               <div style={SS.endOfReport}>**End of Report**</div>
-              <HtmlSignatoriesWOLH signatories={data.signatories} />
+              <div style={{ height: '24px' }}></div>
             </td>
           </tr>
         </tbody>
+
+        <tfoot style={{ display: 'table-footer-group' }}>
+          <tr>
+            <td style={{ border: 'none', padding: 0 }}>
+              <HtmlSignatoriesWOLH signatories={data.signatories} />
+              <div style={{ height: '15px' }}></div>
+            </td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   );
