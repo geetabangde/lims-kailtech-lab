@@ -132,102 +132,150 @@ HtmlSignatoriesWOLH.propTypes = { signatories: PropTypes.array.isRequired };
 function HtmlDocWithoutLH({ report }) {
   const data = extractData(report);
 
+  const PAGE_1_MAX = 8;
+  const PAGE_N_MAX = 15;
+
+  const rawTestResults = data.test_results || [];
+  const testResults = rawTestResults.map((r, i) => ({
+    ...r,
+    sno: r.sno ?? (i + 1)
+  }));
+
+  const pageChunks = [];
+  if (testResults.length <= PAGE_1_MAX) {
+    pageChunks.push(testResults);
+  } else {
+    pageChunks.push(testResults.slice(0, PAGE_1_MAX));
+    let remainder = testResults.slice(PAGE_1_MAX);
+    while (remainder.length > 0) {
+      pageChunks.push(remainder.slice(0, PAGE_N_MAX));
+      remainder = remainder.slice(PAGE_N_MAX);
+    }
+  }
+  const totalPages = pageChunks.length || 1;
+
   return (
     <div style={S1.page}>
-      {data.isDraft && <div style={S1.draft}>DRAFT</div>}
+      {pageChunks.map((chunk, pageIndex) => {
+        const isFirstPage = pageIndex === 0;
+        const isLastPage = pageIndex === totalPages - 1;
 
-      {/* Iso side mark */}
-      <div style={S1.isoSide}>An ISO 9001 : 2015 Certified Laboratory</div>
+        return (
+          <div
+            key={pageIndex}
+            style={{
+              boxSizing: 'border-box',
+              minHeight: '270mm',
+              position: 'relative',
+              pageBreakAfter: isLastPage ? 'auto' : 'always',
+              paddingBottom: '45mm', // Reserves 15mm clearance above pre-printed letterhead footer
+              marginBottom: isLastPage ? '0px' : '20px'
+            }}
+          >
+            {data.isDraft && <div style={S1.draft}>DRAFT</div>}
 
-      {/* Wrapper Table to handle repeated Header across multiple pages */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none' }}>
-        <thead style={{ display: 'table-header-group' }}>
-          <tr>
-            <td style={{ border: 'none', padding: 0 }}>
-              {/* ── TOP HEADER (Without letter head, only NABL and LRN) ── */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', marginBottom: '10px' }}>
-                <tbody>
-                  <tr>
-                    <td style={{ width: '33%', textAlign: 'left', verticalAlign: 'top', border: 'none', padding: 0 }}>
-                      <div style={{ width: '220px', height: '110px' }} />
-                    </td>
-                    <td style={{ width: '33%', textAlign: 'center', verticalAlign: 'top', border: 'none', padding: 0 }}>
-                      {data.nablStatus === 1 && (
-                        <>
-                          {data.nablLogo ? <img src={getPdfImageUrl(data.nablLogo)} alt="" style={{ width: '135px', height: '115px', objectFit: 'contain' }} /> : <div style={{ width: '135px', height: '115px' }} />}
-                        </>
-                      )}
-                    </td>
-                    <td style={{ width: '33%', textAlign: 'right', verticalAlign: 'top', border: 'none', padding: 0 }}>
-                      <div style={{ width: '210px', height: '110px' }} />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            {/* Iso side mark */}
+            <div style={S1.isoSide}>An ISO 9001 : 2015 Certified Laboratory</div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '6px', fontSize: '9.5px', paddingTop: data.isNabl ? '0px' : '25px' }}>
-                <div style={{ paddingBottom: '4px' }}>
-                  {data.isNabl && (
-                    <img src={`${window.location.origin}/images/nabl_qr.png`} alt="NABL QR" style={{ width: "60px", height: "60px", objectFit: "contain" }} />
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: '15px', fontWeight: 'bold' }}>
-                  <span>LRN: {data.displayLRN}</span>
-                  <span className="page-number"></span>
-                </div>
+            {/* ── TOP HEADER (Without letter head, only NABL and LRN) ── */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', marginBottom: '10px' }}>
+              <tbody>
+                <tr>
+                  <td style={{ width: '33%', textAlign: 'left', verticalAlign: 'top', border: 'none', padding: 0 }}>
+                    <div style={{ width: '220px', height: '110px' }} />
+                  </td>
+                  <td style={{ width: '33%', textAlign: 'center', verticalAlign: 'top', border: 'none', padding: 0 }}>
+                    {data.nablStatus === 1 && (
+                      <>
+                        {data.nablLogo ? (
+                          <img src={getPdfImageUrl(data.nablLogo)} alt="" style={{ width: '135px', height: '115px', objectFit: 'contain' }} />
+                        ) : (
+                          <div style={{ width: '135px', height: '115px' }} />
+                        )}
+                      </>
+                    )}
+                  </td>
+                  <td style={{ width: '33%', textAlign: 'right', verticalAlign: 'top', border: 'none', padding: 0 }}>
+                    <div style={{ width: '210px', height: '110px' }} />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '6px', fontSize: '9.5px', paddingTop: data.isNabl ? '0px' : '25px' }}>
+              <div style={{ paddingBottom: '4px', position: 'relative', top: '-5mm' }}>
+                {data.isNabl && (
+                  <img src={`${window.location.origin}/images/nabl_qr.png`} alt="NABL QR" style={{ width: "60px", height: "60px", objectFit: "contain" }} />
+                )}
               </div>
-            </td>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr>
-            <td style={{ border: 'none', padding: 0 }}>
-              <div style={S1.pageRow}>
-                <div> </div>
-                <div></div>
+              <div style={{ display: 'flex', gap: '15px', fontWeight: 'bold' }}>
+                <span>LRN: {data.displayLRN}</span>
+                <span>Page {pageIndex + 1} of {totalPages}</span>
               </div>
+            </div>
 
-              {data.nablStatus === 3 && (
-                <div style={{ display: "flex", justifyContent: "center", marginBottom: "4px" }}>
-                  <img src={`${window.location.origin}/images/qai.jpeg`} alt="" style={{ width: "80px", height: "32px", objectFit: "contain" }} />
+            {isFirstPage ? (
+              <>
+                <div style={S1.pageRow}>
+                  <div> </div>
+                  <div></div>
                 </div>
-              )}
 
-              <div style={S1.title}>TEST REPORT</div>
+                {data.nablStatus === 3 && (
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: "4px" }}>
+                    <img src={`${window.location.origin}/images/qai.jpeg`} alt="" style={{ width: "80px", height: "32px", objectFit: "contain" }} />
+                  </div>
+                )}
 
-              <div style={S1.ulrRow}>
-                <div><span style={SS.bold}>ULR:</span>{data.nablStatus === 1 && data.ulr ? data.ulr : ""}</div>
-                <div style={SS.bold}>{data.ktrcRef || 'KTRC/QF/0708/01'}</div>
-              </div>
+                <div style={S1.title}>TEST REPORT</div>
 
-              <div style={SS.infoWrap}>
-                <div style={{ display: "flex" }}>
-                  <HtmlCustomerLeft data={data} />
-                  <HtmlInfoRows data={data} />
+                <div style={S1.ulrRow}>
+                  <div><span style={SS.bold}>ULR:</span>{data.nablStatus === 1 && data.ulr ? data.ulr : ""}</div>
+                  <div style={SS.bold}>{data.ktrcRef || 'KTRC/QF/0708/01'}</div>
                 </div>
-                <HtmlSampleRows data={data} />
-              </div>
 
-              <div style={SS.secTitle}>TEST RESULTS</div>
-              <HtmlResultsTable data={data} />
+                <div style={SS.infoWrap}>
+                  <div style={{ display: "flex" }}>
+                    <HtmlCustomerLeft data={data} />
+                    <HtmlInfoRows data={data} />
+                  </div>
+                  <HtmlSampleRows data={data} />
+                </div>
 
-              <HtmlRemarks remarkLines={data.remarkLines} />
-              <div style={SS.endOfReport}>**End of Report**</div>
-              <div style={{ height: '24px' }}></div>
-            </td>
-          </tr>
-        </tbody>
+                <div style={SS.secTitle}>TEST RESULTS</div>
+                <HtmlResultsTable data={{ ...data, test_results: chunk }} />
+              </>
+            ) : (
+              <>
+                <div style={S1.ulrRow}>
+                  <div><span style={SS.bold}>ULR:</span>{data.nablStatus === 1 && data.ulr ? data.ulr : ""}</div>
+                  <div style={SS.bold}>{data.ktrcRef || 'KTRC/QF/0708/01'}</div>
+                </div>
 
-        <tfoot style={{ display: 'table-footer-group' }}>
-          <tr>
-            <td style={{ border: 'none', padding: 0 }}>
+                <div style={SS.secTitle}>TEST RESULTS (Contd.)</div>
+                <HtmlResultsTable data={{ ...data, test_results: chunk }} />
+              </>
+            )}
+
+            {isLastPage && (
+              <>
+                <HtmlRemarks remarkLines={data.remarkLines} />
+                <div style={SS.endOfReport}>**End of Report**</div>
+              </>
+            )}
+
+            {/* Signature Block - Raised by 15mm above letterhead footer */}
+            <div style={{
+              position: 'absolute',
+              bottom: '15mm',
+              left: 0,
+              right: 0
+            }}>
               <HtmlSignatoriesWOLH signatories={data.signatories} />
-              <div style={{ height: '15px' }}></div>
-            </td>
-          </tr>
-        </tfoot>
-      </table>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -290,8 +338,7 @@ export function PrintExportTestingReportWOLHButton({ report, className }) {
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     @page { size: A4; margin: 8mm 6mm; }
-    body  { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 8px; color: #111; background: #fff; counter-reset: page; }
-    .page-number::after { counter-increment: page; content: "Page " counter(page) " of 1"; }
+    body  { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 8px; color: #111; background: #fff; }
     @media print { 
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       head { display: none; }

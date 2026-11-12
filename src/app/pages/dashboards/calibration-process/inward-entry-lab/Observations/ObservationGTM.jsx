@@ -329,13 +329,19 @@ const convertMasterAverage = (avgMaster, masterUnitSymbol, decimals) => {
     if (isNaN(num)) return '';
 
     const scale = getOhmScale(masterUnitSymbol);
-    if (scale === null) {
-        // Same unit as the UUC - nothing to convert
-        return num.toFixed(decimals);
+    if (scale !== null) {
+        const temp = pt100ResistanceToTemp(num * scale);
+        return isNaN(temp) ? '' : temp.toFixed(decimals);
     }
 
-    const temp = pt100ResistanceToTemp(num * scale);
-    return isNaN(temp) ? '' : temp.toFixed(decimals);
+    // Auto-detect Pt100 RTD resistance readings when master unit was set as °C instead of Ω
+    if (num >= 80 && num <= 390) {
+        const temp = pt100ResistanceToTemp(num);
+        if (!isNaN(temp)) return temp.toFixed(decimals);
+    }
+
+    // Same unit as the UUC - nothing to convert
+    return num.toFixed(decimals);
 };
 
 /**

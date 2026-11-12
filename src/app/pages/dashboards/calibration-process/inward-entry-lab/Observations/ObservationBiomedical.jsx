@@ -507,7 +507,7 @@ const ObservationBiomedical = ({
                     value={displayValue}
                     readOnly={isMasterReadOnly}
                     title={!lcCheck.isValid ? lcCheck.error : undefined}
-                    placeholder={!isMasterReadOnly ? String(point.unit_conversion?.converted_set_point ?? point.set_point ?? point.point ?? '') : ''}
+                    placeholder={!isMasterReadOnly ? (isConv ? (i === 0 ? 'M1 (↑)' : i === 1 ? 'M2 (↓)' : 'M3 (↑)') : String(point.unit_conversion?.converted_set_point ?? point.set_point ?? point.point ?? '')) : ''}
                     onChange={!isMasterReadOnly ? (e) => handleBiomedicalInputChange(pointId, 'master', i, e.target.value, masterCount, uucCount) : undefined}
                     onBlur={!isMasterReadOnly ? (e) => handleBiomedicalInputBlur(pointId, 'master', i, e.target.value, masterCount, uucCount) : undefined}
                   />
@@ -575,29 +575,36 @@ const ObservationBiomedical = ({
             <table className="w-full text-sm border-collapse border border-gray-300 dark:border-gray-600">
               <thead>
                 <tr className="bg-gray-100 dark:bg-gray-700">
-                  <th className={thCls}>Parameter</th>
-                  {showDevAndUnc && <th className={thCls}>Set Point</th>}
+                  <th rowSpan={isConv ? 2 : 1} className={thCls}>Parameter</th>
+                  {showDevAndUnc && <th rowSpan={isConv ? 2 : 1} className={thCls}>Set Point</th>}
                   {isSource ? (
                     <>
-                      {uucCount > 0 && <th colSpan={uucCount} className={thCls}>Reading on UUC</th>}
-                      {uucCount > 1 && <th className={thCls}>Average On UUC</th>}
+                      {uucCount > 0 && <th rowSpan={isConv ? 2 : 1} colSpan={uucCount} className={thCls}>Reading on UUC</th>}
+                      {uucCount > 1 && <th rowSpan={isConv ? 2 : 1} className={thCls}>Average On UUC</th>}
                       {masterCount > 0 && <th colSpan={masterCount} className={thCls}>Reading on Master</th>}
-                      {masterCount > 1 && <th className={thCls}>Average On Master</th>}
+                      {masterCount > 1 && <th rowSpan={isConv ? 2 : 1} className={thCls}>Average On Master</th>}
                     </>
                   ) : (
                     <>
                       {masterCount > 0 && <th colSpan={masterCount} className={thCls}>Reading on Master</th>}
-                      {masterCount > 1 && <th className={thCls}>Average On Master</th>}
-                      {uucCount > 0 && <th colSpan={uucCount} className={thCls}>Reading on UUC</th>}
-                      {uucCount > 1 && <th className={thCls}>Average On UUC</th>}
+                      {masterCount > 1 && <th rowSpan={isConv ? 2 : 1} className={thCls}>Average On Master</th>}
+                      {uucCount > 0 && <th rowSpan={isConv ? 2 : 1} colSpan={uucCount} className={thCls}>Reading on UUC</th>}
+                      {uucCount > 1 && <th rowSpan={isConv ? 2 : 1} className={thCls}>Average On UUC</th>}
                     </>
                   )}
-                  {showDevAndUnc && <th className={thCls}>{isConv ? 'Deviation (bar)' : 'Deviation'}</th>}
-                  {isConv && <th className={thCls}>Repeatability (bar)</th>}
-                  {isConv && <th className={thCls}>Hysteresis (bar)</th>}
+                  {showDevAndUnc && <th rowSpan={isConv ? 2 : 1} className={thCls}>{isConv ? 'Deviation (bar)' : 'Deviation'}</th>}
+                  {isConv && <th rowSpan={2} className={thCls}>Repeatability (bar)</th>}
+                  {isConv && <th rowSpan={2} className={thCls}>Hysteresis (bar)</th>}
                   {!isConv && <th className={thCls}>Tolerance</th>}
-                  {showDevAndUnc && showRemark && <th className={thCls}>Remark</th>}
+                  {showDevAndUnc && showRemark && <th rowSpan={isConv ? 2 : 1} className={thCls}>Remark</th>}
                 </tr>
+                {isConv && (
+                  <tr className="bg-gray-50 dark:bg-gray-600 border-b border-gray-300 dark:border-gray-600">
+                    <th className={thCls}>M1 (&uarr;)</th>
+                    <th className={thCls}>M2 (&darr;)</th>
+                    <th className={thCls}>M3 (&uarr;)</th>
+                  </tr>
+                )}
               </thead>
               <tbody>
                 {tablePoints.map((point) => {
@@ -779,15 +786,23 @@ const ObservationBiomedical = ({
                                 <input type="hidden" name="calibrationpoint[]" value={pointId} />
                                 <input type="hidden" name="type[]" value="error" />
                                 <input type="hidden" name="repeatable[]" value="0" />
-                                <input type="hidden" name="value[]" id={`error${pointId}`} value={formatValueByLc(devVal, devDecimals)} />
+                                <input type="hidden" name="value[]" id={`error${pointId}`} value={devBar !== '' ? devBar : formatValueByLc(devVal, devDecimals)} />
                                 <input type="text" className={`${roBox} font-medium`} value={devBar} readOnly />
                                 <span className="ml-1 text-xs text-gray-500">{point.unit_conversion.master_unit}</span>
                               </td>
                               <td className={tdCls}>
+                                <input type="hidden" name="calibrationpoint[]" value={pointId} />
+                                <input type="hidden" name="type[]" value="repeatability" />
+                                <input type="hidden" name="repeatable[]" value="0" />
+                                <input type="hidden" name="value[]" id={`repeatability${pointId}`} value={repBar} />
                                 <input type="text" className={roBox} value={repBar} readOnly />
                                 <span className="ml-1 text-xs text-gray-500">{point.unit_conversion.master_unit}</span>
                               </td>
                               <td className={tdCls}>
+                                <input type="hidden" name="calibrationpoint[]" value={pointId} />
+                                <input type="hidden" name="type[]" value="hysterisis" />
+                                <input type="hidden" name="repeatable[]" value="0" />
+                                <input type="hidden" name="value[]" id={`hysterisis${pointId}`} value={hysBar} />
                                 <input type="text" className={roBox} value={hysBar} readOnly />
                                 <span className="ml-1 text-xs text-gray-500">{point.unit_conversion.master_unit}</span>
                               </td>

@@ -1466,8 +1466,8 @@ export default function CalibrationReport() {
             </>
           )}
 
-          {/* FIXED: Dynamic Observation Results Table */}
-          {observationData.length > 0 && maxObservations > 0 && (
+          {/* FIXED: Dynamic Observation Results Table (only as fallback when specialized observation template table is not rendered) */}
+          {!(observationTemplate && tableStructure && ((observationRows?.rows?.length || 0) > 0 || hasBiomedicalContent)) && observationData.length > 0 && maxObservations > 0 && (
             <>
               <h3 className="font-semibold mb-2 text-base">Detailed Calibration Observations</h3>
               <div className="overflow-x-auto mb-6">

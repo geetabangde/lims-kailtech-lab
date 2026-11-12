@@ -112,13 +112,19 @@ export const convertMasterAverage = (avgMaster, masterUnitSymbol, decimals) => {
   if (isNaN(num)) return '';
 
   const scale = getOhmScale(masterUnitSymbol);
-  if (scale === null) {
-    // Same unit as the UUC - nothing to convert
-    return num.toFixed(decimals);
+  if (scale !== null) {
+    const temp = pt100ResistanceToTemp(num * scale);
+    return isNaN(temp) ? '' : temp.toFixed(decimals);
   }
 
-  const temp = pt100ResistanceToTemp(num * scale);
-  return isNaN(temp) ? '' : temp.toFixed(decimals);
+  // Auto-detect Pt100 RTD resistance readings when master unit was set as °C instead of Ω
+  if (num >= 80 && num <= 390) {
+    const temp = pt100ResistanceToTemp(num);
+    if (!isNaN(temp)) return temp.toFixed(decimals);
+  }
+
+  // Same unit as the UUC - nothing to convert
+  return num.toFixed(decimals);
 };
 
 /**
@@ -172,23 +178,51 @@ export const createGTMRows = (dataArray, currentRawdata = {}) => {
     const rawSetPoint = point.set_point ?? point.point ?? point.test_point;
     const formattedSetPoint = formatValueByLc(rawSetPoint, lc, point.least_count);
 
-    // Average UUC: use the pre-computed value from the API as-is
+    // Average UUC: safely derive from readings if empty or if invalid negative value saved
+    const validUucReadings = uucReadings
+      .map((v) => (v !== undefined && v !== null && String(v).trim() !== '' ? parseFloat(v) : NaN))
+      .filter((v) => !isNaN(v));
+    const derivedAvgUuc = validUucReadings.length > 0
+      ? (validUucReadings.reduce((sum, v) => sum + v, 0) / validUucReadings.length).toFixed(lc)
+      : '';
+
     let formattedAvgUuc = point.average_uuc ?? point.averageuuc ?? '';
     if (formattedAvgUuc === undefined || formattedAvgUuc === null) formattedAvgUuc = '';
-    formattedAvgUuc = String(formattedAvgUuc);
+    formattedAvgUuc = String(formattedAvgUuc).trim();
 
-    // Average Master: use the pre-computed value from the API as-is
+    const rawSpNum = parseFloat(rawSetPoint);
+    const avgUucNum = parseFloat(formattedAvgUuc);
+    if (formattedAvgUuc === '' || (!isNaN(avgUucNum) && avgUucNum < 0 && !isNaN(rawSpNum) && rawSpNum >= 0 && derivedAvgUuc !== '')) {
+      formattedAvgUuc = derivedAvgUuc;
+    }
+
+    // Average Master: converted master average in °C
+    let cAvgMasterFromPoint = point.converted_average_master ?? point.caveragemaster ?? '';
+    if (cAvgMasterFromPoint === undefined || cAvgMasterFromPoint === null || cAvgMasterFromPoint === '-') cAvgMasterFromPoint = '';
+
     let formattedCAvgMaster = point.average_master ?? point.averagemaster ?? '';
     if (formattedCAvgMaster === undefined || formattedCAvgMaster === null) formattedCAvgMaster = '';
-    formattedCAvgMaster = String(formattedCAvgMaster);
+    formattedCAvgMaster = String(formattedCAvgMaster).trim();
+
+    if (cAvgMasterFromPoint !== '' && !isNaN(parseFloat(cAvgMasterFromPoint))) {
+      formattedCAvgMaster = parseFloat(cAvgMasterFromPoint).toFixed(mlc);
+    } else {
+      const numMaster = parseFloat(formattedCAvgMaster);
+      // Auto-convert Pt100 RTD resistance readings (e.g. 100.007 Ω -> 0.02 °C)
+      if (!isNaN(numMaster) && numMaster >= 80 && numMaster <= 390) {
+        const convertedTemp = pt100ResistanceToTemp(numMaster);
+        if (!isNaN(convertedTemp)) {
+          formattedCAvgMaster = convertedTemp.toFixed(mlc);
+        }
+      }
+    }
 
     // Error / Deviation calculation & formatting
     let rawError = point.error ?? point.deviation;
-    if (
-      (rawError === undefined || rawError === null || rawError === '') &&
-      formattedAvgUuc !== '' &&
-      formattedCAvgMaster !== ''
-    ) {
+    const numError = parseFloat(rawError);
+    const needRecompute = (rawError === undefined || rawError === null || rawError === '' || isNaN(numError) || Math.abs(numError) > 50);
+
+    if (needRecompute && formattedAvgUuc !== '' && formattedCAvgMaster !== '') {
       const u = parseFloat(formattedAvgUuc);
       const m = parseFloat(formattedCAvgMaster);
       if (!isNaN(u) && !isNaN(m)) {
