@@ -134,8 +134,8 @@ HtmlSignatoriesWOLH.propTypes = { signatories: PropTypes.array.isRequired };
 // One "unit" = one compact single-line result row (~18px). Page 1 holds PAGE_1_UNITS units under the header/customer block,
 // later pages hold PAGE_N_UNITS. Rows whose text wraps (long parameter / method names, grading tables) count for more units,
 // and a long customer/sample block on page 1 reduces its capacity. The last page also reserves room for Remarks + **End of Report**.
-const PAGE_1_UNITS = 13;
-const PAGE_N_UNITS = 15;
+const PAGE_1_UNITS = 14;
+const PAGE_N_UNITS = 26;
 const LAST_PAGE_RESERVE_UNITS = 2;
 const WOLH_COMPACT_CSS = `
 .wolh-compact thead th, .wolh-compact thead + tbody td { padding-top: 1.5px !important; padding-bottom: 1.5px !important; line-height: 1.2 !important; }
@@ -178,7 +178,9 @@ function paginateRows(rows, data) {
   });
   const reserve = LAST_PAGE_RESERVE_UNITS + ((data.remarkLines && data.remarkLines.length) || 0);
   const carry = [];
-  while (cur.length > 1 && used + reserve > cap + 1) { // +1: measured spare space above the signature block
+  // page 1 as the LAST page keeps its normal limit; later pages have measured spare space (+1)
+  const lastLimit = pages.length === 0 ? cap : cap + 1;
+  while (cur.length > 1 && used + reserve > lastLimit) {
     const moved = cur.pop();
     used -= rowUnits(moved);
     carry.unshift(moved);
