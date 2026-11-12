@@ -28,6 +28,48 @@ import { toast } from "sonner";
 import { Page } from "components/shared/Page";
 import { Card } from "components/ui";
 
+const GST_STATE_MAP = {
+  "01": "JAMMU AND KASHMIR",
+  "02": "HIMACHAL PRADESH",
+  "03": "PUNJAB",
+  "04": "CHANDIGARH",
+  "05": "UTTARAKHAND",
+  "06": "HARYANA",
+  "07": "DELHI",
+  "08": "RAJASTHAN",
+  "09": "UTTAR PRADESH",
+  "10": "BIHAR",
+  "11": "SIKKIM",
+  "12": "ARUNACHAL PRADESH",
+  "13": "NAGALAND",
+  "14": "MANIPUR",
+  "15": "MIZORAM",
+  "16": "TRIPURA",
+  "17": "MEGHALAYA",
+  "18": "ASSAM",
+  "19": "WEST BENGAL",
+  "20": "JHARKHAND",
+  "21": "ODISHA",
+  "22": "CHHATTISGARH",
+  "23": "MADHYA PRADESH",
+  "24": "GUJARAT",
+  "25": "DAMAN AND DIU",
+  "26": "DADRA AND NAGAR HAVELI",
+  "27": "MAHARASHTRA",
+  "28": "ANDHRA PRADESH (OLD)",
+  "29": "KARNATAKA",
+  "30": "GOA",
+  "31": "LAKSHADWEEP",
+  "32": "KERALA",
+  "33": "TAMIL NADU",
+  "34": "PUDUCHERRY",
+  "35": "ANDAMAN AND NICOBAR ISLANDS",
+  "36": "TELANGANA",
+  "37": "ANDHRA PRADESH",
+  "38": "LADAKH",
+  "97": "OTHER TERRITORY",
+};
+
 // ─── calcTotals — identical to AddTestingInvoice ─────────────────────────────
 function calcTotals({ items, charges, isSgst }) {
   let subtotal = 0;
@@ -299,7 +341,15 @@ export default function EditTestingInvoice() {
   const [brnnos, setBrnnos] = useState("");
   const [remark, setRemark] = useState("");
   const [billingInfo, setBillingInfo] = useState(null);
+  const [states, setStates] = useState([]);
   const [invoicedate, setInvoicedate] = useState(new Date().toISOString().slice(0, 10));
+
+  useEffect(() => {
+    axios
+      .get("/people/get-state")
+      .then((res) => setStates(res.data?.data || []))
+      .catch((err) => console.error("Failed to load states:", err));
+  }, []);
   const [hasMeterGlobal, setHasMeterGlobal] = useState(false);
 
   // PHP: charge fields
@@ -374,6 +424,7 @@ export default function EditTestingInvoice() {
         name:      inv.customername ?? "",
         address:   inv.address ?? (d.address ? `${d.address.address ?? ""}, ${d.address.city ?? ""}, ${d.address.pincode ?? ""}` : ""),
         statecode: String(inv.statecode ?? ""),
+        statename: inv.statename ?? "",
         gstno:     inv.gstno ?? "",
         pan:       inv.pan ?? "",
         addressid: inv.addressid ?? 0,
@@ -729,7 +780,17 @@ export default function EditTestingInvoice() {
                   <b>Address:</b> {billingInfo.address}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-x-6">
-                  <span><b>State name:</b> {billingInfo.statename ?? billingInfo.statecode}</span>
+                  <span>
+                    <b>State name:</b>{" "}
+                    {billingInfo.statename ||
+                      states.find(
+                        (s) =>
+                          String(s.gst_code).padStart(2, "0") ===
+                          String(billingInfo.statecode || "").trim().padStart(2, "0")
+                      )?.state ||
+                      GST_STATE_MAP[String(billingInfo.statecode || "").trim().padStart(2, "0")] ||
+                      billingInfo.statecode}
+                  </span>
                   <span><b>State code:</b> {isNaN(Number(billingInfo.statecode)) ? "NA" : billingInfo.statecode}</span>
                 </div>
                 <div className="flex flex-wrap gap-x-6">
