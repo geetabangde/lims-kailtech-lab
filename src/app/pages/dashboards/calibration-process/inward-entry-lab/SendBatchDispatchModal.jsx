@@ -1309,10 +1309,10 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                 type="button"
                 disabled={loading || isSubmitting || selectedItemIds.length === 0 || !allConfirmed}
                 onClick={handleQueueDispatch}
-                className={`px-5 py-2.5 text-xs font-bold text-white rounded-lg shadow-lg flex items-center gap-2 transition-all ${
+                className={`px-5 py-2.5 text-xs font-bold text-black rounded-lg shadow-lg flex items-center gap-2 transition-all ${
                   loading || isSubmitting || selectedItemIds.length === 0 || !allConfirmed
-                    ? 'bg-gray-400 cursor-not-allowed opacity-60'
-                    : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
+                    ? 'bg-gray-300 text-gray-800 cursor-not-allowed'
+                    : 'bg-blue-300 border border-blue-500 hover:bg-blue-400 active:scale-95'
                 }`}
               >
                 <span>

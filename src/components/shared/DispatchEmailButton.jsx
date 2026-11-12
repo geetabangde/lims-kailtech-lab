@@ -16,7 +16,7 @@ export function DispatchEmailButton({ inwardId, trfId, className }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={className || "rounded-md bg-blue-600 px-2 py-1 text-center text-[10.5px] whitespace-nowrap font-semibold text-white shadow hover:bg-blue-700"}
+        className={className || "rounded-md border border-blue-400 !bg-blue-200 px-2 py-1 text-center text-[10.5px] whitespace-nowrap font-bold !text-black shadow hover:!bg-blue-300"}
       >
         Send Reports &amp; Invoice
       </button>

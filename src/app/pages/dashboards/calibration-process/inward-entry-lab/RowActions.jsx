@@ -243,7 +243,7 @@ export function RowActions({ row, table }) {
       ? [
           {
             label: "Send Reports & Invoice",
-            color: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm font-semibold",
+            color: "!bg-blue-200 !text-black hover:!bg-blue-300 border border-blue-400 shadow-sm font-bold",
             onClick: () => setDispatchModalOpen(true),
           },
         ]
