@@ -129,11 +129,67 @@ function HtmlSignatoriesWOLH({ signatories }) {
 }
 HtmlSignatoriesWOLH.propTypes = { signatories: PropTypes.array.isRequired };
 
+// ─── Page-fit model for the "Without Letter Head" report (measured 12-Nov-2026) ───
+// The signature block is fixed 15mm above the pre-printed letterhead footer and must never be overlapped.
+// One "unit" = one compact single-line result row (~18px). Page 1 holds PAGE_1_UNITS units under the header/customer block,
+// later pages hold PAGE_N_UNITS. Rows whose text wraps (long parameter / method names, grading tables) count for more units,
+// and a long customer/sample block on page 1 reduces its capacity. The last page also reserves room for Remarks + **End of Report**.
+const PAGE_1_UNITS = 13;
+const PAGE_N_UNITS = 15;
+const LAST_PAGE_RESERVE_UNITS = 2;
+const WOLH_COMPACT_CSS = `
+.wolh-compact thead th, .wolh-compact thead + tbody td { padding-top: 1.5px !important; padding-bottom: 1.5px !important; line-height: 1.2 !important; }
+.wolh-compact div[style*="padding:4px"], .wolh-compact div[style*="padding:5px"] { padding-top: 1.5px !important; padding-bottom: 1.5px !important; line-height: 1.2 !important; }
+`;
+
+function rowUnits(r) {
+  if (r && r.grading_table) return 4;
+  const p = String(r?.parameter_name ?? '').length;
+  const m = String(r?.method?.name ?? r?.method ?? '').length;
+  return Math.max(1, Math.ceil(p / 34), Math.ceil(m / 34));
+}
+
+function page1InfoExtraUnits(data) {
+  const lines = (txt, perLine) => Math.max(1, Math.ceil(String(txt || '').length / perLine));
+  const sample = (lines(`Sample Identification: ${data.productDesc ?? ''}`, 125) - 1)
+    + (data.customerRef && data.customerRef !== '-' ? lines(`Customer Reference :- ${data.customerRef}`, 125) - 1 : 0)
+    + (lines(`Sample Particulars : ${data.productName ?? ''}, Grade: ${data.grade ?? ''}${data.brandValue ? ', ' + data.brandValue : ''}`, 125) - 1);
+  const leftLines = 1 + lines(data.customerName, 48) + lines(data.customerAddress, 52) + (data.showContact && data.contactPerson ? 1 : 0);
+  const leftExtra = Math.max(0, Math.ceil((leftLines * 14 + 12 - 150) / 18));
+  return sample + leftExtra;
+}
+
+function paginateRows(rows, data) {
+  const cap1 = Math.max(4, PAGE_1_UNITS - page1InfoExtraUnits(data));
+  const pages = [];
+  let cur = [];
+  let used = 0;
+  let cap = cap1;
+  rows.forEach((r) => {
+    const u = rowUnits(r);
+    if (cur.length > 0 && used + u > cap) {
+      pages.push(cur);
+      cur = [];
+      used = 0;
+      cap = PAGE_N_UNITS;
+    }
+    cur.push(r);
+    used += u;
+  });
+  const reserve = LAST_PAGE_RESERVE_UNITS + ((data.remarkLines && data.remarkLines.length) || 0);
+  const carry = [];
+  while (cur.length > 1 && used + reserve > cap + 1) { // +1: measured spare space above the signature block
+    const moved = cur.pop();
+    used -= rowUnits(moved);
+    carry.unshift(moved);
+  }
+  pages.push(cur);
+  if (carry.length) pages.push(carry);
+  return pages;
+}
+
 function HtmlDocWithoutLH({ report }) {
   const data = extractData(report);
-
-  const PAGE_1_MAX = 8;
-  const PAGE_N_MAX = 15;
 
   const rawTestResults = data.test_results || [];
   const testResults = rawTestResults.map((r, i) => ({
@@ -141,21 +197,12 @@ function HtmlDocWithoutLH({ report }) {
     sno: r.sno ?? (i + 1)
   }));
 
-  const pageChunks = [];
-  if (testResults.length <= PAGE_1_MAX) {
-    pageChunks.push(testResults);
-  } else {
-    pageChunks.push(testResults.slice(0, PAGE_1_MAX));
-    let remainder = testResults.slice(PAGE_1_MAX);
-    while (remainder.length > 0) {
-      pageChunks.push(remainder.slice(0, PAGE_N_MAX));
-      remainder = remainder.slice(PAGE_N_MAX);
-    }
-  }
+  const pageChunks = paginateRows(testResults, data);
   const totalPages = pageChunks.length || 1;
 
   return (
-    <div style={S1.page}>
+    <div style={S1.page} className="wolh-compact">
+      <style dangerouslySetInnerHTML={{ __html: WOLH_COMPACT_CSS }} />
       {pageChunks.map((chunk, pageIndex) => {
         const isFirstPage = pageIndex === 0;
         const isLastPage = pageIndex === totalPages - 1;
