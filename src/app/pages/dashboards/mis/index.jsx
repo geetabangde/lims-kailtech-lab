@@ -4,6 +4,7 @@ import axios from "utils/axios";
 import { toast } from "sonner";
 import { Page } from "components/shared/Page";
 import * as XLSX from "xlsx";
+import Mis22 from "./Mis22";
 
 const MANAGEMENT_IDS = [31, 113, 65, 37, 32, 90, 97, 41, 34, 33, 110, 136];
 
@@ -175,7 +176,7 @@ const TRACKER_COLUMNS = [
   { key: "invoice_no", label: "Invoice", minWidth: "110px", render: (r) => <span className="whitespace-nowrap">{r.invoice_no}</span> },
 ];
 
-export default function MisSampleFlow() {
+function MisClassic() {
   const isManagement =
     MANAGEMENT_IDS.includes(Number(localStorage.getItem("userId"))) ||
     ["admin", "4"].includes(localStorage.getItem("userRole"));
@@ -1135,4 +1136,29 @@ export default function MisSampleFlow() {
       </div>
     </Page>
   );
+}
+
+// STAGED 2026-11-13: the new 22-column view is the default; management can fall back to the Classic table (unchanged above).
+export default function MisSampleFlow() {
+  const isManagement =
+    MANAGEMENT_IDS.includes(Number(localStorage.getItem("userId"))) ||
+    ["admin", "4"].includes(localStorage.getItem("userRole"));
+  const [view, setView] = useState(() => {
+    try { return localStorage.getItem("mis_view") === "classic" ? "classic" : "22col"; } catch { return "22col"; }
+  });
+  const switchTo = (v) => {
+    setView(v);
+    try { localStorage.setItem("mis_view", v); } catch { /* ignore */ }
+  };
+  if (view === "classic" && isManagement) {
+    return (
+      <>
+        <MisClassic />
+        <button type="button" onClick={() => switchTo("22col")} className="fixed bottom-4 right-4 z-50 px-4 py-2 rounded-full bg-blue-600 text-white text-xs font-semibold shadow-lg">
+          Switch to 22-column view
+        </button>
+      </>
+    );
+  }
+  return <Mis22 onClassic={isManagement ? () => switchTo("classic") : null} />;
 }

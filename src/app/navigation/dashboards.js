@@ -406,7 +406,6 @@ export const canAccessDashboardsRoute = ({
 };
 
 // Function to generate dynamic dashboard config
-const MIS_MANAGEMENT_IDS = [31, 113, 65, 37, 32, 90, 97, 41, 34, 33, 110, 136];
 
 export const generateDashboardsConfig = (labs = [], userPermissions = []) => {
   const permissions = normalizePermissions(userPermissions);
@@ -439,17 +438,15 @@ export const generateDashboardsConfig = (labs = [], userPermissions = []) => {
         transKey: "nav.dashboards.home",
         Icon: HomeIcon,
       },
-      ...(MIS_MANAGEMENT_IDS.includes(employeeId) || ["admin", "4"].includes(localStorage.getItem("userRole") || "")
-        ? [
-            {
-              id: "dashboards.mis",
-              type: NAV_TYPE_ITEM,
-              path: path(ROOT_DASHBOARDS, "/mis"),
-              title: "MIS - Sample Flow (Testing)",
-              Icon: MapIcon,
-            },
-          ]
-        : []),
+      // MIS visible to everyone (22-column view, staged 2026-11-13): the server cuts the data to each user's scope
+      // (management / reporting = all, HOD = own department, ground level = own allotted samples only).
+      {
+        id: "dashboards.mis",
+        type: NAV_TYPE_ITEM,
+        path: path(ROOT_DASHBOARDS, "/mis"),
+        title: "MIS - Sample Flow",
+        Icon: MapIcon,
+      },
       {
         id: "dashboards.material-list",
         path: path(ROOT_DASHBOARDS, "/material-list"),
