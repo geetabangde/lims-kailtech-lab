@@ -116,7 +116,8 @@ function resendHref(r) {
     // opens the EXISTING dispatch list in a new tab; the list page should read ?search= (small change in Phase 4)
     return `/dashboards/calibration-process/inward-entry-lab?caliblocation=${encodeURIComponent(x.caliblocation)}&calibacc=${encodeURIComponent(x.calibacc)}&search=${encodeURIComponent(x.inward)}`;
   }
-  return null; // testing dispatch page is confirmed in Phase 4
+  // testing: simply open the existing Signed Reports page in a new tab, searched by the booking / inward number (the approver handles it there)
+  return `/dashboards/action-items/signed-reports?search=${encodeURIComponent(r.inward_no || r.lrn || "")}`;
 }
 
 // ---- THE 22 COLUMNS (do not change order / names) ----
@@ -186,12 +187,12 @@ const COLUMNS = (ctx) => [
     render: (r) => (r.authorised_date ? <span className="leading-tight block"><span className="font-mono text-[11px]">{r.ulr_no || r.nabl || "-"}</span><span className="block text-[10px] text-gray-500">{fmtDate(r.authorised_date)}</span></span> : <span className="text-gray-400">-</span>),
   },
   {
-    key: "invoice", label: "Invoice", w: 150, tone: "invoice", hide: !ctx.seeInvoice,
+    key: "invoice", label: "Invoice", w: 150, tone: "invoice", headTitle: "Payment status (Paid / Part paid / Balance due) is derived from the invoice balance - to be confirmed with Accounts for the final decision.", hide: !ctx.seeInvoice,
     value: (r) => `${r.invoice_no || ""} ${r.invoice_payment || ""}`,
     render: (r) => (r.invoice_no ? (
       <span className="leading-tight block">
         <span className="font-mono text-[11px]">{r.invoice_no}</span>
-        <span className="block text-[10px]">{r.invoice_amount != null ? `Rs ${Number(r.invoice_amount).toLocaleString("en-IN")}` : ""} <Badge cls={r.invoice_payment === "Paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>{r.invoice_payment}</Badge></span>
+        <span className="block text-[10px]">{r.invoice_amount != null ? `Rs ${Number(r.invoice_amount).toLocaleString("en-IN")}` : ""} <span title="Payment status is derived from the invoice balance - to be confirmed with Accounts for the final decision."><Badge cls={r.invoice_payment === "Paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>{r.invoice_payment}*</Badge></span></span>
       </span>
     ) : <span className="text-gray-400">-</span>),
   },
@@ -416,6 +417,7 @@ export default function Mis22({ onClassic }) {
               <span className="text-gray-600">{rows.length} of {allRows.length} rows</span>
             </div>
             {data?.truncated && <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">Showing the first 2000 rows only - narrow the dates to see the rest.</div>}
+            {seeInvoice && <div className="text-[11px] text-gray-500">* Invoice payment status is derived from the invoice balance and is to be confirmed with Accounts for the final decision.</div>}
             <div className="flex flex-wrap gap-3 text-[11px] text-gray-600">
               <span><span className="inline-block w-3 h-3 align-middle rounded bg-emerald-100 border" /> completed</span>
               <span><span className="inline-block w-3 h-3 align-middle rounded bg-red-200 border" /> stuck / overdue</span>
@@ -428,7 +430,7 @@ export default function Mis22({ onClassic }) {
                 <thead className="sticky top-0 z-10 bg-gray-100 dark:bg-dark-700">
                   <tr>
                     {cols.map((c) => (
-                      <th key={c.key} style={{ minWidth: c.w }} onClick={() => setSort((s) => ({ key: c.key, dir: s.key === c.key && s.dir === "asc" ? "desc" : "asc" }))} className="px-2 py-1.5 text-left font-semibold whitespace-nowrap cursor-pointer border-b select-none">
+                      <th key={c.key} title={c.headTitle} style={{ minWidth: c.w }} onClick={() => setSort((s) => ({ key: c.key, dir: s.key === c.key && s.dir === "asc" ? "desc" : "asc" }))} className="px-2 py-1.5 text-left font-semibold whitespace-nowrap cursor-pointer border-b select-none">
                         {c.label}{sort.key === c.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
                       </th>
                     ))}
