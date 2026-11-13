@@ -49,7 +49,8 @@ function toneOf(r, key) {
   return TONE.none;
 }
 
-const rowKey = (r) => `${r.type}|${r.lrn}|${r.department}|${r.ref_id}`;
+// unique per row (_k is set once when the data loads): the same LRN can appear twice in one department (e.g. OES shown as Chemical)
+const rowKey = (r) => r._k;
 
 function Badge({ children, cls = "bg-slate-100 text-slate-700" }) {
   return <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${cls}`}>{children}</span>;
@@ -304,7 +305,14 @@ export default function Mis22({ onClassic }) {
     axios.get("/mis/gate-pending").then((r) => setGateCount(r.data?.data?.summary || null)).catch(() => {});
   }, [canSeeGate]);
 
-  const allRows = useMemo(() => data?.rows || [], [data]);
+  const allRows = useMemo(() => {
+    const seen = {};
+    return (data?.rows || []).map((r) => {
+      const base = `${r.type}|${r.lrn}|${r.department}|${r.ref_id}`;
+      seen[base] = (seen[base] || 0) + 1;
+      return { ...r, _k: seen[base] > 1 ? `${base}#${seen[base]}` : base };
+    });
+  }, [data]);
   const departments = useMemo(() => [...new Set(allRows.map((r) => r.department))].sort(), [allRows]);
   const chemists = useMemo(() => [...new Set(allRows.map((r) => r.allocated_to).filter(Boolean))].sort(), [allRows]);
   const stages = useMemo(() => [...new Set(allRows.map((r) => r.stage))].sort(), [allRows]);
