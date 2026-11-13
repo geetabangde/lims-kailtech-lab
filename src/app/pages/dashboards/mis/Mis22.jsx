@@ -128,6 +128,16 @@ const COLUMNS = (ctx) => [
   { key: "booking_date", label: "Booking Date", w: 104, value: (r) => fmtDate(r.booking_date), render: (r) => <span className="whitespace-nowrap">{fmtDate(r.booking_date)}</span>, sort: (r) => r.booking_date || "" },
   { key: "inward_no", label: "Inward Entry No.", w: 120, value: (r) => r.inward_no, render: (r) => <span className="font-mono text-blue-700">{r.inward_no}</span> },
   { key: "customer", label: "Customer", w: 190, value: (r) => r.customer, render: (r) => <span className="block max-w-[190px] truncate" title={r.customer}>{r.customer}</span> },
+  {
+    // moved right after Customer on 2026-11-13 (user request)
+    key: "with_since", label: "With / Since", w: 190, value: (r) => `${r.holder_name || r.holder_role || ""} ${fmtDate(r.holder_since)}`,
+    render: (r) => (
+      <span className="leading-tight block">
+        <span className="font-medium">{r.holder_name || r.holder_role || "-"}</span>
+        {r.holder_since ? <span className="block text-[10px] text-gray-500">since {fmtDate(r.holder_since)}</span> : null}
+      </span>
+    ),
+  },
   { key: "lrn", label: "LRN", w: 130, value: (r) => r.lrn, render: (r) => (r.lrn ? <span className="font-mono font-semibold">{r.lrn}</span> : <Badge cls="bg-red-100 text-red-700">PENDING LRN</Badge>) },
   { key: "package", label: "Package", w: 190, value: (r) => r.package, render: (r) => <span className="block max-w-[190px] truncate" title={r.package}>{r.package}</span> },
   {
@@ -136,7 +146,7 @@ const COLUMNS = (ctx) => [
     render: (r, tk) => (
       <span className="inline-flex items-center">
         <span className="leading-tight"><span className="block font-medium">{r.transferred_to || "-"}</span><span className="block text-[10px] text-gray-500">{r.transfer_date ? fmtDate(r.transfer_date) : ""}</span></span>
-        <Expander open={ctx.open[tk] === "chain"} onClick={() => ctx.toggle(tk, "chain")} title="Chain of custody" />
+        <Expander open={ctx.open[tk] === "chain"} onClick={(e) => ctx.toggle(tk, "chain", e)} title="Chain of custody" />
       </span>
     ),
   },
@@ -167,16 +177,7 @@ const COLUMNS = (ctx) => [
     render: (r, tk) => (
       <span className="inline-flex items-center">
         <span className="leading-tight"><span className="block font-medium">{r.allocated_to || "-"}</span><span className="block text-[10px] text-gray-500">{r.allocation_date ? fmtDate(r.allocation_date) : ""}</span></span>
-        <Expander open={ctx.open[tk] === "trail"} onClick={() => ctx.toggle(tk, "trail")} title="Allotment / re-allotment trail" />
-      </span>
-    ),
-  },
-  {
-    key: "with_since", label: "With / Since", w: 190, value: (r) => `${r.holder_name || r.holder_role || ""} ${fmtDate(r.holder_since)}`,
-    render: (r) => (
-      <span className="leading-tight block">
-        <span className="font-medium">{r.holder_name || r.holder_role || "-"}</span>
-        {r.holder_since ? <span className="block text-[10px] text-gray-500">since {fmtDate(r.holder_since)}</span> : null}
+        <Expander open={ctx.open[tk] === "trail"} onClick={(e) => ctx.toggle(tk, "trail", e)} title="Allotment / re-allotment trail" />
       </span>
     ),
   },
@@ -264,7 +265,110 @@ function GateTab({ canSee }) {
   );
 }
 
-const PAGE_SIZE = 100;
+// ---- top cards (same cards and same rules as the Classic view, so the numbers agree) ----
+const LC_CARDS = [
+  { no: 3, label: "Sample Booked" },
+  { no: 4, label: "Allotted to Dept" },
+  { no: 5, label: "Under Testing" },
+  { no: 6, label: "Under HOD / QA" },
+  { no: 9, label: "Ready for Dispatch" },
+  { no: 11, label: "Billing" },
+];
+function lcHealth(total, overdue, anyGt3) {
+  if (!overdue) return "green";
+  if (anyGt3 || overdue / Math.max(total, 1) > 0.1) return "red";
+  return "amber";
+}
+const LC_TONE = {
+  green: { box: "border-emerald-300 bg-emerald-50", strip: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+  amber: { box: "border-amber-300 bg-amber-50", strip: "bg-amber-100 text-amber-900 border-amber-300" },
+  red: { box: "border-red-300 bg-red-50", strip: "bg-red-100 text-red-800 border-red-300" },
+};
+const isBisRow = (x) => String(x.category || "").toLowerCase().includes("bis") || String(x.package || "").toLowerCase().includes("is");
+const isDueRow = (x) => x.report_status === "OVERDUE" || x.testing_status === "OVERDUE";
+const TOP_TILES = [
+  { key: "testing", label: "Testing Samples", sub: "Total Booked", val: "testing", cls: "border-blue-200 bg-blue-50/70", on: "border-blue-600 bg-blue-100 ring-2 ring-blue-600", txt: "text-blue-700" },
+  { key: "calibration", label: "Calibration Samples", sub: "Total Booked", val: "calibration", cls: "border-indigo-200 bg-indigo-50/70", on: "border-indigo-600 bg-indigo-100 ring-2 ring-indigo-600", txt: "text-indigo-700" },
+  { key: "bis_dues", label: "BIS / IS Standard Dues", sub: "Overdue", val: "bis_dues", cls: "border-red-200 bg-red-50/70", on: "border-red-600 bg-red-100 ring-2 ring-red-600", txt: "text-red-700" },
+  { key: "general_dues", label: "General Standard Dues", sub: "Overdue", val: "general_dues", cls: "border-amber-200 bg-amber-50/70", on: "border-amber-600 bg-amber-100 ring-2 ring-amber-600", txt: "text-amber-700" },
+];
+const KPI_CARDS = [
+  { key: "samples_booked", label: "Samples booked (LRN)", f: "samples_booked" },
+  { key: "open_samples", label: "Open (report not sent)", f: "open_samples" },
+  { key: "reports_overdue", label: "Reports OVERDUE", f: "reports_overdue", tone: "red" },
+  { key: "reports_due_soon", label: "Reports due today/tomorrow", f: "reports_due_soon", tone: "amber" },
+  { key: "bill_pending", label: "Bill pending", f: "bill_pending", invoice: true },
+  { key: "urgent_open", label: "Urgent open", f: "urgent_open" },
+  { key: "tat_conflicts", label: "TAT conflicts", f: "tat_conflicts" },
+];
+const COUNTED_KPIS = ["samples_booked", "open_samples", "reports_overdue", "reports_due_soon", "bill_pending"];
+
+function applyCardFilters(list, f, counted) {
+  let r = list;
+  const one = !f.showAll;
+  if (f.topCard) {
+    if (one) r = r.filter((x) => counted.has(x));
+    if (f.topCard === "testing") r = r.filter((x) => (x.type || "") !== "Calibration");
+    else if (f.topCard === "calibration") r = r.filter((x) => (x.type || "") === "Calibration");
+    else if (f.topCard === "bis_dues") r = r.filter((x) => isDueRow(x) && isBisRow(x));
+    else if (f.topCard === "general_dues") r = r.filter((x) => isDueRow(x) && !isBisRow(x));
+  }
+  if (f.kpi) {
+    if (one && COUNTED_KPIS.includes(f.kpi)) r = r.filter((x) => counted.has(x));
+    switch (f.kpi) {
+      case "open_samples": r = r.filter((x) => !x.dispatch_date && !x.emailed_date); break;
+      case "reports_overdue": r = r.filter((x) => !x.dispatch_date && !x.emailed_date && x.report_status === "OVERDUE"); break;
+      case "reports_due_soon": r = r.filter((x) => !x.dispatch_date && !x.emailed_date && x.report_status === "Due soon"); break;
+      case "bill_pending": r = r.filter((x) => (x.dispatch_date || x.emailed_date) && !x.invoice_no); break;
+      case "urgent_open": r = r.filter((x) => x.priority === "Urgent" && !x.results_date); break;
+      case "tat_conflicts": r = r.filter((x) => Number(x.tat_conflict) === 1); break;
+      default: break;
+    }
+  }
+  if (f.lcStage) {
+    if (one && f.lcStatus !== "Done") r = r.filter((x) => counted.has(x) && (f.lcStage === 3 || Number(x.lifecycle_no) === f.lcStage));
+    else if (f.lcStage !== 3) r = r.filter((x) => Number(x.lifecycle_no) === f.lcStage);
+  }
+  if (f.lcStatus) {
+    r = r.filter((x) => {
+      const no = Number(x.lifecycle_no);
+      if (f.lcStatus === "Done") return f.lcStage && f.lcStage !== 3 ? no > f.lcStage : no === 12;
+      if (f.lcStatus === "Pending") return no !== 12 && x.lifecycle_status === "Pending";
+      return x.lifecycle_status === "Overdue";
+    });
+  }
+  return r;
+}
+
+function LifecycleCard({ card, stat, health, active, overdueActive, onMain, onOverdue }) {
+  const tone = LC_TONE[health] || LC_TONE.green;
+  const hasOverdue = card.no !== 3 && stat.overdue > 0;
+  return (
+    <div className="flex flex-col">
+      <div onClick={onMain} role="button" tabIndex={0} title={`Show all samples at: ${card.label}`} className={`rounded-t-xl border p-2.5 cursor-pointer select-none hover:shadow-md ${tone.box} ${active && !overdueActive ? "ring-2 ring-blue-600" : ""}`}>
+        <div className="text-[11px] uppercase tracking-wide text-gray-600 truncate">{card.label}</div>
+        <div className="flex items-end justify-between mt-0.5">
+          <span className="text-2xl font-bold text-gray-900">{stat.total}</span>
+          {stat.urgent > 0 && <span className="text-[10px] font-bold text-red-700 bg-red-100 rounded-full px-1.5 py-0.5" title="Urgent samples at this stage">{stat.urgent} urgent</span>}
+        </div>
+      </div>
+      <div onClick={hasOverdue ? onOverdue : undefined} role={hasOverdue ? "button" : undefined} title={hasOverdue ? `Show only overdue samples at: ${card.label}` : undefined} className={`rounded-b-xl border border-t-0 px-3 py-1 text-[11px] font-semibold select-none ${hasOverdue ? `${tone.strip} cursor-pointer hover:brightness-95` : "bg-gray-50 text-gray-400 border-gray-200"} ${overdueActive ? "ring-2 ring-blue-600" : ""}`}>
+        {card.no === 3 ? "all booked" : hasOverdue ? `${stat.overdue} overdue` : "0 overdue"}
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ label, value, tone, active, onClick }) {
+  return (
+    <div onClick={onClick} role="button" tabIndex={0} title={`Click to filter the table by ${label}`} className={`rounded-xl border p-2.5 cursor-pointer select-none hover:shadow-md ${active ? "ring-2 ring-blue-600 border-blue-600 bg-blue-50" : tone === "red" ? "border-red-200 bg-red-50" : tone === "amber" ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"}`}>
+      <div className="text-[11px] uppercase tracking-wide text-gray-500 truncate">{label}</div>
+      <div className="text-xl font-bold text-gray-900 mt-0.5">{value ?? "-"}</div>
+    </div>
+  );
+}
+
+const ROWS_OPTIONS = [10, 100, 500, 1000, 10000];
 
 export default function Mis22({ onClassic }) {
   const [from, setFrom] = useState(daysAgo(30));
@@ -280,21 +384,29 @@ export default function Mis22({ onClassic }) {
   const [colFilters, setColFilters] = useState({});
   const [sort, setSort] = useState({ key: "booking_date", dir: "asc" });
   const [open, setOpen] = useState({});
-  const [page, setPage] = useState(0);
+  const [openLeft, setOpenLeft] = useState({});
+  const [limit, setLimit] = useState(500);
+  const [topCard, setTopCard] = useState(null); // testing | calibration | bis_dues | general_dues
+  const [kpi, setKpi] = useState(null);
+  const [lcStage, setLcStage] = useState(null);
+  const [lcStatus, setLcStatus] = useState("");
+  const [showAll, setShowAll] = useState(false); // false = one row per sample, matches the card count
+  const [cardsOpen, setCardsOpen] = useState(true);
   const [tab, setTab] = useState("table");
   const [gateCount, setGateCount] = useState(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (limOverride) => {
+    const lim = typeof limOverride === "number" ? limOverride : limit;
     setLoading(true);
     try {
-      const res = await axios.get("/mis/tracker22", { params: { from, to, type } });
+      const res = await axios.get("/mis/tracker22", { params: { from, to, type, limit: lim }, timeout: 180000 });
       setData(res.data?.data || null);
-      setPage(0);
       setOpen({});
+      setOpenLeft({});
     } catch (e) {
       toast.error(e.response?.data?.message || "Could not load the MIS.");
     } finally { setLoading(false); }
-  }, [from, to, type]);
+  }, [from, to, type, limit]);
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -325,12 +437,48 @@ export default function Mis22({ onClassic }) {
     return m;
   }, [allRows]);
 
-  const toggle = (k, what) => setOpen((o) => ({ ...o, [k]: o[k] === what ? null : what }));
+  // the detail panel opens on the row below, lined up under the clicked cell (and kept inside the table's width)
+  const toggle = (k, what, e) => {
+    const td = e?.currentTarget?.closest?.("td");
+    if (td) {
+      const panelW = what === "chain" ? 1000 : 650;
+      const tableW = td.closest("table")?.scrollWidth || 0;
+      const left = Math.max(0, Math.min(td.offsetLeft, tableW - panelW));
+      setOpenLeft((m) => ({ ...m, [k]: left }));
+    }
+    setOpen((o) => ({ ...o, [k]: o[k] === what ? null : what }));
+    setTimeout(() => {
+      try { document.querySelector(`[data-detail="${CSS.escape(k)}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch { /* ignore */ }
+    }, 60);
+  };
   const seeInvoice = !!data?.user_scope?.see_invoice;
   const cols = useMemo(() => COLUMNS({ groupNo, open, toggle, seeInvoice }).filter((c) => !c.hide), [groupNo, open, seeInvoice]);
 
+  // one row per LRN at its least advanced (not closed) stage, preferring an overdue department: same rule as the Classic cards
+  const counted = useMemo(() => {
+    const byLrn = new Map();
+    allRows.forEach((x) => {
+      const k = String(x.lrn);
+      if (!byLrn.has(k)) byLrn.set(k, []);
+      byLrn.get(k).push(x);
+    });
+    const set = new Set();
+    byLrn.forEach((l) => {
+      let min = null;
+      l.forEach((x) => { const n = Number(x.lifecycle_no); if (n !== 12 && (min === null || n < min)) min = n; });
+      const pool = min === null ? l : l.filter((x) => Number(x.lifecycle_no) === min);
+      set.add(pool.find((x) => x.lifecycle_status === "Overdue") || pool[0]);
+    });
+    return set;
+  }, [allRows]);
+  const lcGt3 = useMemo(() => {
+    const m = {};
+    allRows.forEach((x) => { if (Number(x.overdue_gt3) === 1) m[Number(x.lifecycle_no)] = true; });
+    return m;
+  }, [allRows]);
+
   const rows = useMemo(() => {
-    let list = allRows.filter((r) => {
+    let list = applyCardFilters(allRows, { topCard, kpi, lcStage, lcStatus, showAll }, counted).filter((r) => {
       if (department && r.department !== department) return false;
       if (chemist && r.allocated_to !== chemist) return false;
       if (customer && !String(r.customer || "").toLowerCase().includes(customer.toLowerCase())) return false;
@@ -358,11 +506,21 @@ export default function Mis22({ onClassic }) {
       });
     }
     return list;
-  }, [allRows, department, chemist, customer, stage, cat, colFilters, sort, cols]);
+  }, [allRows, department, chemist, customer, stage, cat, colFilters, sort, cols, topCard, kpi, lcStage, lcStatus, showAll, counted]);
 
-  const clearAll = () => { setDepartment(""); setChemist(""); setCustomer(""); setStage(""); setCat("all"); setColFilters({}); setSort({ key: "booking_date", dir: "asc" }); };
-  const paged = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const clearCards = () => { setTopCard(null); setKpi(null); setLcStage(null); setLcStatus(""); setShowAll(false); };
+  const clearAll = () => { setDepartment(""); setChemist(""); setCustomer(""); setStage(""); setCat("all"); setColFilters({}); setSort({ key: "booking_date", dir: "asc" }); clearCards(); };
+  const scrollToTable = () => setTimeout(() => document.getElementById("mis22-table")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  const pickTop = (k) => { setKpi(null); setLcStage(null); setLcStatus(""); setShowAll(false); setTopCard((p) => (p === k ? null : k)); scrollToTable(); };
+  const pickKpi = (k) => { setTopCard(null); setLcStage(null); setLcStatus(""); setShowAll(false); setKpi((p) => (p === k ? null : k)); scrollToTable(); };
+  const pickLc = (no, status) => {
+    setKpi(null); setTopCard(null); setShowAll(false);
+    if (lcStage === no && lcStatus === status) { setLcStage(null); setLcStatus(""); return; }
+    setLcStage(no); setLcStatus(status); scrollToTable();
+  };
+  const summ = data?.summary || {};
+  const cardsFilterOn = !!(topCard || kpi || lcStage || lcStatus);
+  const cardLabel = topCard ? TOP_TILES.find((t) => t.key === topCard)?.label : kpi ? KPI_CARDS.find((k) => k.key === kpi)?.label : lcStage ? `${LC_CARDS.find((c) => c.no === lcStage)?.label}${lcStatus ? ` - ${lcStatus}` : ""}` : "";
 
   const exportExcel = () => {
     const aoa = [cols.map((c) => c.label), ...rows.map((r) => cols.map((c) => c.value(r)))];
@@ -406,6 +564,42 @@ export default function Mis22({ onClassic }) {
 
         {tab === "gate" ? <GateTab canSee={canSeeGate} /> : (
           <>
+            {tier && tier !== "self" && (
+              <div className="space-y-2">
+                <button type="button" onClick={() => setCardsOpen((v) => !v)} className="text-[11px] font-semibold text-blue-700 underline">{cardsOpen ? "Hide summary cards" : "Show summary cards"}</button>
+                {cardsOpen && (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {TOP_TILES.map((t) => (
+                        <div key={t.key} onClick={() => pickTop(t.key)} role="button" tabIndex={0} title={`Click to filter the table: ${t.label}`} className={`rounded-xl border p-2.5 flex items-center justify-between cursor-pointer select-none hover:shadow-md ${topCard === t.key ? t.on : t.cls}`}>
+                          <div>
+                            <div className={`text-[10px] font-bold uppercase tracking-wider ${t.txt}`}>{t.label}</div>
+                            <div className="text-xl font-extrabold text-gray-900">{summ.split_counts?.[t.val] ?? 0}</div>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-white/70 text-gray-700">{topCard === t.key ? "Filtered ✓" : t.sub}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Sample lifecycle - click a card to see its samples, click the strip below it to see only the overdue ones</div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                      {LC_CARDS.filter((c) => seeInvoice || c.no !== 11).map((c) => {
+                        const stat = summ.lifecycle?.[c.no] || { total: 0, overdue: 0, urgent: 0 };
+                        return (
+                          <LifecycleCard key={c.no} card={c} stat={stat} health={lcHealth(stat.total, stat.overdue, !!lcGt3[c.no])} active={lcStage === c.no} overdueActive={lcStage === c.no && lcStatus === "Overdue"} onMain={() => pickLc(c.no, "")} onOverdue={() => pickLc(c.no, "Overdue")} />
+                        );
+                      })}
+                    </div>
+                    <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500">Overview</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                      {KPI_CARDS.filter((k) => seeInvoice || !k.invoice).map((k) => (
+                        <KpiCard key={k.key} label={k.label} value={summ[k.f]} tone={summ[k.f] ? k.tone : undefined} active={kpi === k.key} onClick={() => pickKpi(k.key)} />
+                      ))}
+                    </div>
+                    <div className="text-[10px] text-gray-500">Cards count samples (LRN) at their least advanced department; the table has one row per department. Same cards and rules as the Classic view. BIS / General split is provisional (packages &quot;as per IS ####&quot; = BIS).</div>
+                  </>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap items-end gap-2 text-xs">
               <label>From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="block border rounded-lg p-1.5" /></label>
               <label>To<input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="block border rounded-lg p-1.5" /></label>
@@ -419,12 +613,21 @@ export default function Mis22({ onClassic }) {
                   <button key={k} type="button" onClick={() => setCat(k)} className={`px-2.5 py-1.5 rounded-full border font-semibold ${cat === k ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-300"}`}>{l}</button>
                 ))}
               </div>
-              <button type="button" onClick={load} disabled={loading} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold">{loading ? "Loading..." : "Filter"}</button>
+              <label>Rows<select value={limit} onChange={(e) => { const n = Number(e.target.value); setLimit(n); load(n); }} className="block border rounded-lg p-1.5">{ROWS_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+              <button type="button" onClick={() => load()} disabled={loading} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold">{loading ? "Loading..." : "Filter"}</button>
               <button type="button" onClick={() => { clearAll(); }} className="px-3 py-2 rounded-lg border font-semibold">Clear All</button>
               <button type="button" onClick={exportExcel} disabled={!rows.length} className="px-3 py-2 rounded-lg bg-emerald-600 text-white font-semibold disabled:opacity-50">Export Excel (.xlsx)</button>
               <span className="text-gray-600">{rows.length} of {allRows.length} rows</span>
             </div>
-            {data?.truncated && <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">Showing the first 2000 rows only - narrow the dates to see the rest.</div>}
+            {cardsFilterOn && (
+              <div className="text-xs flex items-center gap-2 flex-wrap">
+                <span>Showing: <b>{cardLabel}</b>{!showAll && lcStatus !== "Done" ? ` - ${rows.length} samples` : ` - ${rows.length} department rows`}</span>
+                {lcStatus !== "Done" && <label className="inline-flex items-center gap-1"><input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} /> show every department row</label>}
+                <button type="button" onClick={clearCards} className="px-2 py-0.5 rounded border font-semibold">Clear card filter</button>
+              </div>
+            )}
+            {data?.truncated && <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">Showing the first {limit} rows only - choose a larger Rows value or narrow the dates to see the rest.</div>}
+            {limit >= 1000 && <div className="text-[11px] text-gray-500">Rows {limit}: loading and scrolling may be slow on a large range.</div>}
             {seeInvoice && <div className="text-[11px] text-gray-500">* Invoice payment status is derived from the invoice balance and is to be confirmed with Accounts for the final decision.</div>}
             <div className="flex flex-wrap gap-3 text-[11px] text-gray-600">
               <span><span className="inline-block w-3 h-3 align-middle rounded bg-emerald-100 border" /> completed</span>
@@ -433,7 +636,7 @@ export default function Mis22({ onClassic }) {
               <span><span className="inline-block w-3 h-3 align-middle rounded bg-gray-100 border" /> not reached yet</span>
             </div>
 
-            <div className="overflow-auto border rounded-lg max-h-[70vh]">
+            <div id="mis22-table" className="overflow-auto border rounded-lg max-h-[70vh]">
               <table className="text-xs border-collapse" style={{ minWidth: cols.reduce((a, c) => a + c.w, 0) }}>
                 <thead className="sticky top-0 z-10 bg-gray-100 dark:bg-dark-700">
                   <tr>
@@ -455,7 +658,7 @@ export default function Mis22({ onClassic }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {paged.map((r) => {
+                  {rows.map((r) => {
                     const tk = rowKey(r);
                     const band = groupNo[r.customer] % 2 ? "" : "bg-slate-50/60 dark:bg-dark-900/30";
                     return (
@@ -467,7 +670,11 @@ export default function Mis22({ onClassic }) {
                         </tr>
                         {open[tk] && (
                           <tr className="border-b bg-white dark:bg-dark-800">
-                            <td colSpan={cols.length} className="px-4 py-2">{open[tk] === "chain" ? <ChainDetail r={r} /> : <TrailDetail r={r} />}</td>
+                            <td colSpan={cols.length} className="px-0 py-2">
+                              <div data-detail={tk} style={{ marginLeft: openLeft[tk] || 0, width: open[tk] === "chain" ? 1000 : 650, maxWidth: "100%" }} className="px-4">
+                                {open[tk] === "chain" ? <ChainDetail r={r} /> : <TrailDetail r={r} />}
+                              </div>
+                            </td>
                           </tr>
                         )}
                       </Fragment>
@@ -477,13 +684,6 @@ export default function Mis22({ onClassic }) {
                 </tbody>
               </table>
             </div>
-            {pages > 1 && (
-              <div className="flex items-center gap-2 text-xs">
-                <button type="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)} className="px-2 py-1 border rounded disabled:opacity-40">Prev</button>
-                <span>Page {page + 1} of {pages}</span>
-                <button type="button" disabled={page + 1 >= pages} onClick={() => setPage((p) => p + 1)} className="px-2 py-1 border rounded disabled:opacity-40">Next</button>
-              </div>
-            )}
           </>
         )}
       </div>

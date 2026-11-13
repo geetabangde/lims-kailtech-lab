@@ -206,6 +206,67 @@ export const BiomedicalTable = ({ biomedicalRawData, dynamicObservations, instru
             ? (isConv ? `4. PERFORMANCE TESTING (Source) - UUC in ${convInfo?.uuc_unit ?? ''}, master in ${convInfo?.master_unit ?? ''}` : '4. PERFORMANCE TESTING (Source)')
             : '4. PERFORMANCE TESTING');
 
+        // Suction machine (unit-conversion Source table): EXACT certificate layout (2026-11-13, same headings / sub-columns / order as the
+        // certificate "4. PERFORMANCE TESTING" table). Values are numbers only, the unit is in the heading. Other tables are unchanged.
+        if (isConv && !isElectricalGroup) {
+          const th = 'border border-gray-300 px-3 py-2 text-center align-middle';
+          const td = 'border border-gray-300 px-3 py-2 text-center';
+          const num = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : '-');
+          return (
+            <div key={`${section}-${mode}-${variant ?? 'all'}`} className="overflow-x-auto">
+              <table className="w-full border border-gray-300 text-sm">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th colSpan="10" className="border border-gray-300 px-3 py-2 text-left font-bold">4. PERFORMANCE TESTING</th>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <th rowSpan="2" className={th}>Sr. No.</th>
+                    <th rowSpan="2" className={th}>Set Pressure on UUC (mmHg)</th>
+                    <th rowSpan="2" className={th}>Set Pressure on UUC (bar)</th>
+                    <th colSpan="3" className={th}>Observation on Master (bar)</th>
+                    <th rowSpan="2" className={th}>Mean (bar)</th>
+                    <th rowSpan="2" className={th}>Deviation (bar)</th>
+                    <th rowSpan="2" className={th}>Repeatability (bar)</th>
+                    <th rowSpan="2" className={th}>Hysteresis (bar)</th>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <th className={th}>M1 (&uarr;)</th>
+                    <th className={th}>M2 (&darr;)</th>
+                    <th className={th}>M3 (&uarr;)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {points.map((point, index) => {
+                    const mlcD = (point.mlc_decimals != null && point.mlc_decimals !== 'NA' && !isNaN(parseInt(point.mlc_decimals, 10))) ? parseInt(point.mlc_decimals, 10) : 3;
+                    const mv = (k) => {
+                      const r = point.master_readings?.[k];
+                      return parseFloat(typeof r === 'object' && r !== null ? r.value : r);
+                    };
+                    const m1 = mv(0), m2 = mv(1), m3 = mv(2);
+                    const avgBar = parseFloat(calcAvgFromReadings(point.master_readings, point.mlc_decimals) ?? point.average_master);
+                    const setBar = parseFloat(point.unit_conversion.converted_set_point);
+                    const setMm = parseFloat(point.set_point);
+                    return (
+                      <tr key={point.calibration_point_id ?? index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className={td}>{index + 1}</td>
+                        <td className={td}>{Number.isFinite(setMm) ? Math.round(setMm) : '-'}</td>
+                        <td className={td}>{num(setBar, 3)}</td>
+                        <td className={td}>{num(m1, mlcD)}</td>
+                        <td className={td}>{num(m2, mlcD)}</td>
+                        <td className={td}>{num(m3, mlcD)}</td>
+                        <td className={td}>{num(avgBar, mlcD)}</td>
+                        <td className={td}>{num(setBar - avgBar, mlcD)}</td>
+                        <td className={td}>{num(Math.abs(m3 - m1), mlcD)}</td>
+                        <td className={td}>{num(Math.abs(m2 - m1), mlcD)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+
         return (
           <div key={`${section}-${mode}-${variant ?? 'all'}`} className="overflow-x-auto">
             <table className="w-full border border-gray-300 text-sm">
