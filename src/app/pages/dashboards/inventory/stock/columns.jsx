@@ -20,7 +20,7 @@ export const columns = [
   }),
 
   // API: idno / newidno
-  columnHelper.accessor("idno", {
+  columnHelper.accessor((row) => row.newidno || row.idno || "", {
     id: "id_no",
     header: "ID no",
     cell: (info) => info.row.original.newidno || info.getValue() || "-",

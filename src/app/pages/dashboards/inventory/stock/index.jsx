@@ -8,11 +8,12 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import clsx from "clsx";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useState, useEffect, useCallback } from "react";
 import axios from "utils/axios";
 
 // Local Imports
-import { Table, THead, TBody, Th, Tr, Td, Card } from "components/ui";
+import { Table, THead, TBody, Th, Tr, Td, Card, Input } from "components/ui";
 import { TableSortIcon } from "components/shared/table/TableSortIcon";
 import { Page } from "components/shared/Page";
 import { useLockScrollbar, useLocalStorage } from "hooks";
@@ -154,6 +155,16 @@ export default function Stock() {
                 Stock Report
               </h3>
               <div className="flex items-center gap-2">
+                <Input
+                  value={globalFilter}
+                  onChange={(e) => setGlobalFilter(e.target.value)}
+                  prefix={<MagnifyingGlassIcon className="size-4" />}
+                  classNames={{
+                    input: "h-8 w-64 text-xs ring-primary-500/50 focus:ring-3",
+                    root: "shrink-0",
+                  }}
+                  placeholder="Search product, ID no, category, location, batch..."
+                />
                 <TableConfig table={table} />
               </div>
             </div>
@@ -171,7 +182,7 @@ export default function Stock() {
                         <Th
                           key={header.id}
                           className={clsx(
-                            "bg-gray-50 text-xs font-bold uppercase text-gray-600 dark:bg-dark-800 dark:text-dark-200",
+                            "bg-gray-200 text-xs font-semibold uppercase text-gray-800 dark:bg-dark-800 dark:text-dark-100",
                             header.column.getCanPin() && [
                               header.column.getIsPinned() === "left" &&
                               "sticky z-2 ltr:left-0 rtl:right-0",
@@ -199,6 +210,30 @@ export default function Stock() {
                               header.getContext(),
                             )
                           )}
+                        </Th>
+                      ))}
+                    </Tr>
+                  ))}
+                  {/* per-column search row (same look as the Signed Reports page) */}
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <Tr key={headerGroup.id + "-filter"} className="bg-gray-50 dark:bg-dark-800/50">
+                      {headerGroup.headers.map((header) => (
+                        <Th
+                          key={header.id + "-filter"}
+                          className="border-t border-gray-300 px-2 py-1.5 dark:border-dark-600"
+                        >
+                          {header.column.getCanFilter() ? (
+                            <Input
+                              size="sm"
+                              placeholder="Search..."
+                              value={header.column.getFilterValue() ?? ""}
+                              onChange={(e) => header.column.setFilterValue(e.target.value)}
+                              classNames={{
+                                input:
+                                  "ring-primary-500/30 dark:bg-dark-900 dark:border-dark-700 h-7 border-gray-300 px-2 py-1 text-[10px] font-normal normal-case focus:ring-1",
+                              }}
+                            />
+                          ) : null}
                         </Th>
                       ))}
                     </Tr>
