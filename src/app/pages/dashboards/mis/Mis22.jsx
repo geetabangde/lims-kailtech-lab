@@ -737,6 +737,58 @@ function applyCardFilters(list, f, counted) {
   return r;
 }
 
+// ---- MASTER SEARCH + FLOW FILTERS (client side, on the rows already loaded) ----
+const searchText = (r) => {
+  const parts = [
+    r.inward_no, r.lrn, r.brn, r.ref_id, r.customer, r.package, r.department, r.allocated_to, r.bd_person, r.ulr_no, r.invoice_no, r.docket,
+    r.holder_name, r.holder_role, r.stage, r.current_status, r.type, r.nabl, r.priority, r.email_status, r.whatsapp_status, fmtDate(r.booking_date),
+  ];
+  (Array.isArray(r.email_logs) ? r.email_logs : []).forEach((m) => {
+    parts.push(m.subject, m.po, m.sent_by, (m.to || []).join(" "), (m.cc || []).join(" "), (m.bcc || []).join(" "));
+    (m.items || []).forEach((it) => parts.push(it.no, it.name, it.serial, it.file));
+  });
+  return parts.filter((x) => x !== null && x !== undefined && x !== "").join(" ").toLowerCase();
+};
+
+const FLOW_OPTIONS = [
+  { id: "awaiting", label: "Awaiting allocation", test: (r) => r.stage === "Allotted to Dept" || r.stage === "Awaiting allocation" },
+  { id: "testing", label: "Under testing", test: (r) => r.stage === "Under testing" },
+  { id: "test_ready", label: "Test ready (results entered)", test: (r) => !!r.results_date },
+  { id: "under_review", label: "Under review (HOD / QA)", test: (r) => r.reviewed_status === "Pending Review" },
+  { id: "review_done", label: "Review done", test: (r) => r.reviewed_status === "Reviewed" },
+  { id: "authorised", label: "Authorised", test: (r) => !!r.authorised_date },
+  { id: "report_ready", label: "Report ready (not yet sent)", test: (r) => !!r.authorised_date && !r.report_delivered },
+  { id: "report_sent", label: "Report sent / delivered", test: (r) => !!r.report_delivered },
+  { id: "closed", label: "Closed", test: (r) => r.stage === "Closed" },
+];
+const OVERDUE_OPTIONS = [
+  { id: "overdue", label: "Overdue (any)", test: (r) => Number(r.overdue_days_22) > 0 },
+  { id: "gt3", label: "Overdue > 3 days", test: (r) => Number(r.overdue_days_22) > 3 },
+  { id: "testing_overdue", label: "Testing overdue", test: (r) => r.testing_status === "OVERDUE" },
+  { id: "ontrack", label: "On track", test: (r) => !(Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE") && !r.report_delivered },
+  { id: "delivered", label: "Delivered", test: (r) => !!r.report_delivered },
+];
+const EMAIL_OPTIONS = [
+  { id: "pending", label: "Email pending", test: (r) => r.email_status === "Pending" },
+  { id: "sent", label: "Email sent", test: (r) => r.email_status === "Sent" },
+  { id: "test", label: "Test email only", test: (r) => r.email_status === "Test only" },
+  { id: "none", label: "No email yet (not authorised)", test: (r) => !r.email_status || r.email_status === "-" },
+];
+const WA_SENT = (r) => !!r.whatsapp_status && !["-", "Pending", "Not enabled"].includes(r.whatsapp_status);
+const WA_OPTIONS = [
+  { id: "sent", label: "WhatsApp sent", test: WA_SENT },
+  { id: "pending", label: "WhatsApp pending", test: (r) => r.whatsapp_status === "Pending" },
+  { id: "off", label: "WhatsApp not enabled", test: (r) => r.whatsapp_status === "Not enabled" },
+];
+const INVOICE_OPTIONS = [
+  { id: "pending", label: "Invoice pending (not raised)", test: (r) => !r.invoice_no },
+  { id: "raised", label: "Invoice raised", test: (r) => !!r.invoice_no },
+  { id: "paid", label: "Paid", test: (r) => r.invoice_payment === "Paid" },
+  { id: "part", label: "Part paid", test: (r) => r.invoice_payment === "Part paid" },
+  { id: "due", label: "Balance due", test: (r) => r.invoice_payment === "Balance due" },
+];
+const pickOpt = (list, id) => list.find((o) => o.id === id);
+
 // ---- MAIN 8 COLUMNS DEFINITION ----
 const COLUMNS = (ctx) => [
   {
@@ -776,6 +828,14 @@ const COLUMNS = (ctx) => [
     value: (r) => r.brn || r.inward_no || "",
     render: (r) => <span className="font-mono text-blue-700 font-semibold">{r.brn || r.inward_no || "-"}</span>,
     sort: (r) => r.brn || r.inward_no || "",
+  },
+  {
+    key: "inward_no",
+    label: "Inward No.",
+    w: 110,
+    value: (r) => r.inward_no || "",
+    render: (r) => <span className="font-mono font-semibold text-gray-900">{r.inward_no || "-"}</span>,
+    sort: (r) => r.inward_no || "",
   },
   {
     key: "customer",
@@ -861,6 +921,14 @@ export default function Mis22({ onClassic }) {
   const [lcStatus, setLcStatus] = useState("");
   const [showAll, setShowAll] = useState(false);
 
+  const [master, setMaster] = useState("");
+  const [fFlow, setFFlow] = useState("");
+  const [fOver, setFOver] = useState("");
+  const [fEmail, setFEmail] = useState("");
+  const [fWa, setFWa] = useState("");
+  const [fInv, setFInv] = useState("");
+  const [fPri, setFPri] = useState("");
+
   const [colFilters, setColFilters] = useState({});
   const [sort, setSort] = useState({ key: "booking_date", dir: "asc" });
 
@@ -870,11 +938,11 @@ export default function Mis22({ onClassic }) {
   const [gateCount, setGateCount] = useState(null);
   const [detailRow, setDetailRow] = useState(null);
 
-  const load = useCallback(async (limOverride) => {
+  const load = useCallback(async (limOverride, range) => {
     const lim = typeof limOverride === "number" ? limOverride : limit;
     setLoading(true);
     try {
-      const res = await axios.get("/mis/tracker22", { params: { from, to, type, limit: lim }, timeout: 180000 });
+      const res = await axios.get("/mis/tracker22", { params: { from: range?.from || from, to: range?.to || to, type, limit: lim }, timeout: 180000 });
       const d = res.data?.data || null;
       setData(d);
       // Auto-lock type to calibration if scope is calibration only
@@ -936,8 +1004,11 @@ export default function Mis22({ onClassic }) {
     return m;
   }, [allRows]);
 
+  const masterTerms = useMemo(() => master.toLowerCase().split(/\s+/).filter(Boolean), [master]);
+  const hayRows = useMemo(() => (masterTerms.length ? allRows.map((r) => ({ ...r, _hay: searchText(r) })) : allRows), [allRows, masterTerms.length]);
+
   const rows = useMemo(() => {
-    let list = applyCardFilters(allRows, { topCard, kpi, lcStage, lcStatus, showAll }, counted).filter((r) => {
+    let list = applyCardFilters(hayRows, { topCard, kpi, lcStage, lcStatus, showAll }, counted).filter((r) => {
       if (department && r.department !== department) return false;
       if (chemist && r.allocated_to !== chemist) return false;
       if (customer && !String(r.customer || "").toLowerCase().includes(customer.toLowerCase())) return false;
@@ -945,6 +1016,16 @@ export default function Mis22({ onClassic }) {
       if (cat === "urgent" && r.priority !== "Urgent") return false;
       if (cat === "gt3" && !(Number(r.overdue_days_22) > 3)) return false;
       if (cat === "ontrack" && (Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE")) return false;
+      if (fPri && r.priority !== fPri) return false;
+      if (fFlow && !pickOpt(FLOW_OPTIONS, fFlow)?.test(r)) return false;
+      if (fOver && !pickOpt(OVERDUE_OPTIONS, fOver)?.test(r)) return false;
+      if (fEmail && !pickOpt(EMAIL_OPTIONS, fEmail)?.test(r)) return false;
+      if (fWa && !pickOpt(WA_OPTIONS, fWa)?.test(r)) return false;
+      if (fInv && !pickOpt(INVOICE_OPTIONS, fInv)?.test(r)) return false;
+      if (masterTerms.length) {
+        const h = r._hay;
+        if (!masterTerms.every((t) => h.includes(t))) return false;
+      }
       return true;
     });
 
@@ -967,10 +1048,10 @@ export default function Mis22({ onClassic }) {
       });
     }
     return list;
-  }, [allRows, department, chemist, customer, stage, cat, colFilters, sort, cols, topCard, kpi, lcStage, lcStatus, showAll, counted]);
+  }, [hayRows, department, chemist, customer, stage, cat, colFilters, sort, cols, topCard, kpi, lcStage, lcStatus, showAll, counted, fPri, fFlow, fOver, fEmail, fWa, fInv, masterTerms]);
 
   const clearCards = () => { setTopCard(null); setKpi(null); setLcStage(null); setLcStatus(""); setShowAll(false); };
-  const clearAll = () => { setDepartment(""); setChemist(""); setCustomer(""); setStage(""); setCat("all"); setColFilters({}); setSort({ key: "booking_date", dir: "asc" }); clearCards(); };
+  const clearAll = () => { setDepartment(""); setChemist(""); setCustomer(""); setStage(""); setCat("all"); setMaster(""); setFFlow(""); setFOver(""); setFEmail(""); setFWa(""); setFInv(""); setFPri(""); setColFilters({}); setSort({ key: "booking_date", dir: "asc" }); clearCards(); };
   const scrollToTable = () => setTimeout(() => document.getElementById("mis-table")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
 
   const pickTop = (k) => { setKpi(null); setLcStage(null); setLcStatus(""); setShowAll(false); setTopCard((p) => (p === k ? null : k)); scrollToTable(); };
@@ -1233,6 +1314,33 @@ export default function Mis22({ onClassic }) {
 
             {/* FILTER CONTROLS BAR */}
             <div className="bg-white dark:bg-dark-800 border rounded-xl p-3 space-y-2">
+              {/* MASTER SEARCH: any detail (inward no, LRN, BRN, customer, instrument / package, chemist, ULR, invoice, docket, e-mail address / subject / certificate no.) */}
+              <div className="flex flex-wrap items-end gap-2 text-xs">
+                <label className="flex-1 min-w-[260px]">
+                  <span className="block text-[11px] text-gray-500 font-medium">Master Search (any detail; several words = all must match)</span>
+                  <input
+                    value={master}
+                    onChange={(e) => setMaster(e.target.value)}
+                    placeholder="Inward no, LRN, BRN, customer, package / instrument, chemist, ULR, invoice, docket, e-mail, certificate no..."
+                    className="w-full border-2 border-[#18457c]/40 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    const t = isoDate(new Date());
+                    const f = isoDate(new Date(Date.now() - 399 * 86400000));
+                    setFrom(f); setTo(t); setLimit(10000);
+                    load(10000, { from: f, to: t });
+                  }}
+                  className="px-3 py-2 rounded-lg border border-[#18457c] text-[#18457c] font-semibold hover:bg-blue-50"
+                  title="Reload the last 13 months with the maximum Rows so the master search can find older samples"
+                >
+                  Search all dates
+                </button>
+              </div>
+              <div className="text-[10px] text-gray-500">Master Search and the filters below work on the rows loaded for the From / To dates and Rows value; use &quot;Search all dates&quot; to look at the last 13 months.</div>
               <div className="flex flex-wrap items-end gap-2 text-xs">
                 <label>
                   <span className="block text-[11px] text-gray-500 font-medium">From</span>
@@ -1317,6 +1425,33 @@ export default function Mis22({ onClassic }) {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                   Export Excel (.xlsx)
                 </button>
+              </div>
+
+              {/* FLOW STATUS FILTERS */}
+              <div className="flex flex-wrap items-end gap-2 text-xs pt-1 border-t">
+                {[
+                  { label: "Flow status", v: fFlow, set: setFFlow, opts: FLOW_OPTIONS, all: "All flow statuses" },
+                  { label: "Overdue / On track", v: fOver, set: setFOver, opts: OVERDUE_OPTIONS, all: "All" },
+                  { label: "Email", v: fEmail, set: setFEmail, opts: EMAIL_OPTIONS, all: "All e-mail statuses" },
+                  { label: "WhatsApp", v: fWa, set: setFWa, opts: WA_OPTIONS, all: "All WhatsApp statuses" },
+                  ...(seeInvoice ? [{ label: "Invoice", v: fInv, set: setFInv, opts: INVOICE_OPTIONS, all: "All invoice statuses" }] : []),
+                ].map((f) => (
+                  <label key={f.label}>
+                    <span className="block text-[11px] text-gray-500 font-medium">{f.label}</span>
+                    <select value={f.v} onChange={(e) => f.set(e.target.value)} className="border rounded-lg p-1.5 bg-white">
+                      <option value="">{f.all}</option>
+                      {f.opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                  </label>
+                ))}
+                <label>
+                  <span className="block text-[11px] text-gray-500 font-medium">Priority</span>
+                  <select value={fPri} onChange={(e) => setFPri(e.target.value)} className="border rounded-lg p-1.5 bg-white">
+                    <option value="">All priorities</option>
+                    <option value="Urgent">Urgent</option>
+                    <option value="Normal">Normal</option>
+                  </select>
+                </label>
               </div>
 
               {/* Quick filter pills */}
