@@ -6,6 +6,7 @@ import axios from "utils/axios";
 import { toast } from "sonner";
 import { Page } from "components/shared/Page";
 import * as XLSX from "xlsx";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 // DD-MM-YYYY format everywhere (client rule). Accepts "YYYY-MM-DD" or "YYYY-MM-DD hh:mm:ss"; blank / zero dates show "-".
 const fmtDate = (v) => {
@@ -736,6 +737,18 @@ function applyCardFilters(list, f, counted) {
   return r;
 }
 
+// ---- FILTER PANEL LOOK (matches the Signed Reports page: light theme-blue panel, dark uppercase headings, h-8 inputs, primary focus ring) ----
+const F_LBL = "block text-[11px] font-bold uppercase tracking-wide text-gray-800 dark:text-gray-100 mb-1";
+const F_INP = "h-8 rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:bg-gray-100 dark:bg-dark-900 dark:border-dark-600 dark:text-gray-100";
+function FGroup({ title, children }) {
+  return (
+    <div className="rounded-lg border border-[#18457c]/15 bg-white dark:bg-dark-900/60 p-2.5 shadow-sm">
+      <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#18457c] dark:text-blue-300 mb-2 pb-1 border-b border-[#18457c]/10">{title}</div>
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-2">{children}</div>
+    </div>
+  );
+}
+
 // ---- MASTER SEARCH + FLOW FILTERS (client side, on the rows already loaded) ----
 const searchText = (r) => {
   const parts = [
@@ -1311,18 +1324,21 @@ export default function Mis22({ onClassic }) {
               )}
             </div>
 
-            {/* FILTER CONTROLS BAR */}
-            <div className="bg-white dark:bg-dark-800 border rounded-xl p-3 space-y-2">
+            {/* FILTER PANEL (same design language as the Signed Reports page) */}
+            <div className="rounded-xl border border-[#18457c]/20 bg-[#eef3fa] dark:bg-dark-800 p-3 space-y-3 shadow-sm">
               {/* MASTER SEARCH: any detail (inward no, LRN, BRN, customer, instrument / package, chemist, ULR, invoice, docket, e-mail address / subject / certificate no.) */}
-              <div className="flex flex-wrap items-end gap-2 text-xs">
+              <div className="flex flex-wrap items-end gap-2">
                 <label className="flex-1 min-w-[260px]">
-                  <span className="block text-[11px] text-gray-500 font-medium">Master Search (any detail; several words = all must match)</span>
-                  <input
-                    value={master}
-                    onChange={(e) => setMaster(e.target.value)}
-                    placeholder="Inward no, LRN, BRN, customer, package / instrument, chemist, ULR, invoice, docket, e-mail, certificate no..."
-                    className="w-full border-2 border-[#18457c]/40 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <span className={F_LBL}>Master Search <span className="normal-case font-medium text-gray-600">(any detail - several words: all must match)</span></span>
+                  <span className="relative block">
+                    <MagnifyingGlassIcon className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                    <input
+                      value={master}
+                      onChange={(e) => setMaster(e.target.value)}
+                      placeholder="Inward no, LRN, BRN, customer, package / instrument, chemist, ULR, invoice, docket, e-mail, certificate no..."
+                      className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-8 pr-3 text-xs text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:bg-dark-900 dark:border-dark-600 dark:text-gray-100"
+                    />
+                  </span>
                 </label>
                 <button
                   type="button"
@@ -1333,101 +1349,85 @@ export default function Mis22({ onClassic }) {
                     setFrom(f); setTo(t); setLimit(10000);
                     load(10000, { from: f, to: t });
                   }}
-                  className="px-3 py-2 rounded-lg border border-[#18457c] text-[#18457c] font-semibold hover:bg-blue-50"
+                  className="h-9 px-3 rounded-lg border border-[#18457c] bg-white text-[#18457c] text-xs font-bold hover:bg-blue-50 shadow-sm"
                   title="Reload the last 13 months with the maximum Rows so the master search can find older samples"
                 >
                   Search all dates
                 </button>
               </div>
-              <div className="text-[10px] text-gray-500">Master Search and the filters below work on the rows loaded for the From / To dates and Rows value; use &quot;Search all dates&quot; to look at the last 13 months.</div>
-              <div className="flex flex-wrap items-end gap-2 text-xs">
-                <label>
-                  <span className="block text-[11px] text-gray-500 font-medium">From</span>
-                  <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="border rounded-lg p-1.5 focus:ring-1 focus:ring-blue-500" />
-                </label>
-                <label>
-                  <span className="block text-[11px] text-gray-500 font-medium">To</span>
-                  <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border rounded-lg p-1.5 focus:ring-1 focus:ring-blue-500" />
-                </label>
-                <label>
-                  <span className="block text-[11px] text-gray-500 font-medium">Type</span>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    disabled={isCalibOnly}
-                    className="border rounded-lg p-1.5 bg-white disabled:bg-gray-100 font-medium"
-                  >
-                    {!isCalibOnly && <option value="all">All</option>}
-                    {!isCalibOnly && <option value="testing">Testing</option>}
-                    <option value="calibration">Calibration</option>
-                  </select>
-                </label>
-                <label>
-                  <span className="block text-[11px] text-gray-500 font-medium">Lab / Department</span>
-                  <select
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    disabled={departments.length <= 1}
-                    className="border rounded-lg p-1.5 bg-white disabled:bg-gray-100 font-medium"
-                  >
-                    <option value="">All departments</option>
-                    {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </label>
-                <label>
-                  <span className="block text-[11px] text-gray-500 font-medium">Chemist / Engineer</span>
-                  <select value={chemist} onChange={(e) => setChemist(e.target.value)} className="border rounded-lg p-1.5 bg-white">
-                    <option value="">All engineers/chemists</option>
-                    {chemists.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </label>
-                <label>
-                  <span className="block text-[11px] text-gray-500 font-medium">Customer</span>
-                  <input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" className="border rounded-lg p-1.5 w-44" />
-                </label>
-                <label>
-                  <span className="block text-[11px] text-gray-500 font-medium">Stage</span>
-                  <select value={stage} onChange={(e) => setStage(e.target.value)} className="border rounded-lg p-1.5 bg-white">
-                    <option value="">All stages</option>
-                    {stages.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </label>
-                <label>
-                  <span className="block text-[11px] text-gray-500 font-medium">Rows</span>
-                  <select
-                    value={limit}
-                    onChange={(e) => {
-                      const lim = Number(e.target.value);
-                      setLimit(lim);
-                      load(lim);
-                    }}
-                    className="border rounded-lg p-1.5 bg-white font-bold text-[#18457c]"
-                  >
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100 (Default)</option>
-                    <option value="500">500</option>
-                    <option value="1000">1000</option>
-                    <option value="5000">5000</option>
-                    <option value="10000">10000</option>
-                  </select>
-                </label>
+              <div className="text-[11px] text-gray-600 -mt-1">Master Search and the filters below work on the rows loaded for the From / To dates and Rows value; use &quot;Search all dates&quot; to look at the last 13 months.</div>
 
-                <button type="button" onClick={() => load()} disabled={loading} className="px-4 py-2 rounded-lg bg-[#18457c] text-white font-semibold shadow-sm hover:bg-[#133763]">
-                  {loading ? "Loading..." : "Filter"}
-                </button>
-                <button type="button" onClick={clearAll} className="px-3 py-2 rounded-lg border font-semibold hover:bg-gray-50">
-                  Clear All
-                </button>
-                <button type="button" onClick={exportExcel} disabled={!rows.length} className="px-3 py-2 rounded-lg bg-emerald-600 text-white font-semibold shadow-sm hover:bg-emerald-700 flex items-center gap-1.5">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                  Export Excel (.xlsx)
-                </button>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                <FGroup title="Date & Scope">
+                  <label>
+                    <span className={F_LBL}>From</span>
+                    <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={F_INP} />
+                  </label>
+                  <label>
+                    <span className={F_LBL}>To</span>
+                    <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={F_INP} />
+                  </label>
+                  <label>
+                    <span className={F_LBL}>Type</span>
+                    <select value={type} onChange={(e) => setType(e.target.value)} disabled={isCalibOnly} className={`${F_INP} font-medium`}>
+                      {!isCalibOnly && <option value="all">All</option>}
+                      {!isCalibOnly && <option value="testing">Testing</option>}
+                      <option value="calibration">Calibration</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span className={F_LBL}>Rows</span>
+                    <select
+                      value={limit}
+                      onChange={(e) => {
+                        const lim = Number(e.target.value);
+                        setLimit(lim);
+                        load(lim);
+                      }}
+                      className={`${F_INP} font-bold text-[#18457c]`}
+                    >
+                      <option value="10">10</option>
+                      <option value="25">25</option>
+                      <option value="50">50</option>
+                      <option value="100">100 (Default)</option>
+                      <option value="500">500</option>
+                      <option value="1000">1000</option>
+                      <option value="5000">5000</option>
+                      <option value="10000">10000</option>
+                    </select>
+                  </label>
+                </FGroup>
+
+                <FGroup title="Lab, People & Stage">
+                  <label>
+                    <span className={F_LBL}>Lab / Department</span>
+                    <select value={department} onChange={(e) => setDepartment(e.target.value)} disabled={departments.length <= 1} className={`${F_INP} font-medium`}>
+                      <option value="">All departments</option>
+                      {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span className={F_LBL}>Chemist / Engineer</span>
+                    <select value={chemist} onChange={(e) => setChemist(e.target.value)} className={F_INP}>
+                      <option value="">All engineers/chemists</option>
+                      {chemists.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    <span className={F_LBL}>Customer</span>
+                    <input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" className={`${F_INP} w-44`} />
+                  </label>
+                  <label>
+                    <span className={F_LBL}>Stage</span>
+                    <select value={stage} onChange={(e) => setStage(e.target.value)} className={F_INP}>
+                      <option value="">All stages</option>
+                      {stages.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </label>
+                </FGroup>
               </div>
 
-              {/* FLOW STATUS FILTERS */}
-              <div className="flex flex-wrap items-end gap-2 text-xs pt-1 border-t">
+              <FGroup title="Flow & Status">
                 {[
                   { label: "Flow status", v: fFlow, set: setFFlow, opts: FLOW_OPTIONS, all: "All flow statuses" },
                   { label: "Overdue / On track", v: fOver, set: setFOver, opts: OVERDUE_OPTIONS, all: "All" },
@@ -1436,26 +1436,37 @@ export default function Mis22({ onClassic }) {
                   ...(seeInvoice ? [{ label: "Invoice", v: fInv, set: setFInv, opts: INVOICE_OPTIONS, all: "All invoice statuses" }] : []),
                 ].map((f) => (
                   <label key={f.label}>
-                    <span className="block text-[11px] text-gray-500 font-medium">{f.label}</span>
-                    <select value={f.v} onChange={(e) => f.set(e.target.value)} className="border rounded-lg p-1.5 bg-white">
+                    <span className={F_LBL}>{f.label}</span>
+                    <select value={f.v} onChange={(e) => f.set(e.target.value)} className={`${F_INP} ${f.v ? "border-[#18457c] ring-1 ring-[#18457c]/30 font-semibold" : ""}`}>
                       <option value="">{f.all}</option>
                       {f.opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                     </select>
                   </label>
                 ))}
                 <label>
-                  <span className="block text-[11px] text-gray-500 font-medium">Priority</span>
-                  <select value={fPri} onChange={(e) => setFPri(e.target.value)} className="border rounded-lg p-1.5 bg-white">
+                  <span className={F_LBL}>Priority</span>
+                  <select value={fPri} onChange={(e) => setFPri(e.target.value)} className={`${F_INP} ${fPri ? "border-[#18457c] ring-1 ring-[#18457c]/30 font-semibold" : ""}`}>
                     <option value="">All priorities</option>
                     <option value="Urgent">Urgent</option>
                     <option value="Normal">Normal</option>
                   </select>
                 </label>
-              </div>
+              </FGroup>
 
-              {/* Quick filter pills */}
-              <div className="flex flex-wrap items-center gap-2 pt-1 border-t text-xs">
-                <span className="text-[11px] text-gray-500 font-semibold">Quick View:</span>
+              {/* Actions + quick view */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => load()} disabled={loading} className="h-8 px-4 rounded-lg bg-[#18457c] text-white text-xs font-bold shadow-sm hover:bg-[#133763]">
+                  {loading ? "Loading..." : "Filter"}
+                </button>
+                <button type="button" onClick={clearAll} className="h-8 px-3 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-800 hover:bg-gray-50 shadow-sm">
+                  Clear All
+                </button>
+                <button type="button" onClick={exportExcel} disabled={!rows.length} className="h-8 px-3 rounded-lg bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  Export Excel (.xlsx)
+                </button>
+                <span className="mx-1 h-5 border-l border-[#18457c]/20" />
+                <span className="text-[11px] text-gray-800 font-bold uppercase tracking-wide">Quick View:</span>
                 {[
                   { id: "all", label: "All" },
                   { id: "urgent", label: "Urgent" },
@@ -1466,14 +1477,14 @@ export default function Mis22({ onClassic }) {
                     key={p.id}
                     type="button"
                     onClick={() => setCat(p.id)}
-                    className={`px-3 py-1 rounded-full font-semibold transition-all ${
-                      cat === p.id ? "bg-[#18457c] text-white shadow-sm" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
+                      cat === p.id ? "bg-[#18457c] border-[#18457c] text-white shadow-sm" : "bg-white border-gray-300 text-gray-700 hover:bg-blue-50"
                     }`}
                   >
                     {p.label}
                   </button>
                 ))}
-                <span className="ml-auto text-xs font-bold text-gray-600">
+                <span className="ml-auto text-xs font-bold text-[#18457c] bg-white border border-[#18457c]/20 rounded-full px-3 py-1">
                   {rows.length} of {allRows.length} rows displayed
                 </span>
               </div>
@@ -1489,7 +1500,7 @@ export default function Mis22({ onClassic }) {
             {/* SIMPLIFIED MAIN TABLE (8 COLUMNS ONLY, NO EXPANDER ROWS) */}
             <div id="mis-table" className="overflow-auto border rounded-xl max-h-[70vh] shadow-sm bg-white dark:bg-dark-800">
               <table className="w-full text-xs border-collapse">
-                <thead className="sticky top-0 z-10 bg-gray-100 dark:bg-dark-700 shadow-sm">
+                <thead className="sticky top-0 z-10 bg-gray-200 dark:bg-dark-800 shadow-sm">
                   {/* Column Header Titles with Sort click */}
                   <tr>
                     {cols.map((c) => (
@@ -1500,12 +1511,12 @@ export default function Mis22({ onClassic }) {
                           if (c.key === "action") return;
                           setSort((s) => ({ key: c.key, dir: s.key === c.key && s.dir === "asc" ? "desc" : "asc" }));
                         }}
-                        className={`px-3 py-2 text-left font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap border-b select-none ${c.key !== "action" ? "cursor-pointer hover:bg-gray-200/80" : ""}`}
+                        className={`px-3 py-2 text-left text-[11px] font-semibold uppercase text-gray-800 dark:text-dark-100 whitespace-nowrap border-b border-gray-300 select-none ${c.key !== "action" ? "cursor-pointer hover:bg-gray-300/70" : ""}`}
                       >
                         <div className="flex items-center gap-1">
                           <span>{c.label}</span>
                           {sort.key === c.key && (
-                            <span className="text-blue-700 font-bold">{sort.dir === "asc" ? " â–²" : " â–¼"}</span>
+                            <span className="text-blue-700 font-bold">{sort.dir === "asc" ? " \u25B2" : " \u25BC"}</span>
                           )}
                         </div>
                       </th>
@@ -1514,20 +1525,20 @@ export default function Mis22({ onClassic }) {
                   {/* Column Search Filters */}
                   <tr>
                     {cols.map((c) => (
-                      <th key={c.key} className="px-2 py-1 border-b bg-gray-50 dark:bg-dark-800">
+                      <th key={c.key} className="px-2 py-1.5 border-b border-t border-gray-300 bg-gray-50 dark:bg-dark-800/50">
                         {c.key !== "action" ? (
                           <div className="relative">
                             <input
                               value={colFilters[c.key] || ""}
                               onChange={(e) => setColFilters((f) => ({ ...f, [c.key]: e.target.value }))}
                               placeholder="Search..."
-                              className="w-full border rounded px-2 py-0.5 text-[11px] font-normal pr-5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-full h-7 rounded-lg border border-gray-300 bg-white px-2 py-1 text-[10px] font-normal normal-case pr-5 focus:outline-none focus:ring-1 focus:ring-primary-500/40 dark:bg-dark-900 dark:border-dark-700"
                             />
                             {colFilters[c.key] ? (
                               <button
                                 type="button"
                                 onClick={() => setColFilters((f) => ({ ...f, [c.key]: "" }))}
-                                className="absolute right-1 top-0.5 text-gray-400 hover:text-red-600 font-bold"
+                                className="absolute right-1.5 top-1 text-gray-400 hover:text-red-600 font-bold leading-none"
                               >
                                 &times;
                               </button>
