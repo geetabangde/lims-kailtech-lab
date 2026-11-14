@@ -19,6 +19,68 @@ const isoDate = (d) => {
   return z.toISOString().slice(0, 10);
 };
 
+// Email dispatch details inside the Detail modal (same fields as the Email Log tab: who sent, subject, To / CC / BCC, P.O., size, IP, declaration, attachments).
+function EmailLogDetail({ logs }) {
+  const list = Array.isArray(logs) ? logs : [];
+  const join = (a) => (Array.isArray(a) && a.length ? a.join(", ") : "-");
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-dark-700">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Email details</div>
+      {list.length === 0 ? (
+        <div className="text-[11px] text-gray-500 italic">No email has been sent for this sample yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {list.map((m) => (
+            <div key={m.id} className={`rounded-lg border p-3 text-[11px] space-y-1 bg-white dark:bg-dark-800 ${m.status === "failed" ? "border-red-300" : "border-gray-200 dark:border-dark-700"}`}>
+              <div className="flex flex-wrap items-center gap-2 text-gray-700 dark:text-gray-200">
+                <span className="font-semibold">{m.sent_at ? `${fmtDate(m.sent_at)} ${String(m.sent_at).slice(11, 16)}` : "-"}</span>
+                <span>{m.sent_by}{m.sent_by_role ? <span className="text-gray-500"> ({m.sent_by_role})</span> : null}</span>
+                <Badge cls={m.mode === "test" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}>{m.mode === "test" ? "TEST" : "LIVE"}</Badge>
+                <Badge cls={m.status === "failed" ? "bg-red-100 text-red-800" : "bg-slate-100 text-slate-700"}>{m.status}</Badge>
+              </div>
+              <div><b>Subject:</b> {m.subject || "-"}</div>
+              <div><b>To:</b> {join(m.to)} &nbsp; <b>CC:</b> {join(m.cc)} &nbsp; <b>BCC:</b> {join(m.bcc)}</div>
+              <div>
+                <b>P.O. / reference:</b> {m.po || "-"} &nbsp; <b>Total size:</b> {(Number(m.size_bytes || 0) / 1048576).toFixed(2)} MB
+                {m.parts > 1 ? ` (part ${m.part} of ${m.parts})` : " (sent as one ZIP)"} &nbsp; <b>IP:</b> {m.ip || "-"}
+              </div>
+              <div><b>Declaration:</b> {m.declaration || "-"}</div>
+              {m.declaration_text ? <div className="text-gray-600 dark:text-gray-400">{m.declaration_text}</div> : null}
+              {m.error ? <div className="text-red-700"><b>Error:</b> {m.error}</div> : null}
+              {Array.isArray(m.items) && m.items.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full mt-1 border border-gray-200 dark:border-dark-700">
+                    <thead className="text-gray-500">
+                      <tr>
+                        <th className="p-1 text-left">Certificate / report</th>
+                        <th className="p-1 text-left">Instrument / product</th>
+                        <th className="p-1 text-left">Serial / ID</th>
+                        <th className="p-1 text-left">File</th>
+                        <th className="p-1 text-left">Size</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {m.items.map((it, i) => (
+                        <tr key={i} className="border-t border-gray-200 dark:border-dark-700">
+                          <td className="p-1">{it.no}</td>
+                          <td className="p-1">{it.name}</td>
+                          <td className="p-1">{it.serial || "-"}</td>
+                          <td className="p-1 break-all">{it.file}</td>
+                          <td className="p-1 whitespace-nowrap">{(Number(it.bytes || 0) / 1024).toFixed(0)} KB</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Badge({ children, cls = "bg-slate-100 text-slate-700" }) {
   return (
     <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap inline-flex items-center gap-1 ${cls}`}>
@@ -340,6 +402,7 @@ function DetailModal({ r, onClose, seeInvoice }) {
                 * Payment status is derived from invoice balance and is to be confirmed with Accounts for final decisions.
               </div>
             )}
+            <EmailLogDetail logs={r.email_logs} />
           </div>
 
           {/* Section 5: Allotment History / Trail */}
