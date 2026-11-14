@@ -20,24 +20,28 @@ const isoDate = (d) => {
 };
 
 // Email dispatch details inside the Detail modal (same fields as the Email Log tab: who sent, subject, To / CC / BCC, P.O., size, IP, declaration, attachments).
-function EmailLogDetail({ logs }) {
+function EmailLogDetail({ logs, pending }) {
   const list = Array.isArray(logs) ? logs : [];
   const join = (a) => (Array.isArray(a) && a.length ? a.join(", ") : "-");
   return (
     <div className="mt-3 pt-3 border-t border-gray-200 dark:border-dark-700">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">Email details</div>
+      <div className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-2">Email details</div>
       {list.length === 0 ? (
-        <div className="text-[11px] text-gray-500 italic">No email has been sent for this sample yet.</div>
+        pending ? (
+          <div className="text-xs rounded-lg border border-amber-300 bg-amber-50 text-amber-900 px-3 py-2 font-medium">Email pending &ndash; report is ready, no email has been sent for this sample yet.</div>
+        ) : (
+          <div className="text-xs text-gray-500 italic">No email has been sent for this sample yet.</div>
+        )
       ) : (
         <div className="space-y-3">
-          {list.map((m) => (
-            <div key={m.id} className={`rounded-lg border p-3 text-[11px] space-y-1 bg-white dark:bg-dark-800 ${m.status === "failed" ? "border-red-300" : "border-gray-200 dark:border-dark-700"}`}>
-              <div className="flex flex-wrap items-center gap-2 text-gray-700 dark:text-gray-200">
-                <span className="font-semibold">{m.sent_at ? `${fmtDate(m.sent_at)} ${String(m.sent_at).slice(11, 16)}` : "-"}</span>
+          {list.map((m, idx) => (
+            <details key={m.id} open={idx === 0} className={`rounded-lg border p-3 text-xs space-y-1 bg-white dark:bg-dark-800 ${m.status === "failed" ? "border-red-300" : "border-gray-200 dark:border-dark-700"}`}>
+              <summary className="flex flex-wrap items-center gap-2 text-gray-700 dark:text-gray-200 cursor-pointer select-none">
+                <span className="font-semibold">{idx === 0 ? "Latest: " : "Earlier: "}{m.sent_at ? `${fmtDate(m.sent_at)} ${String(m.sent_at).slice(11, 16)}` : "-"}</span>
                 <span>{m.sent_by}{m.sent_by_role ? <span className="text-gray-500"> ({m.sent_by_role})</span> : null}</span>
                 <Badge cls={m.mode === "test" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}>{m.mode === "test" ? "TEST" : "LIVE"}</Badge>
                 <Badge cls={m.status === "failed" ? "bg-red-100 text-red-800" : "bg-slate-100 text-slate-700"}>{m.status}</Badge>
-              </div>
+              </summary>
               <div><b>Subject:</b> {m.subject || "-"}</div>
               <div><b>To:</b> {join(m.to)} &nbsp; <b>CC:</b> {join(m.cc)} &nbsp; <b>BCC:</b> {join(m.bcc)}</div>
               <div>
@@ -73,7 +77,7 @@ function EmailLogDetail({ logs }) {
                   </table>
                 </div>
               )}
-            </div>
+            </details>
           ))}
         </div>
       )}
@@ -108,28 +112,24 @@ const STEP_DOT = {
 function ChainDetail({ r }) {
   return (
     <div>
-      <div className="text-xs font-bold uppercase tracking-wider text-[#18457c] dark:text-blue-400 mb-2 flex items-center gap-1.5">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        Chain of Custody Timeline
-        {r.custody_note ? <span className="font-normal text-gray-500 text-[11px]">({r.custody_note})</span> : null}
-      </div>
-      <div className="flex flex-wrap items-stretch gap-1.5">
+      <div className="text-[11px] text-gray-500 mb-2">(Derived from recorded timestamps - the system has no single custody log for samples.)</div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
         {(r.custody_chain || []).map((s, i) => (
           <Fragment key={s.key}>
-            {i > 0 && <span className="self-center text-gray-400 font-bold">&rarr;</span>}
-            <div className={`rounded-xl border px-3 py-1.5 text-[11px] min-w-[120px] transition-all ${
+            <div className={`rounded-xl border px-3 py-2 text-xs min-h-[72px] transition-all ${
               s.state === "done"
                 ? "border-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/30"
                 : s.state === "current"
-                ? "border-red-300 bg-red-50/80 dark:bg-red-950/30 ring-1 ring-red-400"
+                ? "border-red-400 bg-red-50 dark:bg-red-950/30 ring-2 ring-red-400 shadow-md"
                 : "border-gray-200 bg-gray-50/60 text-gray-400 dark:bg-dark-800"
             }`}>
-              <div className="flex items-center gap-1.5 font-bold">
+              <div className="flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wide text-gray-600 dark:text-gray-300">
+                <span className="text-gray-400">{i + 1}.</span>
                 <span className={`w-2 h-2 rounded-full ${STEP_DOT[s.state] || STEP_DOT.pending}`} />
                 {s.label}
               </div>
-              <div className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">{s.holder || (s.state === "unlinked" ? "Not linked" : "-")}</div>
-              <div className="text-[10px] text-gray-500">{s.at ? fmtDate(s.at) : s.state === "current" ? "Waiting" : ""}</div>
+              <div className="font-semibold text-[13px] text-gray-900 dark:text-gray-100 mt-1">{s.holder || (s.state === "unlinked" ? "Not linked" : "-")}</div>
+              <div className="text-[11px] text-gray-500">{s.at ? fmtDate(s.at) : s.state === "current" ? "Waiting" : ""}</div>
             </div>
           </Fragment>
         ))}
@@ -142,10 +142,6 @@ function TrailDetail({ r }) {
   const t = r.allotment_trail || [];
   return (
     <div>
-      <div className="text-xs font-bold uppercase tracking-wider text-[#18457c] dark:text-blue-400 mb-2 flex items-center gap-1.5">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-        Allotment & Re-allotment History
-      </div>
       {t.length === 0 ? (
         <div className="text-xs text-gray-500 italic">No allotment recorded yet.</div>
       ) : (
@@ -184,246 +180,249 @@ function TrailDetail({ r }) {
 }
 
 // ---- NON-TABULAR ROW DETAIL MODAL ----
+const CHIP_TONES = {
+  red: "border-red-300 bg-red-50 text-red-800",
+  amber: "border-amber-300 bg-amber-50 text-amber-900",
+  green: "border-emerald-300 bg-emerald-50 text-emerald-800",
+  blue: "border-blue-300 bg-blue-50 text-blue-900",
+  slate: "border-gray-300 bg-gray-50 text-gray-800",
+};
+
+function Chip({ label, value, note, tone = "slate" }) {
+  return (
+    <div className={`rounded-lg border px-3 py-1.5 min-w-[120px] ${CHIP_TONES[tone] || CHIP_TONES.slate}`}>
+      <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70">{label}</div>
+      <div className="text-[13px] font-bold leading-tight">{value}</div>
+      {note ? <div className="text-[10px] opacity-75 leading-tight">{note}</div> : null}
+    </div>
+  );
+}
+
+// label above value: label 12px mid-grey, value 14px dark. `empty` shows a soft placeholder instead of a bare dash.
+function Field({ label, children, empty, className = "" }) {
+  return (
+    <div className={className}>
+      <span className="block text-xs text-gray-600 dark:text-gray-400 font-medium mb-0.5">{label}</span>
+      {empty ? <span className="text-[13px] text-gray-400 italic">{empty}</span> : <span className="text-sm text-gray-900 dark:text-gray-100 font-medium">{children}</span>}
+    </div>
+  );
+}
+
+const SECTION_ACCENT = {
+  blue: "border-l-[#18457c]",
+  amber: "border-l-amber-500",
+  green: "border-l-emerald-500",
+  violet: "border-l-violet-500",
+  slate: "border-l-slate-400",
+};
+
+function Section({ id, title, accent = "blue", children }) {
+  return (
+    <section id={id} className={`rounded-xl border border-gray-200 dark:border-dark-700 border-l-4 ${SECTION_ACCENT[accent] || SECTION_ACCENT.blue} bg-white dark:bg-dark-900/40 shadow-sm p-4 scroll-mt-16`}>
+      <h3 className="text-[13px] font-bold uppercase tracking-wide text-[#18457c] dark:text-blue-300 mb-3">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+// "Dispatch desk (no dispatch / email record yet)" -> main "Dispatch desk" + small note
+function splitNote(text) {
+  const m = String(text || "").match(/^(.*?)\s*\((.*)\)\s*$/);
+  return m && m[1] ? { main: m[1], note: m[2] } : { main: text || "-", note: "" };
+}
+
+const MODAL_NAV = [
+  { id: "md-sample", label: "Sample" },
+  { id: "md-timeline", label: "Timeline" },
+  { id: "md-review", label: "Review" },
+  { id: "md-email", label: "Email" },
+  { id: "md-history", label: "History" },
+  { id: "md-custody", label: "Custody" },
+];
+
 function DetailModal({ r, onClose, seeInvoice }) {
   if (!r) return null;
   const isOverdue = Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE";
   const href = resendHref(r);
+  const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const holder = r.holder_name || r.holder_role || "-";
+  const holderParts = splitNote(holder);
+  const statusParts = splitNote(r.current_status || r.transferred_to || r.stage || "-");
+  const emailTone = r.email_status === "Sent" ? "green" : r.email_status === "Pending" ? "amber" : r.email_status === "Test only" ? "blue" : "slate";
+  const invChip = !seeInvoice ? null : r.invoice_no
+    ? { value: r.invoice_payment || "Raised", note: r.invoice_no, tone: r.invoice_payment === "Paid" ? "green" : "amber" }
+    : { value: "Not raised", note: "", tone: "slate" };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 sm:p-5 backdrop-blur-sm animate-fade-in">
-      <div className="max-w-4xl w-full bg-white dark:bg-dark-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-dark-700 overflow-hidden max-h-[92vh] flex flex-col">
+      <div className="max-w-5xl w-full bg-slate-50 dark:bg-dark-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-dark-700 overflow-hidden max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="bg-[#18457c] text-white px-6 py-4 flex items-center justify-between shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center font-bold text-white text-xs">
-              MIS
-            </div>
-            <div>
-              <div className="text-base font-bold flex items-center gap-2">
+        <div className="bg-[#18457c] text-white px-6 py-4 flex items-center justify-between shadow-lg z-20">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center font-bold text-white text-xs shrink-0">MIS</div>
+            <div className="min-w-0">
+              <div className="text-lg font-bold flex flex-wrap items-center gap-2">
                 Sample Details: {r.lrn || r.brn || `Inward ${r.inward_no}`}
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-white/20 text-white">
-                  {r.stage || r.department}
-                </span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-white/20 text-white">{r.stage || r.department}</span>
               </div>
-              <div className="text-xs text-blue-100 truncate max-w-xl">
-                {r.customer}
-              </div>
+              <div className="text-sm text-blue-100 truncate">{r.customer}</div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors text-lg font-bold"
-            title="Close"
-          >
+          <button type="button" onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors text-xl font-bold shrink-0" title="Close">
             &times;
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="overflow-y-auto p-5 sm:p-6 space-y-4 text-xs text-gray-700 dark:text-gray-300">
-          
-          {/* Card 1: Sample & Customer Information */}
-          <div className="rounded-xl border border-gray-200 dark:border-dark-700 bg-slate-50/50 dark:bg-dark-900/40 p-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#18457c] dark:text-blue-400 mb-3 flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-              Sample & Job Information
+        <div className="overflow-y-auto text-xs text-gray-700 dark:text-gray-300">
+          {/* Sticky summary chips + jump menu */}
+          <div className="sticky top-0 z-10 bg-white/95 dark:bg-dark-800/95 backdrop-blur border-b border-gray-200 dark:border-dark-700 px-5 sm:px-6 pt-3 pb-2 space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <Chip label="Stage" value={r.stage || "-"} tone="blue" />
+              <Chip
+                label="Report"
+                value={Number(r.overdue_days_22) > 0 ? `+${r.overdue_days_22} days overdue` : r.report_delivered ? "Delivered" : isOverdue ? "Overdue" : "On track"}
+                note={r.report_due_22 ? `due ${fmtDate(r.report_due_22)}` : ""}
+                tone={Number(r.overdue_days_22) > 0 || (isOverdue && !r.report_delivered) ? "red" : r.report_delivered ? "slate" : "green"}
+              />
+              <Chip label="With" value={holderParts.main} note={r.holder_since ? `since ${fmtDate(r.holder_since)}` : ""} tone="slate" />
+              <Chip label="Email" value={r.email_status || "-"} note={r.email_date ? fmtDate(r.email_date) : ""} tone={emailTone} />
+              {invChip ? <Chip label="Invoice" value={invChip.value} note={invChip.note} tone={invChip.tone} /> : null}
+              {r.priority === "Urgent" ? <Chip label="Priority" value="Urgent" tone="red" /> : null}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div>
-                <span className="block text-[11px] text-gray-500">LRN</span>
-                <span className="font-mono font-bold text-gray-900 dark:text-white text-[13px]">{r.lrn || "-"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">BRN (Booking Ref No)</span>
-                <span className="font-mono font-medium text-blue-700 dark:text-blue-400">{r.brn || r.inward_no || "-"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Inward Entry No.</span>
-                <span className="font-mono text-gray-800 dark:text-gray-200">{r.inward_no || "-"}</span>
-              </div>
-              <div className="md:col-span-2">
-                <span className="block text-[11px] text-gray-500">Customer</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{r.customer || "-"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Department</span>
-                <Badge cls="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-semibold">{r.department || "-"}</Badge>
-              </div>
-              <div className="md:col-span-2">
-                <span className="block text-[11px] text-gray-500">Package / Instrument / Material</span>
-                <span className="font-medium text-gray-800 dark:text-gray-200">{r.package || "-"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Priority</span>
-                <span className={r.priority === "Urgent" ? "text-red-600 font-bold" : "font-medium"}>
-                  {r.priority}{r.priority_days != null ? ` (${r.priority_days}d)` : ""}
-                </span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500 font-bold text-[#18457c]">BD Person Name</span>
-                <span className="font-bold text-[#18457c] dark:text-blue-300 text-sm">{r.bd_person || "-"}</span>
-              </div>
-              <div className="md:col-span-2">
-                <span className="block text-[11px] text-gray-500 font-bold text-[#18457c]">Current Status</span>
-                <span className="font-bold text-gray-900 dark:text-white">
-                  {r.current_status || r.transferred_to || r.stage || "-"}
-                  {r.transfer_date ? <span className="ml-1 text-[11px] font-normal text-gray-500">({fmtDate(r.transfer_date)})</span> : null}
-                </span>
-              </div>
+            <div className="flex flex-wrap gap-1.5">
+              {MODAL_NAV.map((n) => (
+                <button key={n.id} type="button" onClick={() => goTo(n.id)} className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700 hover:bg-[#18457c] hover:text-white transition-colors">
+                  {n.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Card 2: Timeline & Milestones */}
-          <div className="rounded-xl border border-gray-200 dark:border-dark-700 bg-slate-50/50 dark:bg-dark-900/40 p-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#18457c] dark:text-blue-400 mb-3 flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              Timeline & Due Dates
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div>
-                <span className="block text-[11px] text-gray-500">Booking Date</span>
-                <span className="font-medium">{fmtDate(r.booking_date)}</span>
+          <div className="p-5 sm:p-6 space-y-4">
+            {/* Sample & Job Information */}
+            <Section id="md-sample" title="Sample & Job Information">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-3">
+                <Field label="LRN"><span className="font-mono font-bold text-[15px]">{r.lrn || "-"}</span></Field>
+                <Field label="BRN (Booking Ref No)"><span className="font-mono text-blue-700 dark:text-blue-400">{r.brn || r.inward_no || "-"}</span></Field>
+                <Field label="Inward Entry No."><span className="font-mono">{r.inward_no || "-"}</span></Field>
+                <Field label="Department"><Badge cls="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-semibold">{r.department || "-"}</Badge></Field>
+                <Field label="Priority">
+                  <span className={r.priority === "Urgent" ? "text-red-600 font-bold" : ""}>{r.priority}{r.priority_days != null ? ` (${r.priority_days}d)` : ""}</span>
+                </Field>
+                <Field label="Customer" className="col-span-2 md:col-span-5"><span className="font-semibold">{r.customer || "-"}</span></Field>
+                <Field label="Package / Instrument / Material" className="col-span-2 md:col-span-5">{r.package || "-"}</Field>
+                <Field label="BD Person Name" className="col-span-2 md:col-span-2"><span className="font-bold text-[#18457c] dark:text-blue-300">{r.bd_person || "-"}</span></Field>
+                <Field label="Current Status" className="col-span-2 md:col-span-3">
+                  <span className="font-bold">{statusParts.main}</span>
+                  {r.transfer_date ? <span className="ml-1.5 text-xs font-normal text-gray-500">({fmtDate(r.transfer_date)})</span> : null}
+                  {statusParts.note ? <span className="block text-[11px] font-normal text-gray-500">{statusParts.note}</span> : null}
+                </Field>
               </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Report Due Date</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {fmtDate(r.report_due_22)}
-                  {r.report_due_source ? <span className="ml-1 text-[10px] text-blue-600 dark:text-blue-400 font-normal">({r.report_due_source})</span> : null}
-                </span>
+            </Section>
+
+            {/* Timeline & Due Dates */}
+            <Section id="md-timeline" title="Timeline & Due Dates" accent="amber">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
+                <Field label="Booking Date">{fmtDate(r.booking_date)}</Field>
+                <Field label="Report Due Date">
+                  <span className="font-semibold">{fmtDate(r.report_due_22)}</span>
+                  {r.report_due_source ? <span className="block text-[11px] font-normal text-blue-600 dark:text-blue-400">{r.report_due_source}</span> : null}
+                </Field>
+                <Field label="Overdue Status">
+                  {Number(r.overdue_days_22) > 0 ? (
+                    <Badge cls="bg-red-100 text-red-800 font-bold">+{r.overdue_days_22} Days Overdue</Badge>
+                  ) : r.report_delivered ? (
+                    <Badge cls="bg-slate-100 text-slate-700 font-semibold">Delivered</Badge>
+                  ) : isOverdue ? (
+                    <Badge cls="bg-red-100 text-red-800 font-bold">OVERDUE</Badge>
+                  ) : (
+                    <Badge cls="bg-emerald-100 text-emerald-800 font-semibold">On track</Badge>
+                  )}
+                </Field>
+                <Field label="With / Since (Current Holder)">
+                  <span className="font-semibold">{holderParts.main}</span>
+                  {holderParts.note ? <span className="block text-[11px] font-normal text-gray-500">{holderParts.note}</span> : null}
+                  {r.holder_since ? <span className="block text-[11px] font-normal text-gray-500">since {fmtDate(r.holder_since)}</span> : null}
+                </Field>
+                <Field label="Testing Due Date">{fmtDate(r.test_due_date)}</Field>
+                <Field label="Testing Status">
+                  <Badge cls={r.testing_status === "OVERDUE" ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"}>{r.testing_status || "On track"}</Badge>
+                </Field>
               </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Overdue Status</span>
-                {Number(r.overdue_days_22) > 0 ? (
-                  <Badge cls="bg-red-100 text-red-800 font-bold">+{r.overdue_days_22} Days Overdue</Badge>
-                ) : r.report_delivered ? (
-                  <Badge cls="bg-slate-100 text-slate-700 font-semibold">Delivered</Badge>
-                ) : isOverdue ? (
-                  <Badge cls="bg-red-100 text-red-800 font-bold">OVERDUE</Badge>
-                ) : (
-                  <Badge cls="bg-emerald-100 text-emerald-800 font-semibold">On track</Badge>
+            </Section>
+
+            {/* Execution, Review & Authorisation */}
+            <Section id="md-review" title="Execution, Review & Authorisation" accent="green">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
+                <Field label="Allocated Chemist / Engineer" empty={r.allocated_to ? null : "Not allotted"}>
+                  <span className="font-semibold">{r.allocated_to}</span>
+                  {r.allocation_date ? <span className="block text-[11px] font-normal text-gray-500">{fmtDate(r.allocation_date)}</span> : null}
+                </Field>
+                <Field label="Results Entered" empty={r.results_date ? null : "Not yet"}>{fmtDate(r.results_date)}</Field>
+                <Field label="Reviewed By (HOD)" empty={r.reviewed_by || r.reviewed_status ? null : "Not yet"}>
+                  {r.reviewed_by || r.reviewed_status}
+                  {r.reviewed_date ? <span className="block text-[11px] font-normal text-gray-500">{fmtDate(r.reviewed_date)}</span> : null}
+                </Field>
+                <Field label="Authorised By (Signatory)" empty={r.authorised_by || r.authorised_status ? null : "Not yet"}>
+                  {r.authorised_by || r.authorised_status}
+                  {r.authorised_date ? <span className="block text-[11px] font-normal text-gray-500">{fmtDate(r.authorised_date)}</span> : null}
+                </Field>
+                <Field label="ULR No." empty={r.ulr_no ? null : "Not issued"} className="col-span-2 md:col-span-4">
+                  <span className="font-mono">{r.ulr_no}</span>
+                </Field>
+              </div>
+            </Section>
+
+            {/* Commercial, Email & Dispatch */}
+            <Section id="md-email" title="Commercial, Email & Dispatch" accent="violet">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
+                {seeInvoice && (
+                  <>
+                    <Field label="Invoice No." empty={r.invoice_no ? null : "Not raised yet"}><span className="font-mono font-bold">{r.invoice_no}</span></Field>
+                    <Field label="Invoice Amount & Payment" empty={r.invoice_amount != null ? null : "-"}>
+                      <span className="font-semibold">{`Rs ${Number(r.invoice_amount || 0).toLocaleString("en-IN")}`}</span>
+                      {r.invoice_payment ? (
+                        <span className="ml-1.5"><Badge cls={r.invoice_payment === "Paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>{r.invoice_payment}*</Badge></span>
+                      ) : null}
+                    </Field>
+                  </>
                 )}
+                <Field label="Email Status">
+                  <Badge cls={emailTone === "green" ? "bg-emerald-100 text-emerald-800" : emailTone === "amber" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}>{r.email_status || "-"}</Badge>
+                  {r.email_date ? <span className="block text-[11px] font-normal text-gray-500">{fmtDate(r.email_date)}</span> : null}
+                  {href ? <a href={href} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-blue-700 underline mt-0.5">Resend &#8599;</a> : null}
+                </Field>
+                <Field label="WhatsApp Notification" empty={r.whatsapp_status ? null : "-"}>{r.whatsapp_status}</Field>
+                <Field label="Despatch Docket" empty={r.docket ? null : "No docket"}>
+                  <span className="font-mono">{r.docket}</span>
+                  {r.dispatch_date ? <span className="block text-[11px] font-normal text-gray-500">{fmtDate(r.dispatch_date)}</span> : null}
+                </Field>
+                <Field label="Customer Feedback" empty={r.feedback_status && r.feedback_status !== "Not collected" ? null : "Not collected"}>{r.feedback_status}</Field>
               </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">With / Since (Current Holder)</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{r.holder_name || r.holder_role || "-"}</span>
-                {r.holder_since ? <span className="block text-[10px] text-gray-500">since {fmtDate(r.holder_since)}</span> : null}
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Testing Due Date</span>
-                <span>{fmtDate(r.test_due_date)}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Testing Status</span>
-                <Badge cls={r.testing_status === "OVERDUE" ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"}>{r.testing_status || "On track"}</Badge>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Execution, Review & Approvals */}
-          <div className="rounded-xl border border-gray-200 dark:border-dark-700 bg-slate-50/50 dark:bg-dark-900/40 p-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#18457c] dark:text-blue-400 mb-3 flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              Execution, Review & Authorisation
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <span className="block text-[11px] text-gray-500">Allocated Chemist / Engineer</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{r.allocated_to || "-"}</span>
-                {r.allocation_date ? <span className="block text-[10px] text-gray-500">{fmtDate(r.allocation_date)}</span> : null}
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Results Entered</span>
-                <span className="font-medium">{r.results_date ? fmtDate(r.results_date) : "-"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Reviewed By (HOD)</span>
-                <span className="font-medium">{r.reviewed_by || r.reviewed_status || "-"}</span>
-                {r.reviewed_date ? <span className="block text-[10px] text-gray-500">{fmtDate(r.reviewed_date)}</span> : null}
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Authorised By (Signatory)</span>
-                <span className="font-medium">{r.authorised_by || r.authorised_status || "-"}</span>
-                {r.authorised_date ? <span className="block text-[10px] text-gray-500">{fmtDate(r.authorised_date)}</span> : null}
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">ULR No.</span>
-                <span className="font-mono text-gray-900 dark:text-white font-medium">{r.ulr_no || "-"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Commercial, Email & Dispatch */}
-          <div className="rounded-xl border border-gray-200 dark:border-dark-700 bg-slate-50/50 dark:bg-dark-900/40 p-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-[#18457c] dark:text-blue-400 mb-3 flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-              Commercial, Email & Dispatch
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               {seeInvoice && (
-                <>
-                  <div>
-                    <span className="block text-[11px] text-gray-500">Invoice No.</span>
-                    <span className="font-mono font-bold text-gray-900 dark:text-white">{r.invoice_no || "-"}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[11px] text-gray-500">Invoice Amount & Payment</span>
-                    <span className="font-semibold">
-                      {r.invoice_amount != null ? `Rs ${Number(r.invoice_amount).toLocaleString("en-IN")}` : "-"}
-                    </span>
-                    {r.invoice_payment ? (
-                      <span className="ml-1.5"><Badge cls={r.invoice_payment === "Paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>{r.invoice_payment}*</Badge></span>
-                    ) : null}
-                  </div>
-                </>
+                <div className="text-[11px] text-gray-500 mt-2 italic">
+                  * Payment status is derived from invoice balance and is to be confirmed with Accounts for final decisions.
+                </div>
               )}
-              <div>
-                <span className="block text-[11px] text-gray-500">Email Status</span>
-                <span className="font-medium">{r.email_status || "-"}</span>
-                {r.email_date ? <span className="block text-[10px] text-gray-500">{fmtDate(r.email_date)}</span> : null}
-                {href ? <a href={href} target="_blank" rel="noopener noreferrer" className="block text-[10px] text-blue-700 underline mt-0.5">Resend &#8599;</a> : null}
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">WhatsApp Notification</span>
-                <span>{r.whatsapp_status || "-"}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Despatch Docket</span>
-                <span className="font-mono">{r.docket || "-"}</span>
-                {r.dispatch_date ? <span className="block text-[10px] text-gray-500">{fmtDate(r.dispatch_date)}</span> : null}
-              </div>
-              <div>
-                <span className="block text-[11px] text-gray-500">Customer Feedback</span>
-                <span>{r.feedback_status || "-"}</span>
-              </div>
-            </div>
-            {seeInvoice && (
-              <div className="text-[10px] text-gray-500 mt-2 italic">
-                * Payment status is derived from invoice balance and is to be confirmed with Accounts for final decisions.
-              </div>
-            )}
-            <EmailLogDetail logs={r.email_logs} />
-          </div>
+              <EmailLogDetail logs={r.email_logs} pending={r.email_status === "Pending"} />
+            </Section>
 
-          {/* Section 5: Allotment History / Trail */}
-          <div className="rounded-xl border border-gray-200 dark:border-dark-700 bg-slate-50/50 dark:bg-dark-900/40 p-4">
-            <TrailDetail r={r} />
-          </div>
+            {/* Allotment History / Trail */}
+            <Section id="md-history" title="Allotment & Re-allotment History" accent="slate">
+              <TrailDetail r={r} />
+            </Section>
 
-          {/* Section 6: Chain of Custody */}
-          <div className="rounded-xl border border-gray-200 dark:border-dark-700 bg-slate-50/50 dark:bg-dark-900/40 p-4">
-            <ChainDetail r={r} />
+            {/* Chain of Custody */}
+            <Section id="md-custody" title="Chain of Custody Timeline" accent="slate">
+              <ChainDetail r={r} />
+            </Section>
           </div>
-
         </div>
 
         {/* Modal Footer */}
-        <div className="border-t border-gray-200 dark:border-dark-700 px-6 py-3.5 bg-gray-50 dark:bg-dark-900 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2 rounded-lg bg-[#18457c] text-white hover:bg-[#133763] font-semibold text-xs shadow-sm transition-colors"
-          >
+        <div className="border-t border-gray-200 dark:border-dark-700 px-6 py-3.5 bg-white dark:bg-dark-900 flex justify-end">
+          <button type="button" onClick={onClose} className="px-5 py-2 rounded-lg bg-[#18457c] text-white hover:bg-[#133763] font-semibold text-xs shadow-sm transition-colors">
             Close
           </button>
         </div>
