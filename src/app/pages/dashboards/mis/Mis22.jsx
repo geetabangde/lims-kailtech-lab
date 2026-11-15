@@ -684,7 +684,7 @@ function ExtraTats({ packages }) {
   };
 
   return (
-    <div className="rounded-xl border p-3 space-y-2 text-xs bg-white">
+    <div className="rounded-xl border border-gray-200 dark:border-dark-700 p-3 space-y-2 text-xs bg-white dark:bg-dark-900/40 text-gray-800 dark:text-dark-100">
       <div className="font-bold text-[#18457c]">Additional TATs (optional)</div>
       <p className="text-gray-600">Leave empty to use the lab standard only. Rows added here are tracked as separate clocks in the Sample Details TAT section (calendar days). Calibration samples only for now.</p>
       <div className="flex flex-wrap items-end gap-2">
@@ -717,7 +717,7 @@ function ExtraTats({ packages }) {
 }
 
 // ---- TAT MASTER TAB ----
-function TatMasterTab() {
+function TatMasterTab({ canEdit = false, calibPackages = [] }) {
   const [tat, setTat] = useState({ table_ready: true, data: [] });
   const [draft, setDraft] = useState({ package_key: "", department: "*", dept_days: 7, kailtech_tat: 10 });
   const [loading, setLoading] = useState(false);
@@ -777,7 +777,9 @@ function TatMasterTab() {
               {!tat.data.length && <tr><td colSpan={4} className="p-4 text-center text-gray-500">No TAT rows yet.</td></tr>}
             </tbody>
           </table>
-          <ExtraTats packages={[...new Set(tat.data.map((t) => t.package_key))]} />
+          {canEdit
+            ? <ExtraTats packages={calibPackages} />
+            : <p className="text-xs text-gray-500">Additional (optional) TATs per package can be set by management only.</p>}
         </>
       )}
     </div>
@@ -1325,7 +1327,7 @@ export default function Mis22({ onClassic }) {
         {tab === "mail" && <EmailLogTab />}
 
         {/* Tab 3: TAT Master */}
-        {tab === "tat" && <TatMasterTab />}
+        {tab === "tat" && <TatMasterTab canEdit={tier === "management"} calibPackages={[...new Set(allRows.filter((x) => (x.type || "") === "Calibration").map((x) => x.package).filter(Boolean))].sort()} />}
 
         {/* Tab 4: Sample Tracker Main Table */}
         {tab === "table" && (
