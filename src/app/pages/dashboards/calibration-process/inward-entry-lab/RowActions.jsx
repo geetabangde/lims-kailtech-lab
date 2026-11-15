@@ -8,6 +8,7 @@ import axios from "utils/axios";
 import { toast } from "sonner";
 import { useLocation } from "react-router";
 import SendBatchDispatchModal from "./SendBatchDispatchModal";
+import SendDraftModal from "./SendDraftModal";
 import { canSendDispatchEmail } from "utils/dispatchAccess";
 
 const confirmMessages = {
@@ -28,6 +29,7 @@ export function RowActions({ row, table }) {
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
+  const [draftModalOpen, setDraftModalOpen] = useState(false);
 
   // Convert localStorage string to array of numbers
   const permissions =
@@ -246,6 +248,11 @@ export function RowActions({ row, table }) {
             color: "!bg-blue-200 !text-black hover:!bg-blue-300 border border-blue-400 shadow-sm font-bold",
             onClick: () => setDispatchModalOpen(true),
           },
+          {
+            label: "Send Draft",
+            color: "!bg-amber-200 !text-black hover:!bg-amber-300 border border-amber-400 shadow-sm font-bold",
+            onClick: () => setDraftModalOpen(true),
+          },
         ]
       : []),
   ];
@@ -282,6 +289,12 @@ export function RowActions({ row, table }) {
           )
         )}
       </div>
+
+      <SendDraftModal
+        isOpen={draftModalOpen}
+        onClose={() => setDraftModalOpen(false)}
+        inwardId={row.original.id}
+      />
 
       <SendBatchDispatchModal
         isOpen={dispatchModalOpen}
