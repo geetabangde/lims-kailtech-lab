@@ -78,16 +78,25 @@ export default function SendDraftModal({ isOpen, onClose, inwardId }) {
               <label className="flex items-center gap-1"><input type="radio" checked={mode === 'test'} onChange={() => setMode('test')} /> Test (only to my own e-mail)</label>
               <label className="flex items-center gap-1"><input type="radio" checked={mode === 'live'} onChange={() => setMode('live')} /> Send to customer</label>
             </div>
-            {mode === 'live' && (
-              <div className="space-y-2">
-                <label className="block">To (type the e-mail address(es), comma separated)
-                  <input value={to} onChange={(e) => setTo(e.target.value)} className="mt-1 block w-full border rounded p-1.5 dark:bg-dark-900" placeholder="customer@example.com" />
-                </label>
-                <label className="block">CC (optional)
-                  <input value={cc} onChange={(e) => setCc(e.target.value)} className="mt-1 block w-full border rounded p-1.5 dark:bg-dark-900" />
-                </label>
-              </div>
-            )}
+            <div className="space-y-2">
+              {mode === 'test' && (
+                <p className="rounded border border-sky-300 bg-sky-50 text-sky-900 p-2 text-xs">
+                  Test mode: the e-mail goes ONLY to your own address{data.my_email ? <> (<b>{data.my_email}</b>)</> : ''}. The customer receives nothing. To e-mail the customer, choose &quot;Send to customer&quot; above.
+                </p>
+              )}
+              <label className="block">To {mode === 'live' ? '(type the e-mail address(es), comma separated)' : '(test: your own address)'}
+                <input
+                  value={mode === 'live' ? to : (data.my_email || '')}
+                  onChange={(e) => setTo(e.target.value)}
+                  disabled={mode !== 'live'}
+                  className="mt-1 block w-full border rounded p-1.5 dark:bg-dark-900 disabled:bg-gray-100 disabled:text-gray-500"
+                  placeholder="customer@example.com"
+                />
+              </label>
+              <label className="block">CC (optional{mode === 'live' ? '' : ', only used when sending to the customer'})
+                <input value={cc} onChange={(e) => setCc(e.target.value)} disabled={mode !== 'live'} className="mt-1 block w-full border rounded p-1.5 dark:bg-dark-900 disabled:bg-gray-100" />
+              </label>
+            </div>
             <label className="block">Message to add (optional)
               <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="mt-1 block w-full border rounded p-1.5 dark:bg-dark-900" />
             </label>
