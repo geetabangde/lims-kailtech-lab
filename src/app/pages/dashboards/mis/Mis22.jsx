@@ -240,37 +240,119 @@ const CLOCK_TONE = {
   "On track": "bg-emerald-50 text-emerald-700 border-emerald-200",
   "Done on time": "bg-emerald-50 text-emerald-700 border-emerald-200",
   "Not started": "bg-slate-50 text-slate-600 border-slate-200",
+  Paused: "bg-blue-50 text-blue-700 border-blue-200",
 };
 
-function TatClocks({ r }) {
-  const clocks = Array.isArray(r.tat_clocks) ? r.tat_clocks : [];
-  if (!clocks.length) {
-    return <p className="text-xs text-gray-500">No extra TATs are set for this package, so only the lab standard applies (see Timeline above). Management can add optional TATs in the TAT Master tab.</p>;
-  }
+function HoldControls({ r, onChanged }) {
+  const [open, setOpen] = useState(false);
+  const [scope, setScope] = useState("all");
+  const [stage, setStage] = useState("lab_standard");
+  const [why, setWhy] = useState("");
+  const [busy, setBusy] = useState(false);
+  const holds = Array.isArray(r.holds) ? r.holds : [];
+  const openHolds = holds.filter((h) => h.open);
+  const clocks = Array.isArray(r.tat_clocks) && r.tat_clocks.length ? r.tat_clocks : [{ key: "lab_standard", label: "Lab standard" }];
+  const label = (k) => clocks.find((c) => c.key === k)?.label || k;
+  if (!holds.length && !r.can_hold) return null;
+
+  const done = () => { if (onChanged) onChanged(r); };
+  const start = async () => {
+    if (why.trim().length < 3) { toast.error("Enter a reason (at least 3 characters)."); return; }
+    setBusy(true);
+    try {
+      await axios.post("/mis/hold", { lrn: r.lrn, scope, stage_key: scope === "one" ? stage : undefined, reason: why.trim() });
+      toast.success("Sample paused.");
+      setOpen(false); setWhy(""); done();
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Could not pause.");
+    } finally { setBusy(false); }
+  };
+  const resume = async (id) => {
+    setBusy(true);
+    try {
+      await axios.post("/mis/hold/resume", { id });
+      toast.success("Sample resumed.");
+      done();
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Could not resume.");
+    } finally { setBusy(false); }
+  };
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs">
-        <thead className="text-gray-500 text-left">
-          <tr><th className="py-1 pr-3">Clock</th><th className="pr-3">TAT (days)</th><th className="pr-3">Started on</th><th className="pr-3">Due on</th><th className="pr-3">Done on</th><th className="pr-3">Days used</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-          {clocks.map((c) => (
-            <tr key={c.key} className="border-t">
-              <td className="py-1.5 pr-3 font-semibold">{c.label}</td>
-              <td className="pr-3">{c.tat_days ?? "-"}</td>
-              <td className="pr-3">{fmtDate(c.started_on)}</td>
-              <td className="pr-3">{fmtDate(c.due_on)}</td>
-              <td className="pr-3">{fmtDate(c.done_on)}</td>
-              <td className="pr-3">{c.days_used ?? "-"}</td>
-              <td>
-                <span className={`inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold ${CLOCK_TONE[c.status] || CLOCK_TONE["Not started"]}`}>{c.status}</span>
-                {Number(c.days_late) > 0 ? <span className="ml-1 text-[10px] text-red-600">{c.days_late}d {c.status === "OVERDUE" ? "over" : "late"}</span> : null}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="text-[11px] text-gray-500 mt-2">Calendar days. Department clock starts at transfer; Billing and Dispatch clocks start at authorisation.</p>
+    <div className="mt-3 pt-3 border-t border-dashed space-y-2 text-xs">
+      {openHolds.map((h) => (
+        <div key={h.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-900 px-3 py-2">
+          <span className="font-bold">ON HOLD</span>
+          <span>{h.scope === "all" ? "all clocks" : label(h.stage_key)} · since {fmtDate(h.started_on)} · by {h.started_by} · reason: {h.reason}</span>
+          {r.can_hold ? <button type="button" disabled={busy} onClick={() => resume(h.id)} className="ml-auto px-3 py-1 rounded-lg bg-[#18457c] text-white font-semibold">Resume</button> : null}
+        </div>
+      ))}
+      {r.can_hold && !open ? <button type="button" onClick={() => setOpen(true)} className="px-3 py-1.5 rounded-lg border font-semibold">Pause / hold…</button> : null}
+      {r.can_hold && open ? (
+        <div className="rounded-lg border p-3 space-y-2">
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-1"><input type="radio" checked={scope === "all"} onChange={() => setScope("all")} /> Hold ALL clocks of this sample</label>
+            <label className="flex items-center gap-1"><input type="radio" checked={scope === "one"} onChange={() => setScope("one")} /> Hold THIS clock only</label>
+            {scope === "one" ? (
+              <select value={stage} onChange={(e) => setStage(e.target.value)} className="border rounded-lg p-1">
+                {clocks.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+            ) : null}
+          </div>
+          <input value={why} onChange={(e) => setWhy(e.target.value)} maxLength={500} placeholder="Reason (required) - e.g. customer asked to hold" className="border rounded-lg p-1.5 w-full" />
+          <div className="flex gap-2">
+            <button type="button" disabled={busy} onClick={start} className="px-4 py-1.5 rounded-lg bg-[#18457c] text-white font-semibold">{busy ? "Saving..." : "Pause"}</button>
+            <button type="button" onClick={() => setOpen(false)} className="px-3 py-1.5 rounded-lg border">Cancel</button>
+          </div>
+        </div>
+      ) : null}
+      {holds.some((h) => !h.open) ? (
+        <details>
+          <summary className="cursor-pointer text-gray-500">Earlier holds ({holds.filter((h) => !h.open).length})</summary>
+          <ul className="mt-1 space-y-0.5 text-gray-600">
+            {holds.filter((h) => !h.open).map((h) => (
+              <li key={h.id}>{fmtDate(h.started_on)} to {fmtDate(h.ended_on)} · {h.scope === "all" ? "all clocks" : label(h.stage_key)} · {h.reason} · by {h.started_by}{h.ended_by ? `, resumed by ${h.ended_by}` : ""}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function TatClocks({ r, onChanged }) {
+  const clocks = Array.isArray(r.tat_clocks) ? r.tat_clocks : [];
+  return (
+    <div>
+      {!clocks.length ? (
+        <p className="text-xs text-gray-500">No extra TATs are set for this package, so only the lab standard applies (see Timeline above). Management can add optional TATs in the TAT Master tab.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="text-gray-500 text-left">
+              <tr><th className="py-1 pr-3">Clock</th><th className="pr-3">TAT (days)</th><th className="pr-3">Started on</th><th className="pr-3">Due on</th><th className="pr-3">Done on</th><th className="pr-3">Days used</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {clocks.map((c) => (
+                <tr key={c.key} className="border-t">
+                  <td className="py-1.5 pr-3 font-semibold">{c.label}</td>
+                  <td className="pr-3">{c.tat_days ?? "-"}</td>
+                  <td className="pr-3">{fmtDate(c.started_on)}</td>
+                  <td className="pr-3">{fmtDate(c.due_on)}</td>
+                  <td className="pr-3">{fmtDate(c.done_on)}</td>
+                  <td className="pr-3">{c.days_used ?? "-"}{Number(c.paused_days) > 0 ? <span className="text-[10px] text-blue-600"> (+{c.paused_days}d on hold)</span> : null}</td>
+                  <td>
+                    <span className={`inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold ${CLOCK_TONE[c.status] || CLOCK_TONE["Not started"]}`}>{c.status}</span>
+                    {Number(c.days_late) > 0 ? <span className="ml-1 text-[10px] text-red-600">{c.days_late}d {c.status === "OVERDUE" ? "over" : "late"}</span> : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-[11px] text-gray-500 mt-2">Calendar days. Department clock starts at transfer; Billing and Dispatch clocks start at authorisation. Days on hold are added to the due date.</p>
+        </div>
+      )}
+      <HoldControls r={r} onChanged={onChanged} />
     </div>
   );
 }
@@ -285,7 +367,7 @@ const MODAL_NAV = [
   { id: "md-custody", label: "Custody" },
 ];
 
-function DetailModal({ r, onClose, seeInvoice }) {
+function DetailModal({ r, onClose, seeInvoice, onChanged }) {
   if (!r) return null;
   const isOverdue = Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE";
   const href = resendHref(r);
@@ -399,7 +481,7 @@ function DetailModal({ r, onClose, seeInvoice }) {
 
             {/* Execution, Review & Authorisation */}
             <Section id="md-tat" title="TAT Clocks" accent="amber">
-              <TatClocks r={r} />
+              <TatClocks r={r} onChanged={onChanged} />
             </Section>
 
             <Section id="md-review" title="Execution, Review & Authorisation" accent="green">
@@ -905,6 +987,8 @@ const OVERDUE_OPTIONS = [
   { id: "testing_overdue", label: "Testing overdue", test: (r) => r.testing_status === "OVERDUE" },
   { id: "ontrack", label: "On track", test: (r) => !(Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE") && !r.report_delivered },
   { id: "delivered", label: "Delivered", test: (r) => !!r.report_delivered },
+  { id: "tat_overdue", label: "Any TAT clock overdue", test: (r) => Array.isArray(r.tat_clocks) && r.tat_clocks.some((c) => c.status === "OVERDUE") },
+  { id: "on_hold", label: "On hold", test: (r) => !!r.on_hold },
 ];
 const EMAIL_OPTIONS = [
   { id: "pending", label: "Email pending", test: (r) => r.email_status === "Pending" },
@@ -1075,6 +1159,7 @@ export default function Mis22({ onClassic }) {
   const [tab, setTab] = useState("table");
   const [gateCount, setGateCount] = useState(null);
   const [detailRow, setDetailRow] = useState(null);
+  const [reopen, setReopen] = useState(null);
 
   const load = useCallback(async (limOverride, range) => {
     const lim = typeof limOverride === "number" ? limOverride : limit;
@@ -1116,6 +1201,13 @@ export default function Mis22({ onClassic }) {
   const stages = useMemo(() => [...new Set(allRows.map((r) => r.stage).filter(Boolean))].sort(), [allRows]);
 
   const seeInvoice = !!data?.user_scope?.see_invoice;
+  useEffect(() => {
+    if (!reopen) return;
+    const m = allRows.find((x) => x.lrn === reopen.lrn && x.type === reopen.type);
+    if (m) setDetailRow(m);
+    setReopen(null);
+  }, [allRows]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const cols = useMemo(() => COLUMNS({ openDetail: (r) => setDetailRow(r), seeInvoice }), [seeInvoice]);
 
   // One row per LRN for Classic card filter rules
@@ -1705,6 +1797,7 @@ export default function Mis22({ onClassic }) {
                 r={detailRow}
                 onClose={() => setDetailRow(null)}
                 seeInvoice={seeInvoice}
+                onChanged={(row) => { setReopen({ lrn: row.lrn, type: row.type }); load(); }}
               />
             )}
           </>
