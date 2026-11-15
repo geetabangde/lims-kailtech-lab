@@ -24,6 +24,38 @@ const imgSize = (src) => new Promise((resolve) => {
   i.src = src;
 });
 
+// Word ignores CSS sizes of images (banner seal, signatures, QR codes show at full natural size). Give each image explicit width/height
+// attributes, resolved from what the browser CSS gives it: banner 102px high, signature 12.5mm (47px) high, otherwise its own attributes / inline style.
+async function fixImageSizes(doc) {
+  const mm = 3.7795;
+  const px = (v) => {
+    if (!v) return null;
+    const m = String(v).match(/^\s*([\d.]+)\s*(px|mm)?\s*$/i);
+    if (!m) return null;
+    return Math.round(parseFloat(m[1]) * (m[2] && m[2].toLowerCase() === "mm" ? mm : 1));
+  };
+  const imgs = Array.from(doc.querySelectorAll("img"));
+  for (const img of imgs) {
+    const src = img.getAttribute("src") || "";
+    const nat = await imgSize(src);
+    const ratio = nat.w && nat.h ? nat.w / nat.h : 1;
+    let w = px(img.getAttribute("width")); let h = px(img.getAttribute("height"));
+    const sw = px(img.style.width); const sh = px(img.style.height);
+    if (img.classList.contains("banner-nabl")) { h = 102; w = Math.round(h * ratio); }
+    else if (img.classList.contains("signimage")) { h = 47; w = Math.round(h * ratio); }
+    else {
+      if (sw) w = sw;
+      if (sh) h = sh;
+      if (w && !h) h = Math.round(w / ratio);
+      if (h && !w) w = Math.round(h * ratio);
+    }
+    if (w && h) {
+      img.setAttribute("width", String(w)); img.setAttribute("height", String(h));
+      img.style.width = `${w}px`; img.style.height = `${h}px`; img.style.maxHeight = "none";
+    }
+  }
+}
+
 const wrap76 = (s) => s.replace(/(.{76})/g, "$1\r\n");
 
 // Word does not read data: images from HTML. Build a single-file web page (MHTML) where every image is its own MIME part.
@@ -81,6 +113,7 @@ export default function CertificateOptions({ inwardId, itemId, caliblocation, ca
       const html = await getHtml();
       const lh = opt.lh ? await getLetterhead() : null;
       const doc = new DOMParser().parseFromString(html, "text/html");
+      await fixImageSizes(doc);
       // same look as the printed certificate: full-width page, small print size
       Array.from(doc.body.children).forEach((el) => {
         if (el.tagName === "DIV") { el.style.width = "100%"; el.style.fontSize = "8.5px"; el.style.lineHeight = "1.18"; el.style.padding = "0"; }
@@ -140,7 +173,7 @@ td, th { padding: 1px 3px; }
         .lh-head { position: absolute; top: calc(5mm + 48px); left: 0; width: 210mm; z-index: 1; pointer-events: none; }
         .lh-foot { position: absolute; left: 8mm; top: calc(283mm + 48px); width: 200mm; z-index: 1; pointer-events: none; }
         @media print { body { margin: 0 !important; padding-top: 0 !important; } .eb-bar { display: none !important; }
-          .lh-head { position: fixed; top: 5mm; } .lh-foot { position: fixed; top: 283mm; } }
+          .lh-head { position: absolute; top: 5mm; } .lh-foot { position: fixed; top: 283mm; } }
       </style></head><body>
         <div class="eb-bar" contenteditable="false"><b>EDIT MODE</b> - click on the certificate text to change it. Temporary copy: not saved, not sent. Closing this tab discards the changes.
           <button onclick="window.print()">Print</button><button onclick="window.close()">Close</button></div>
