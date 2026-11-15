@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
+import CertificateOptions, { canUseCertificateOptions } from "./CertificateOptions";
 
 // Ensure location is available (e.g., with React Router or window object)
 const searchParams =
@@ -1061,6 +1062,16 @@ export function PerformActions({ item, onAction, inwardId, caliblocation, caliba
             </button>
           );
         })}
+
+        {canUseCertificateOptions() &&
+          filteredActions.some((a) => ["viewCertificate", "viewApprovedCertificate", "viewCertificateWithLH"].includes(a.action)) && (
+            <CertificateOptions
+              inwardId={currentInwardId}
+              itemId={item.id}
+              caliblocation={currentCalibLocation}
+              calibacc={currentCalibAcc}
+            />
+          )}
 
         {filteredActions.length === 0 && (
           <span className="cursor-default px-3 py-1.5 text-sm text-gray-500 italic">
