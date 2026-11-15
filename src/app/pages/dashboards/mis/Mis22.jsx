@@ -232,9 +232,53 @@ function splitNote(text) {
   return m && m[1] ? { main: m[1], note: m[2] } : { main: text || "-", note: "" };
 }
 
+// ---- TAT CLOCKS (optional extra TATs per package; lab standard always first) ----
+const CLOCK_TONE = {
+  OVERDUE: "bg-red-50 text-red-700 border-red-200",
+  "Done late": "bg-red-50 text-red-700 border-red-200",
+  "Due soon": "bg-amber-50 text-amber-800 border-amber-200",
+  "On track": "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "Done on time": "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "Not started": "bg-slate-50 text-slate-600 border-slate-200",
+};
+
+function TatClocks({ r }) {
+  const clocks = Array.isArray(r.tat_clocks) ? r.tat_clocks : [];
+  if (!clocks.length) {
+    return <p className="text-xs text-gray-500">No extra TATs are set for this package, so only the lab standard applies (see Timeline above). Management can add optional TATs in the TAT Master tab.</p>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead className="text-gray-500 text-left">
+          <tr><th className="py-1 pr-3">Clock</th><th className="pr-3">TAT (days)</th><th className="pr-3">Started on</th><th className="pr-3">Due on</th><th className="pr-3">Done on</th><th className="pr-3">Days used</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {clocks.map((c) => (
+            <tr key={c.key} className="border-t">
+              <td className="py-1.5 pr-3 font-semibold">{c.label}</td>
+              <td className="pr-3">{c.tat_days ?? "-"}</td>
+              <td className="pr-3">{fmtDate(c.started_on)}</td>
+              <td className="pr-3">{fmtDate(c.due_on)}</td>
+              <td className="pr-3">{fmtDate(c.done_on)}</td>
+              <td className="pr-3">{c.days_used ?? "-"}</td>
+              <td>
+                <span className={`inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold ${CLOCK_TONE[c.status] || CLOCK_TONE["Not started"]}`}>{c.status}</span>
+                {Number(c.days_late) > 0 ? <span className="ml-1 text-[10px] text-red-600">{c.days_late}d {c.status === "OVERDUE" ? "over" : "late"}</span> : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-[11px] text-gray-500 mt-2">Calendar days. Department clock starts at transfer; Billing and Dispatch clocks start at authorisation.</p>
+    </div>
+  );
+}
+
 const MODAL_NAV = [
   { id: "md-sample", label: "Sample" },
   { id: "md-timeline", label: "Timeline" },
+  { id: "md-tat", label: "TAT" },
   { id: "md-review", label: "Review" },
   { id: "md-email", label: "Email" },
   { id: "md-history", label: "History" },
@@ -354,6 +398,10 @@ function DetailModal({ r, onClose, seeInvoice }) {
             </Section>
 
             {/* Execution, Review & Authorisation */}
+            <Section id="md-tat" title="TAT Clocks" accent="amber">
+              <TatClocks r={r} />
+            </Section>
+
             <Section id="md-review" title="Execution, Review & Authorisation" accent="green">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
                 <Field label="Allocated Chemist / Engineer" empty={r.allocated_to ? null : "Not allotted"}>
@@ -593,6 +641,81 @@ function EmailLogTab() {
   );
 }
 
+// ---- OPTIONAL EXTRA TATs PER PACKAGE (add / delete rows) ----
+const EXTRA_STAGES = [
+  { v: "dept:calibration", l: "Calibration department (transfer to results)" },
+  { v: "billing", l: "Billing (authorisation to invoice)" },
+  { v: "dispatch", l: "Dispatch (authorisation to dispatch / email)" },
+];
+
+function ExtraTats({ packages }) {
+  const [pk, setPk] = useState("");
+  const [rows, setRows] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState("");
+
+  const load = async () => {
+    if (!pk.trim()) { toast.error("Type the package name first."); return; }
+    setBusy(true);
+    try {
+      const res = await axios.get("/mis/package-tats", { params: { package_key: pk.trim() } });
+      if (res.data?.table_ready === false) { toast.error("The package TAT table is not created on the server yet."); return; }
+      setRows((res.data?.data || []).map((x) => ({ stage_key: x.stage_key, tat_days: String(x.tat_days) })));
+      setLoaded(pk.trim());
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Could not load.");
+    } finally { setBusy(false); }
+  };
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await axios.post("/mis/package-tats", { package_key: loaded, rows });
+      toast.success(rows.length ? "Additional TATs saved." : "Extra TATs cleared - lab standard only.");
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Could not save.");
+    } finally { setBusy(false); }
+  };
+
+  const used = new Set(rows.map((x) => x.stage_key));
+  const addRow = () => {
+    const next = EXTRA_STAGES.find((x) => !used.has(x.v));
+    if (next) setRows([...rows, { stage_key: next.v, tat_days: "" }]);
+  };
+
+  return (
+    <div className="rounded-xl border p-3 space-y-2 text-xs bg-white">
+      <div className="font-bold text-[#18457c]">Additional TATs (optional)</div>
+      <p className="text-gray-600">Leave empty to use the lab standard only. Rows added here are tracked as separate clocks in the Sample Details TAT section (calendar days). Calibration samples only for now.</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <label>Package / instrument (exact name)
+          <input list="extra-tat-packages" value={pk} onChange={(e) => { setPk(e.target.value); setLoaded(""); }} className="block border rounded-lg p-1.5 w-72" />
+          <datalist id="extra-tat-packages">{packages.map((n) => <option key={n} value={n} />)}</datalist>
+        </label>
+        <button type="button" onClick={load} disabled={busy} className="px-3 py-2 rounded-lg border font-semibold">Load</button>
+      </div>
+      {loaded ? (
+        <div className="space-y-2">
+          <div className="text-gray-500">Package: <b>{loaded}</b></div>
+          {rows.map((x, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <select value={x.stage_key} onChange={(e) => setRows(rows.map((y, j) => (j === i ? { ...y, stage_key: e.target.value } : y)))} className="border rounded-lg p-1.5 w-80">
+                {EXTRA_STAGES.filter((o) => o.v === x.stage_key || !used.has(o.v)).map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+              </select>
+              <input type="number" min="0" max="365" placeholder="days" value={x.tat_days} onChange={(e) => setRows(rows.map((y, j) => (j === i ? { ...y, tat_days: e.target.value } : y)))} className="border rounded-lg p-1.5 w-20" />
+              <button type="button" onClick={() => setRows(rows.filter((_, j) => j !== i))} className="px-2 py-1 rounded-lg border text-red-600 font-semibold">Delete</button>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button type="button" onClick={addRow} disabled={used.size >= EXTRA_STAGES.length} className="px-3 py-1.5 rounded-lg border font-semibold">+ Add row</button>
+            <button type="button" onClick={save} disabled={busy} className="px-4 py-1.5 rounded-lg bg-[#18457c] text-white font-semibold">{busy ? "Saving..." : "Save additional TATs"}</button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // ---- TAT MASTER TAB ----
 function TatMasterTab() {
   const [tat, setTat] = useState({ table_ready: true, data: [] });
@@ -654,6 +777,7 @@ function TatMasterTab() {
               {!tat.data.length && <tr><td colSpan={4} className="p-4 text-center text-gray-500">No TAT rows yet.</td></tr>}
             </tbody>
           </table>
+          <ExtraTats packages={[...new Set(tat.data.map((t) => t.package_key))]} />
         </>
       )}
     </div>
