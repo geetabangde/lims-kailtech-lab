@@ -16,6 +16,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { getStoredPermissions } from "app/navigation/dashboards";
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import axios from "utils/axios";
 
 function InfoBox({ icon: Icon, colorClass, items }) {
   const [primary, ...secondaries] = items;
@@ -117,6 +119,35 @@ function Section({ title, boxes }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// Additive: gate arrivals with no LRN yet, aged. Management/reporting only (server answers 403 for others -> renders nothing).
+function GateAgeingBox() {
+  const [sum, setSum] = useState(null);
+  useEffect(() => {
+    let live = true;
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const to = new Date();
+    const from = new Date(); from.setDate(from.getDate() - 30);
+    axios.get("/mis/gate-pending", { params: { from: iso(from), to: iso(to) } }).then((r) => { if (live) setSum(r.data?.data?.summary || null); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  if (!sum) return null;
+  return (
+    <Section
+      title="Gate Arrivals Without LRN"
+      boxes={[{
+        colorClass: "bg-red-500",
+        icon: ArrowRightOnRectangleIcon,
+        items: [
+          { label: "Unbooked (last 30 days)", value: sum.total ?? 0, href: "/dashboards/mis" },
+          { label: "Under 1 day", value: sum.green ?? 0 },
+          { label: "1-3 days", value: sum.amber ?? 0 },
+          { label: "Over 3 days", value: sum.red ?? 0 },
+        ],
+      }]}
+    />
   );
 }
 
@@ -565,6 +596,7 @@ export function TaskStatistics({ data }) {
       {showDeptSection && <Section title="Department Task" boxes={filteredDepartment} />}
       {showLabHeadSection && <Section title="Lab head Dashboard" boxes={filteredLabHead} />}
       {showCalibrationSection && <Section title="Calibration" boxes={filteredCalibration} />}
+      <GateAgeingBox />
     </div>
   );
 }

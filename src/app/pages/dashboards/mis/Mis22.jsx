@@ -726,6 +726,12 @@ function EmailLogTab() {
 // ---- OPTIONAL EXTRA TATs PER PACKAGE (add / delete rows) ----
 const EXTRA_STAGES = [
   { v: "dept:calibration", l: "Calibration department (transfer to results)" },
+  { v: "dept:building materials", l: "Building Materials department (allocation to results)" },
+  { v: "dept:chemical", l: "Chemical department (allocation to results)" },
+  { v: "dept:microbiology", l: "Microbiology department (allocation to results)" },
+  { v: "dept:electronics & electricals", l: "Electronics & Electricals department (allocation to results)" },
+  { v: "dept:plywood", l: "Plywood department (allocation to results)" },
+  { v: "dept:mechanical", l: "Mechanical department (allocation to results)" },
   { v: "billing", l: "Billing (authorisation to invoice)" },
   { v: "dispatch", l: "Dispatch (authorisation to dispatch / email)" },
 ];
@@ -768,7 +774,7 @@ function ExtraTats({ packages }) {
   return (
     <div className="rounded-xl border border-gray-200 dark:border-dark-700 p-3 space-y-2 text-xs bg-white dark:bg-dark-900/40 text-gray-800 dark:text-dark-100">
       <div className="font-bold text-[#18457c]">Additional TATs (optional)</div>
-      <p className="text-gray-600">Leave empty to use the lab standard only. Rows added here are tracked as separate clocks in the Sample Details TAT section (calendar days). Calibration samples only for now.</p>
+      <p className="text-gray-600">Leave empty to use the lab standard only. Rows added here are tracked as separate clocks in the Sample Details TAT section (calendar days). Works for calibration and testing samples; a department row applies only to samples of that department.</p>
       <div className="flex flex-wrap items-end gap-2">
         <label>Package / instrument (exact name)
           <input list="extra-tat-packages" value={pk} onChange={(e) => { setPk(e.target.value); setLoaded(""); }} className="block border rounded-lg p-1.5 w-72" />
@@ -1297,7 +1303,7 @@ export default function Mis22({ onClassic }) {
   const cardLabel = topCard ? TOP_TILES.find((t) => t.key === topCard)?.label : kpi ? KPI_CARDS.find((k) => k.key === kpi)?.label : lcStage ? `${LC_CARDS.find((c) => c.no === lcStage)?.label}${lcStatus ? ` - ${lcStatus}` : ""}` : "";
 
   const exportExcel = () => {
-    const headers = ["Sr. No.", "Booking Date", "LRN", "BRN", "Inward No.", "Customer", "Department", "Package", "Priority", "BD Person", "Current Status", "With / Since", "Report Due Date", "Overdue Days", "Allocated To", "Results Date", "Reviewed By", "Authorised By", "ULR No."];
+    const headers = ["Sr. No.", "Booking Date", "LRN", "BRN", "Inward No.", "Customer", "Department", "Package", "Priority", "BD Person", "Current Status", "With / Since", "Report Due Date", "Overdue Days", "Allocated To", "Results Date", "Reviewed By", "Authorised By", "ULR No.", "Additional TAT status"];
     const aoa = [
       headers,
       ...rows.map((r, i) => [
@@ -1320,6 +1326,7 @@ export default function Mis22({ onClassic }) {
         r.reviewed_by || "-",
         r.authorised_by || "-",
         r.ulr_no || "-",
+        Array.isArray(r.tat_clocks) && r.tat_clocks.length ? r.tat_clocks.map((c) => `${c.label}: ${c.status}`).join("; ") : "-",
       ]),
     ];
     const ws = XLSX.utils.aoa_to_sheet(aoa);

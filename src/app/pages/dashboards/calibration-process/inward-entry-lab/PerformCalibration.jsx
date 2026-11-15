@@ -58,6 +58,12 @@ const PerformCalibration = () => {
     const canReviewSelected = permissions.includes(115) || permissions.includes(277);
 
     const [searchTerm, setSearchTerm] = useState('');
+    // Quick person filter (additive): '' = everyone (default, list unchanged)
+    const [personFilter, setPersonFilter] = useState('');
+    const PERSON_FILTERS = [
+        { key: 'pooja', label: 'Pooja Agrawal', ids: ['136'] },
+        { key: 'hemant', label: 'Hemant Ojha', ids: ['110'] },
+    ];
 
     const [tableSettings, setTableSettings] = useState({
         enableFullScreen: false,
@@ -208,7 +214,9 @@ const PerformCalibration = () => {
     };
 
     // Filter and sort data
+    const activePerson = PERSON_FILTERS.find(p => p.key === personFilter);
     const filteredData = calibrationData
+        .filter(item => !activePerson || activePerson.ids.includes(String(item.allotedto ?? '')))
         .filter(item =>
             Object.values(item).some(value =>
                 value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
@@ -289,7 +297,7 @@ const PerformCalibration = () => {
     // Reset to first page when search changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, personFilter]);
 
     // Handle Calculate Uncertainty API call
     const handleCalculateUncertainty = async () => {
@@ -1315,6 +1323,22 @@ const PerformCalibration = () => {
                                     className="border border-gray-300 rounded px-3 py-1 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     placeholder="Search ID, Customer..."
                                 />
+                                <span className="text-sm text-gray-600 ml-3">Alloted to:</span>
+                                {[{ key: '', label: 'All' }, ...PERSON_FILTERS].map(p => (
+                                    <button
+                                        key={p.key || 'all'}
+                                        type="button"
+                                        onClick={() => setPersonFilter(p.key)}
+                                        className={clsx(
+                                            "px-3 py-1 text-xs rounded border",
+                                            personFilter === p.key
+                                                ? "bg-blue-600 text-white border-blue-600"
+                                                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                                        )}
+                                    >
+                                        {p.label}
+                                    </button>
+                                ))}
                             </div>
                             <div className="flex items-center gap-2">
                                 <TableConfig table={tableAdapter} />
