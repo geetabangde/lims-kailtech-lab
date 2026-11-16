@@ -364,7 +364,6 @@ const MODAL_NAV = [
   { id: "md-review", label: "Review" },
   { id: "md-email", label: "Email" },
   { id: "md-history", label: "History" },
-  { id: "md-custody", label: "Custody" },
 ];
 
 function DetailModal({ r, onClose, seeInvoice, onChanged }) {
@@ -544,10 +543,7 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
               <TrailDetail r={r} />
             </Section>
 
-            {/* Chain of Custody */}
-            <Section id="md-custody" title="Chain of Custody Timeline" accent="slate">
-              <ChainDetail r={r} />
-            </Section>
+            {/* Chain of Custody section removed 2026-11-16 (lab: keep History only); ChainDetail kept in file, unused */}
           </div>
         </div>
 
