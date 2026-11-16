@@ -708,8 +708,17 @@ function EmailLogTab() {
                     <td colSpan={10} className="p-3 space-y-1">
                       <div><b>Subject:</b> {r.subject}</div>
                       <div><b>To:</b> {(r.to || []).join(", ") || "-"} &nbsp; <b>CC:</b> {(r.cc || []).join(", ") || "-"} &nbsp; <b>BCC:</b> {(r.bcc || []).join(", ") || "-"}</div>
-                      <div><b>P.O. / reference:</b> {r.po || "-"} &nbsp; <b>Total size:</b> {(r.size_bytes / 1048576).toFixed(2)} MB &nbsp; <b>IP:</b> {r.ip || "-"}</div>
+                      <div><b>P.O. / reference:</b> {r.po || "-"} &nbsp; {r.kind !== "Draft" && <><b>Total size:</b> {(r.size_bytes / 1048576).toFixed(2)} MB (sent as one ZIP) &nbsp; <b>IP:</b> {r.ip || "-"}</>}{r.kind === "Draft" && <><b>Documents:</b> {r.documents} (sent as one ZIP)</>}</div>
+                      <div><b>Declaration:</b> {r.kind === "Draft" ? "Sender confirmed the DRAFT certificates were verified and accepted responsibility for sending" : (r.declaration || "-")}</div>
+                      {r.declaration_text && <div className="text-gray-600">{r.declaration_text}</div>}
                       {r.error && <div className="text-red-700"><b>Error:</b> {r.error}</div>}
+                      {r.feedback && <div><b>Tester feedback:</b> {r.feedback}</div>}
+                      <table className="w-full mt-2 border">
+                        <thead className="bg-white text-gray-500"><tr><th className="p-1 text-left">{r.kind === "Draft" ? "LRN" : "Certificate / report"}</th><th className="p-1 text-left">Instrument / product</th><th className="p-1 text-left">Serial / ID</th><th className="p-1 text-left">File</th><th className="p-1 text-left">Size</th></tr></thead>
+                        <tbody>{(r.items || []).map((it, i) => (
+                          <tr key={i} className="border-t"><td className="p-1">{it.no}</td><td className="p-1">{it.name}</td><td className="p-1">{it.serial}</td><td className="p-1">{it.file || "-"}</td><td className="p-1">{it.bytes ? `${(it.bytes / 1024).toFixed(0)} KB` : "-"}</td></tr>
+                        ))}</tbody>
+                      </table>
                     </td>
                   </tr>
                 )}
