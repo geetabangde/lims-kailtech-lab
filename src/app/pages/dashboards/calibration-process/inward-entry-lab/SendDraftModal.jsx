@@ -41,9 +41,13 @@ export default function SendDraftModal({ isOpen, onClose, inwardId }) {
   const toggle = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   const changeMode = (m) => {
     setMode(m);
-    // switching to "customer": clear the pre-filled own address so it is not sent to the customer list by mistake
-    if (m === 'live' && to === (data?.my_email || '')) setTo('');
-    if (m === 'test' && !to.trim()) setTo(data?.my_email || '');
+    // switching to "customer": replace the pre-filled own address with the customer's e-mail from the inward / customer master
+    // (same source as the final dispatch); still editable. Nothing is sent until the confirmations are ticked.
+    if (m === 'live') {
+      if (!to.trim() || to === (data?.my_email || '')) setTo(data?.customer_to || '');
+      if (!cc.trim()) setCc(data?.customer_cc || '');
+    }
+    if (m === 'test' && (!to.trim() || to === (data?.customer_to || ''))) setTo(data?.my_email || '');
   };
 
   const send = async () => {
