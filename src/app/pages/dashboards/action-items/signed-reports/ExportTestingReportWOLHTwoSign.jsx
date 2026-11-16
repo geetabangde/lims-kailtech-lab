@@ -262,8 +262,9 @@ function paginateRows(rows, data) {
   });
   const reserve = LAST_PAGE_RESERVE_UNITS + ((data.remarkLines && data.remarkLines.length) || 0);
   const carry = [];
-  // page 1 as the LAST page keeps its normal limit; later pages have measured spare space (+1)
-  const lastLimit = pages.length === 0 ? cap : cap + 1;
+  // 2026-11-16 (lab, BRN KTRC/2611000810): page 1 as the LAST page now gets the same +1 spare unit as later pages. Measured: 10 rows +
+  // "End of Report" fit page 1 with ~19px clear above the signature; before, the 10th row was carried alone to a second page.
+  const lastLimit = cap + 1;
   while (cur.length > 1 && used + reserve > lastLimit) {
     const moved = cur.pop();
     used -= rowUnits(moved);
