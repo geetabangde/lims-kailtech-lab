@@ -1153,7 +1153,7 @@ export default function Mis22({ onClassic }) {
   const [from, setFrom] = useState(() => isoDate(new Date(Date.now() - 30 * 86400000)));
   const [to, setTo] = useState(() => isoDate(new Date()));
   const [type, setType] = useState("all");
-  const [limit, setLimit] = useState(100); // DEFAULT 100 per user request
+  const [limit, setLimit] = useState(10000); // DEFAULT = all records (backend maximum 10000); changed 2026-11-16 from 100 - user can pick 10 / 25 / 50 / 100 / 500 ...
   const [department, setDepartment] = useState("");
   const [chemist, setChemist] = useState("");
   const [customer, setCustomer] = useState("");
@@ -1642,11 +1642,11 @@ export default function Mis22({ onClassic }) {
                       <option value="10">10</option>
                       <option value="25">25</option>
                       <option value="50">50</option>
-                      <option value="100">100 (Default)</option>
+                      <option value="100">100</option>
                       <option value="500">500</option>
                       <option value="1000">1000</option>
                       <option value="5000">5000</option>
-                      <option value="10000">10000</option>
+                      <option value="10000">All records (Default)</option>
                     </select>
                   </label>
                 </FGroup>
