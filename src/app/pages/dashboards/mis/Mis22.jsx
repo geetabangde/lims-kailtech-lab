@@ -103,42 +103,6 @@ function resendHref(r) {
   return `/dashboards/action-items/signed-reports?search=${encodeURIComponent(r.inward_no || r.lrn || "")}`;
 }
 
-const STEP_DOT = {
-  done: "bg-emerald-500",
-  current: "bg-red-500",
-  pending: "bg-gray-300",
-  unlinked: "bg-gray-200",
-};
-
-function ChainDetail({ r }) {
-  return (
-    <div>
-      <div className="text-[11px] text-gray-500 mb-2">(Derived from recorded timestamps - the system has no single custody log for samples.)</div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-        {(r.custody_chain || []).map((s, i) => (
-          <Fragment key={s.key}>
-            <div className={`rounded-xl border px-3 py-2 text-xs min-h-[72px] transition-all ${
-              s.state === "done"
-                ? "border-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/30"
-                : s.state === "current"
-                ? "border-red-400 bg-red-50 dark:bg-red-950/30 ring-2 ring-red-400 shadow-md"
-                : "border-gray-200 bg-gray-50/60 text-gray-400 dark:bg-dark-800"
-            }`}>
-              <div className="flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wide text-gray-600 dark:text-gray-300">
-                <span className="text-gray-400">{i + 1}.</span>
-                <span className={`w-2 h-2 rounded-full ${STEP_DOT[s.state] || STEP_DOT.pending}`} />
-                {s.label}
-              </div>
-              <div className="font-semibold text-[13px] text-gray-900 dark:text-gray-100 mt-1">{s.holder || (s.state === "unlinked" ? "Not linked" : "-")}</div>
-              <div className="text-[11px] text-gray-500">{s.at ? fmtDate(s.at) : s.state === "current" ? "Waiting" : ""}</div>
-            </div>
-          </Fragment>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function TrailDetail({ r }) {
   const t = r.allotment_trail || [];
   return (
@@ -543,7 +507,7 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
               <TrailDetail r={r} />
             </Section>
 
-            {/* Chain of Custody section removed 2026-11-16 (lab: keep History only); ChainDetail kept in file, unused */}
+            {/* Chain of Custody section removed 2026-11-16 (lab: keep History only); ChainDetail removed */}
           </div>
         </div>
 
