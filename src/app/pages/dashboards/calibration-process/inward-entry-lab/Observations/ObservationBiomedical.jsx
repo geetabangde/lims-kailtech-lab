@@ -474,6 +474,10 @@ const ObservationBiomedical = ({
       const uucCount = defaultUucCount;
       // Suction machine (231) mmHg UUC / bar master table: DPG-style columns in bar, no Tolerance column (Prateek 2026-11-05)
       const isConv = tablePoints.some(p => p && p.unit_conversion);
+      // 2026-11-16 (lab, Suction machine 231 only - the backend sends unit_conversion for that instrument alone): headings exactly as the draft certificate
+      const convInfo = isConv ? tablePoints.find(p => p && p.unit_conversion)?.unit_conversion : null;
+      const convUucUnit = convInfo?.uuc_unit || 'mmHg';
+      const convMasterUnit = convInfo?.master_unit || 'bar';
 
       const thCls = 'p-2 border border-gray-300 dark:border-gray-600 font-medium text-gray-800 dark:text-white text-center';
       const tdCls = 'p-2 border border-gray-300 dark:border-gray-600 dark:text-white';
@@ -537,6 +541,14 @@ const ObservationBiomedical = ({
               <input type="hidden" name="calibrationpoint[]" value={pointId} />
               <input type="hidden" name="type[]" value="uuc" />
               <input type="hidden" name="repeatable[]" value={i} />
+              {point.unit_conversion ? (
+                <div className="flex items-center gap-1">
+                  {/* Suction machine: show the UUC pressure in bar (draft certificate); the saved value (mmHg) stays in this hidden input, unchanged */}
+                  <input type="hidden" name="value[]" value={displayValue} />
+                  <input type="text" className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white" value={point.unit_conversion.converted_set_point} readOnly />
+                  <span className="text-xs text-gray-500">{point.unit_conversion.master_unit}</span>
+                </div>
+              ) : (
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-1">
                   <input
@@ -563,6 +575,7 @@ const ObservationBiomedical = ({
                   <span className="text-[10px] text-red-500 leading-none">{lcCheck.error}</span>
                 )}
               </div>
+              )}
             </td>
           );
         });
@@ -575,20 +588,20 @@ const ObservationBiomedical = ({
             <table className="w-full text-sm border-collapse border border-gray-300 dark:border-gray-600">
               <thead>
                 <tr className="bg-gray-100 dark:bg-gray-700">
-                  <th rowSpan={isConv ? 2 : 1} className={thCls}>Parameter</th>
-                  {showDevAndUnc && <th rowSpan={isConv ? 2 : 1} className={thCls}>Set Point</th>}
+                  <th rowSpan={isConv ? 2 : 1} className={thCls}>{isConv ? 'Sr. No.' : 'Parameter'}</th>
+                  {showDevAndUnc && <th rowSpan={isConv ? 2 : 1} className={thCls}>{isConv ? `Set Pressure on UUC (${convUucUnit})` : 'Set Point'}</th>}
                   {isSource ? (
                     <>
-                      {uucCount > 0 && <th rowSpan={isConv ? 2 : 1} colSpan={uucCount} className={thCls}>Reading on UUC</th>}
+                      {uucCount > 0 && <th rowSpan={isConv ? 2 : 1} colSpan={uucCount} className={thCls}>{isConv ? `Set Pressure on UUC (${convMasterUnit})` : 'Reading on UUC'}</th>}
                       {uucCount > 1 && <th rowSpan={isConv ? 2 : 1} className={thCls}>Average On UUC</th>}
-                      {masterCount > 0 && <th colSpan={masterCount} className={thCls}>Reading on Master</th>}
-                      {masterCount > 1 && <th rowSpan={isConv ? 2 : 1} className={thCls}>Average On Master</th>}
+                      {masterCount > 0 && <th colSpan={masterCount} className={thCls}>{isConv ? `Observation on Master (${convMasterUnit})` : 'Reading on Master'}</th>}
+                      {masterCount > 1 && <th rowSpan={isConv ? 2 : 1} className={thCls}>{isConv ? `Mean (${convMasterUnit})` : 'Average On Master'}</th>}
                     </>
                   ) : (
                     <>
-                      {masterCount > 0 && <th colSpan={masterCount} className={thCls}>Reading on Master</th>}
-                      {masterCount > 1 && <th rowSpan={isConv ? 2 : 1} className={thCls}>Average On Master</th>}
-                      {uucCount > 0 && <th rowSpan={isConv ? 2 : 1} colSpan={uucCount} className={thCls}>Reading on UUC</th>}
+                      {masterCount > 0 && <th colSpan={masterCount} className={thCls}>{isConv ? `Observation on Master (${convMasterUnit})` : 'Reading on Master'}</th>}
+                      {masterCount > 1 && <th rowSpan={isConv ? 2 : 1} className={thCls}>{isConv ? `Mean (${convMasterUnit})` : 'Average On Master'}</th>}
+                      {uucCount > 0 && <th rowSpan={isConv ? 2 : 1} colSpan={uucCount} className={thCls}>{isConv ? `Set Pressure on UUC (${convMasterUnit})` : 'Reading on UUC'}</th>}
                       {uucCount > 1 && <th rowSpan={isConv ? 2 : 1} className={thCls}>Average On UUC</th>}
                     </>
                   )}
@@ -607,7 +620,7 @@ const ObservationBiomedical = ({
                 )}
               </thead>
               <tbody>
-                {tablePoints.map((point) => {
+                {tablePoints.map((point, rowNo) => {
                   const pointId = point.calibration_point_id || point.id;
                   const devVal = tableInputValues[`${pointId}-error`] ?? point.deviation;
                   const currentRemark = getPointRemark(point, devVal);
@@ -615,10 +628,17 @@ const ObservationBiomedical = ({
                   return (
                     <tr key={`bio-${pointId}`} className="dark:bg-gray-800">
                       {/* Parameter */}
-                      <td className={`${tdCls} min-w-[180px]`}>
+                      <td className={isConv ? tdCls : `${tdCls} min-w-[180px]`}>
                         <input type="hidden" name="calibrationpoint[]" value={pointId} />
                         <input type="hidden" name="type[]" value="parameter" />
                         <input type="hidden" name="repeatable[]" value="0" />
+                        {isConv ? (
+                          <>
+                            {/* Suction machine: visible Sr. No. like the draft; the Parameter value is still saved through this hidden input */}
+                            <input type="hidden" name="value[]" id={`parameter${pointId}`} value={tableInputValues[`${pointId}-parameter`] ?? (point.parameter || point.unittype || '')} />
+                            <div className="text-center font-medium">{rowNo + 1}</div>
+                          </>
+                        ) : (
                         <input
                           type="text"
                           name="value[]"
@@ -628,6 +648,7 @@ const ObservationBiomedical = ({
                           value={tableInputValues[`${pointId}-parameter`] ?? (point.parameter || point.unittype || '')}
                           readOnly
                         />
+                        )}
                       </td>
 
                       {/* Set Point */}
@@ -644,7 +665,7 @@ const ObservationBiomedical = ({
                             value={point.set_point ?? point.point ?? ''}
                             readOnly
                           /> {point.set_point_unit ?? point.unit ?? ''}
-                          {point.unit_conversion && (
+                          {point.unit_conversion && !isConv && (
                             <div className="mt-1 text-xs text-gray-600 dark:text-gray-300">
                               = {point.unit_conversion.converted_set_point} {point.unit_conversion.master_unit}
                             </div>
@@ -919,7 +940,7 @@ const ObservationBiomedical = ({
         {showElectrical && sourceSafety.length > 0 && renderTable("3. ELECTRICAL SAFETY TEST (Source)", sourceSafety, 5, 0, false, true, false)}
         {showPerformance && measurePerf.length > 0 && renderTable("4. PERFORMANCE TESTING", measurePerf, 1, 5, true, false, false)}
         {showPerformance && sourcePerfPlain.length > 0 && renderTable("4. PERFORMANCE TESTING (Source)", sourcePerfPlain, 5, 1, true, true, false)}
-        {showPerformance && sourcePerfConv.length > 0 && renderTable("4. PERFORMANCE TESTING (Source) - UUC in mmHg, master in bar", sourcePerfConv, 3, 1, true, true, false)}
+        {showPerformance && sourcePerfConv.length > 0 && renderTable("4. PERFORMANCE TESTING", sourcePerfConv, 3, 1, true, true, false)}
       </div>
     );
   };
