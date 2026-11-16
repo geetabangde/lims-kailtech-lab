@@ -98,9 +98,11 @@ export const getSWFieldType = (rowType, colIndex) => {
   return type ? { type, repeatable: '0' } : null;
 };
 
-// Every saved cell except the read-only set point is editable in PHP
+// Every saved cell except the read-only set point is editable in PHP.
+// 2026-11-16 (lab): the Average cells (UUC + Master) are read-only too - they are always calculated
+// from the readings, so typing into them was silently overwritten on the next reading entry.
 export const isSWCellEditable = (rowType, colIndex) => (
-  colIndex !== SW_COLS.SET_POINT && getSWFieldType(rowType, colIndex) !== null
+  colIndex !== SW_COLS.SET_POINT && colIndex !== SW_COLS.AVERAGE && getSWFieldType(rowType, colIndex) !== null
 );
 
 /**
@@ -122,7 +124,8 @@ export const validateSWRow = (rowData, rowIndex, meta, validateLeastCount) => {
   const rowType = getSWRowType(rowData);
 
   rowData.forEach((cell, colIndex) => {
-    if (!isSWCellEditable(rowType, colIndex)) return;
+    // the calculated Average cell is not editable but must still be filled (required check as before)
+    if (!isSWCellEditable(rowType, colIndex) && !(colIndex === SW_COLS.AVERAGE && getSWFieldType(rowType, colIndex) !== null)) return;
 
     const key = `${rowIndex}-${colIndex}`;
     if (isBlank(cell)) {

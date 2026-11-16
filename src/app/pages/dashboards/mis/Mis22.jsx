@@ -918,18 +918,21 @@ const KPI_CARDS = [
 
 const COUNTED_KPIS = ["samples_booked", "open_samples", "reports_overdue", "reports_due_soon", "bill_pending"];
 
-function applyCardFilters(list, f, counted) {
+// `counted` = one row per LRN at its least advanced lifecycle stage (lifecycle cards); `firstRows` = the first row per LRN
+// (the row the backend summary() uses for Testing/Calibration, dues and Open/Overdue/Bill KPI counts). Both hold row keys (_k).
+// 2026-11-16: card numbers and the rows shown after a click now use the same rule as the backend count.
+function applyCardFilters(list, f, counted, firstRows) {
   let r = list;
   const one = !f.showAll;
   if (f.topCard) {
-    if (one) r = r.filter((x) => counted.has(x));
+    if (one) r = r.filter((x) => firstRows.has(x._k));
     if (f.topCard === "testing") r = r.filter((x) => (x.type || "") !== "Calibration");
     else if (f.topCard === "calibration") r = r.filter((x) => (x.type || "") === "Calibration");
     else if (f.topCard === "bis_dues") r = r.filter((x) => isDueRow(x) && isBisRow(x));
     else if (f.topCard === "general_dues") r = r.filter((x) => isDueRow(x) && !isBisRow(x));
   }
   if (f.kpi) {
-    if (one && COUNTED_KPIS.includes(f.kpi)) r = r.filter((x) => counted.has(x));
+    if (one && COUNTED_KPIS.includes(f.kpi)) r = r.filter((x) => firstRows.has(x._k));
     switch (f.kpi) {
       case "open_samples": r = r.filter((x) => !x.dispatch_date && !x.emailed_date); break;
       case "reports_overdue": r = r.filter((x) => !x.dispatch_date && !x.emailed_date && x.report_status === "OVERDUE"); break;
@@ -942,9 +945,14 @@ function applyCardFilters(list, f, counted) {
   }
   if (f.lcStage) {
     if (f.lcStatus === "Overdue") {
-      r = r.filter((x) => Number(x.lifecycle_no) === f.lcStage && (Number(x.overdue_days_22) > 0 || x.testing_status === "OVERDUE" || x.lifecycle_status === "Overdue"));
+      // same rule as the backend card: the sample (LRN) sits at this stage and a row at that stage is Overdue
+      if (one) r = r.filter((x) => counted.has(x._k));
+      r = r.filter((x) => Number(x.lifecycle_no) === f.lcStage && x.lifecycle_status === "Overdue");
+    } else if (f.lcStage === 3) {
+      // "Sample Booked" counts every LRN, but no row has lifecycle stage 3 (rows start at Allotted = 4): show one row per LRN
+      if (one) r = r.filter((x) => firstRows.has(x._k));
     } else {
-      if (one) r = r.filter((x) => counted.has(x));
+      if (one) r = r.filter((x) => counted.has(x._k));
       r = r.filter((x) => Number(x.lifecycle_no) === f.lcStage);
     }
   }
@@ -1229,7 +1237,18 @@ export default function Mis22({ onClassic }) {
       let min = null;
       l.forEach((x) => { const n = Number(x.lifecycle_no); if (n !== 12 && (min === null || n < min)) min = n; });
       const pool = min === null ? l : l.filter((x) => Number(x.lifecycle_no) === min);
-      set.add(pool.find((x) => x.lifecycle_status === "Overdue") || pool[0]);
+      set.add((pool.find((x) => x.lifecycle_status === "Overdue") || pool[0])._k);
+    });
+    return set;
+  }, [allRows]);
+
+  // First row per LRN (rows arrive in the backend's order) - what the backend summary counts for the tiles and KPI cards
+  const firstRows = useMemo(() => {
+    const seenLrn = new Set();
+    const set = new Set();
+    allRows.forEach((x) => {
+      const k = String(x.lrn);
+      if (!seenLrn.has(k)) { seenLrn.add(k); set.add(x._k); }
     });
     return set;
   }, [allRows]);
@@ -1244,7 +1263,7 @@ export default function Mis22({ onClassic }) {
   const hayRows = useMemo(() => (masterTerms.length ? allRows.map((r) => ({ ...r, _hay: searchText(r) })) : allRows), [allRows, masterTerms.length]);
 
   const rows = useMemo(() => {
-    let list = applyCardFilters(hayRows, { topCard, kpi, lcStage, lcStatus, showAll }, counted).filter((r) => {
+    let list = applyCardFilters(hayRows, { topCard, kpi, lcStage, lcStatus, showAll }, counted, firstRows).filter((r) => {
       if (department && r.department !== department) return false;
       if (chemist && r.allocated_to !== chemist) return false;
       if (customer && !String(r.customer || "").toLowerCase().includes(customer.toLowerCase())) return false;
@@ -1284,7 +1303,7 @@ export default function Mis22({ onClassic }) {
       });
     }
     return list;
-  }, [hayRows, department, chemist, customer, stage, cat, colFilters, sort, cols, topCard, kpi, lcStage, lcStatus, showAll, counted, fPri, fFlow, fOver, fEmail, fWa, fInv, masterTerms]);
+  }, [hayRows, department, chemist, customer, stage, cat, colFilters, sort, cols, topCard, kpi, lcStage, lcStatus, showAll, counted, firstRows, fPri, fFlow, fOver, fEmail, fWa, fInv, masterTerms]);
 
   const clearCards = () => { setTopCard(null); setKpi(null); setLcStage(null); setLcStatus(""); setShowAll(false); };
   const clearAll = () => { setDepartment(""); setChemist(""); setCustomer(""); setStage(""); setCat("all"); setMaster(""); setFFlow(""); setFOver(""); setFEmail(""); setFWa(""); setFInv(""); setFPri(""); setColFilters({}); setSort({ key: "booking_date", dir: "asc" }); clearCards(); };
