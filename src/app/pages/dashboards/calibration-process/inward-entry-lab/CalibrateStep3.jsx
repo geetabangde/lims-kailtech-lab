@@ -10960,14 +10960,18 @@ const CalibrateStep3 = () => {
           });
 
           // Average (°C) for UUC (col 12: type averageuuc)
-          const uucAverageC = rowData[12] ?? '';
+          // 2026-11-17 (Pooja, Inward 5375 / Item 73029): the static UUC row is 13 cells wide (11 = Average, 12 = Deviation),
+          // while the edit handlers keep Average in state key `${row}-12` and Deviation in `${row}-13`. Reading rowData[12]
+          // on an unedited page therefore submitted the DEVIATION as the average, and every re-submit compounded it
+          // (0.133 -> 10.266 -> 20.399 -> 30.532). Use the state key when present, else the real static Average cell (11).
+          const uucAverageC = tableInputValues[`${rowIndex}-12`] ?? row[11]?.toString() ?? '';
           calibrationPoints.push(calibPointId);
           types.push('averageuuc');
           repeatables.push('0');
           values.push(uucAverageC);
 
           // Deviation (°C) (col 13: type error)
-          const latestDeviation = tableInputValues[`${rowIndex}-13`] ?? rowData[13] ?? '';
+          const latestDeviation = tableInputValues[`${rowIndex}-13`] ?? row[12]?.toString() ?? '';
           calibrationPoints.push(calibPointId);
           types.push('error');
           repeatables.push('0');
