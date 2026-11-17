@@ -632,7 +632,12 @@ export default function ReviewByHodDetail() {
                         const cellStyle = parseComplianceStyle(row.compliance_style);
                         // PHP: BDL/ADL display_value
                         let displayResult = renderVal(row.result);
-                        if (row.result && row.result.decimal !== undefined && row.result.decimal !== null) {
+                        // 2026-11-17 (Shaheen, Review by HOD, Mn stored as 0): when the server already decided the result is below / above the detection limit
+                        // (display_value "BDL< 0.01" / "ADL> x") show "< 0.01" / "> x"; the decimal formatting below rebuilt the text from the raw value and printed 0.00.
+                        const dlMatch = String(row.result?.display_value ?? "").match(/^\s*(BDL|ADL)\s*([<>])\s*([-+]?\d*\.?\d+)/i);
+                        if (dlMatch) {
+                          displayResult = `${dlMatch[2]} ${dlMatch[3]}`;
+                        } else if (row.result && row.result.decimal !== undefined && row.result.decimal !== null) {
                           const rawVal = String(row.result.value ?? "").trim();
                           if (rawVal !== "") {
                             const match = rawVal.match(/^([^\d.-]*)([-+]?\d*\.?\d+)(.*)$/);
