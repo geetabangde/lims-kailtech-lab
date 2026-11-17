@@ -218,8 +218,9 @@ const SS = {
 // One "unit" = one compact single-line result row (~18px). Page 1 holds PAGE_1_UNITS units under the header/customer block,
 // later pages hold PAGE_N_UNITS. Rows whose text wraps (long parameter / method names, grading tables) count for more units,
 // and a long customer/sample block on page 1 reduces its capacity. The last page also reserves room for Remarks + **End of Report**.
-const PAGE_1_UNITS = 14;
-const PAGE_N_UNITS = 26;
+// 2026-11-17 (lab request): signatures 2cm lower, QR up 2mm, TEST REPORT up 1mm, Page-of line up 3mm => ~24mm (~5 units) reclaimed: 14 -> 18 (page N 26 -> 29, keeps ~1 unit spare)
+const PAGE_1_UNITS = 18;
+const PAGE_N_UNITS = 29;
 const LAST_PAGE_RESERVE_UNITS = 2;
 const WOLH_COMPACT_CSS = `
 .wolh-compact thead th, .wolh-compact thead + tbody td { padding-top: 1.5px !important; padding-bottom: 1.5px !important; line-height: 1.2 !important; }
@@ -302,7 +303,7 @@ function HtmlDocWithoutLHTwoSign({ report }) {
               minHeight: '270mm',
               position: 'relative',
               pageBreakAfter: isLastPage ? 'auto' : 'always',
-              paddingBottom: '45mm', // Reserves 15mm clearance above pre-printed letterhead footer
+              paddingBottom: '25mm', // 2026-11-17: was 45mm; signature block moved 2cm lower (bottom: -5mm)
               marginBottom: isLastPage ? '0px' : '20px'
             }}
           >
@@ -336,8 +337,8 @@ function HtmlDocWithoutLHTwoSign({ report }) {
               </tbody>
             </table>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '6px', fontSize: '12.5px', paddingTop: data.isNabl ? '0px' : '25px' }}>
-              <div style={{ paddingBottom: '4px', position: 'relative', top: '-5mm' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '6px', marginTop: '-3mm', fontSize: '12.5px', paddingTop: data.isNabl ? '0px' : '25px' }}>
+              <div style={{ paddingBottom: '4px', position: 'relative', top: '-4mm' }}>
                 {data.isNabl && (
                   <img src={`${window.location.origin}/images/nabl_qr.png`} alt="NABL QR" style={{ width: "50px", height: "50px", objectFit: "contain" }} />
                 )}
@@ -361,7 +362,7 @@ function HtmlDocWithoutLHTwoSign({ report }) {
                   </div>
                 )}
 
-                <div style={S1.title}>TEST REPORT</div>
+                <div style={{ ...S1.title, marginTop: '-1mm' }}>TEST REPORT</div>
 
                 <div style={S1.ulrRow}>
                   <div><span style={SS.bold}>ULR:</span>{data.nablStatus === 1 && data.ulr ? data.ulr : ""}</div>
@@ -403,7 +404,7 @@ function HtmlDocWithoutLHTwoSign({ report }) {
             {/* Signature Block - Raised by 15mm above letterhead footer */}
             <div style={{
               position: 'absolute',
-              bottom: '15mm',
+              bottom: '-5mm', // 2026-11-17: was 15mm (lab asked 2cm lower)
               left: 0,
               right: 0
             }}>
