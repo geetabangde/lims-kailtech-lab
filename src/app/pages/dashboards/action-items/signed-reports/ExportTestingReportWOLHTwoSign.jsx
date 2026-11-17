@@ -8,8 +8,7 @@ import {
   HtmlInfoRows,
   HtmlSampleRows,
   HtmlResultsTable,
-  HtmlRemarks,
-  HtmlSignatories
+  HtmlRemarks
 } from "./ExportTestingReport";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -204,14 +203,54 @@ const S1 = {
     transform: "rotate(-45deg)",
     zIndex: -1,
   },
+  sigRow: { display: 'flex', flexWrap: 'wrap', marginTop: '10px', marginBottom: '8px', justifyContent: 'space-between' },
+  sigRowSingle: { display: 'flex', flexWrap: 'wrap', marginTop: '10px', marginBottom: '8px', justifyContent: 'flex-start' },
+  sigBox: { minWidth: '150px', fontSize: '9.5px', flex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  sigBoxSingle: { minWidth: '150px', fontSize: '9.5px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' },
+  sigImg: { width: '135px', height: '46px', objectFit: 'contain', marginBottom: '2px' },
+  sigDig: { width: '155px', height: '62px', objectFit: 'contain' },
+  sigElec: { fontSize: '9px', color: '#444', marginTop: '1px', textAlign: 'center' },
+  sigTit: { fontSize: '10px', color: '#111', fontWeight: 'bold', marginBottom: '5px' },
+  sigName: { fontWeight: 'bold', fontSize: '9.5px' },
+  sigAuth: { fontSize: '9px', color: '#666' },
 };
 
 const SS = {
   bold: { fontWeight: "bold" },
   infoWrap: { border: `1px solid #999`, marginBottom: '8px' },
   secTitle: { fontWeight: 'bold', fontSize: '13.5px', marginBottom: '4px', marginTop: '5px' },
-  endOfReport: { textAlign: 'center', fontWeight: 'bold', margin: '12px 0', fontSize: '12.5px' },
+  endOfReport: { textAlign: 'center', fontWeight: 'bold', margin: '8px 0 0 0', fontSize: '12.5px' },
 };
+
+function HtmlSignatoriesWOLHTwoSign({ signatories, isLastPage }) {
+  if (!signatories.length) return null;
+  const isSingle = signatories.length === 1;
+
+  const baseRow = isSingle ? S1.sigRowSingle : S1.sigRow;
+  const rowStyle = isLastPage ? { ...baseRow, marginTop: '0px' } : baseRow;
+
+  return (
+    <div style={rowStyle}>
+      {signatories.map((s, i) => (
+        <div key={i} style={isSingle ? S1.sigBoxSingle : S1.sigBox}>
+          {s.displayTitle ? <div style={S1.sigTit}>{s.displayTitle}</div> : null}
+          {s.is_signed ? (
+            <>
+              {s.sign_image_url ? <img src={getPdfImageUrl(s.sign_image_url)} alt="" style={S1.sigImg} /> : null}
+              {s.digital_signature_url ? <img src={getPdfImageUrl(s.digital_signature_url)} alt="" style={S1.sigDig} /> : null}
+            </>
+          ) : (
+            <>
+              <div style={S1.sigName}>{s.display_name ?? s.name ?? ''}</div>
+              <div style={S1.sigAuth}>{s.authorizefor ?? ''}</div>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+HtmlSignatoriesWOLHTwoSign.propTypes = { signatories: PropTypes.array.isRequired, isLastPage: PropTypes.bool };
 
 // ─── Page-fit model for the "Without Letter Head" report (measured 12-Nov-2026) ───
 // The signature block is fixed 15mm above the pre-printed letterhead footer and must never be overlapped.
@@ -225,6 +264,9 @@ const LAST_PAGE_RESERVE_UNITS = 2;
 const WOLH_COMPACT_CSS = `
 .wolh-compact thead th, .wolh-compact thead + tbody td { padding-top: 1.5px !important; padding-bottom: 1.5px !important; line-height: 1.2 !important; }
 .wolh-compact div[style*="padding:4px"], .wolh-compact div[style*="padding:5px"] { padding-top: 1.5px !important; padding-bottom: 1.5px !important; line-height: 1.2 !important; }
+@media print {
+  .wolh-page-last { min-height: auto !important; padding-bottom: 0mm !important; }
+}
 `;
 
 function rowUnits(r) {
@@ -309,12 +351,14 @@ function HtmlDocWithoutLHTwoSign({ report }) {
         return (
           <div
             key={pageIndex}
+            className={`wolh-page ${isLastPage ? 'wolh-page-last' : ''}`}
             style={{
               boxSizing: 'border-box',
-              minHeight: '270mm',
+              minHeight: isLastPage ? 'auto' : '270mm',
               position: 'relative',
               pageBreakAfter: isLastPage ? 'auto' : 'always',
-              paddingBottom: '25mm', // 2026-11-17: was 45mm; signature block moved 2cm lower (bottom: -5mm)
+              pageBreakInside: 'avoid',
+              paddingBottom: isLastPage ? '0mm' : '25mm',
               marginBottom: isLastPage ? '0px' : '20px'
             }}
           >
@@ -412,19 +456,20 @@ function HtmlDocWithoutLHTwoSign({ report }) {
               </>
             )}
 
-            {/* Signature Block - 2026-11-17: on last page, signature flows ~1cm (10mm) after table/text to prevent blank space misuse; intermediate pages anchor to bottom */}
+            {/* Signature Block - 2026-11-17: on last page, signature flows ~1cm (8mm) after table/text to prevent blank space misuse; intermediate pages anchor to bottom */}
             <div style={isLastPage ? {
               position: 'relative',
               marginTop: '8mm',
               left: 0,
-              right: 0
+              right: 0,
+              pageBreakInside: 'avoid'
             } : {
               position: 'absolute',
               bottom: '-5mm', // 2026-11-17: was 15mm (lab asked 2cm lower)
               left: 0,
               right: 0
             }}>
-              <HtmlSignatories signatories={data.signatories} />
+              <HtmlSignatoriesWOLHTwoSign signatories={data.signatories} isLastPage={isLastPage} />
             </div>
           </div>
         );

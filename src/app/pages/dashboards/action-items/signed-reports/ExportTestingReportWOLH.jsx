@@ -86,8 +86,8 @@ const S1 = {
   sigRowSingle: { display: 'flex', flexWrap: 'wrap', marginTop: '25px', marginBottom: '8px', justifyContent: 'flex-start' },
   sigBox: { minWidth: '150px', fontSize: '9.5px', flex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   sigBoxSingle: { minWidth: '150px', fontSize: '9.5px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' },
-  sigImg: { width: '150px', height: '58px', objectFit: 'contain', marginBottom: '2px' },
-  sigDig: { width: '180px', height: '78px', objectFit: 'contain' },
+  sigImg: { width: '135px', height: '46px', objectFit: 'contain', marginBottom: '2px' },
+  sigDig: { width: '155px', height: '62px', objectFit: 'contain' },
   sigElec: { fontSize: '9px', color: '#444', marginTop: '1px', textAlign: 'center' },
   sigTit: { fontSize: '10px', color: '#111', fontWeight: 'bold', marginBottom: '5px' },
   sigName: { fontWeight: 'bold', fontSize: '9.5px' },
@@ -98,7 +98,7 @@ const SS = {
   bold: { fontWeight: "bold" },
   infoWrap: { border: `1px solid #999`, marginBottom: '8px' },
   secTitle: { fontWeight: 'bold', fontSize: '11px', marginBottom: '4px', marginTop: '5px' },
-  endOfReport: { textAlign: 'center', fontWeight: 'bold', margin: '12px 0', fontSize: '9.5px' },
+  endOfReport: { textAlign: 'center', fontWeight: 'bold', margin: '8px 0 0 0', fontSize: '9.5px' },
 };
 
 // Local signatories renderer — uses larger NABL-style logo sizing & 8.5px text
@@ -144,6 +144,9 @@ const LAST_PAGE_RESERVE_UNITS = 2;
 const WOLH_COMPACT_CSS = `
 .wolh-compact thead th, .wolh-compact thead + tbody td { padding-top: 1.5px !important; padding-bottom: 1.5px !important; line-height: 1.2 !important; }
 .wolh-compact div[style*="padding:4px"], .wolh-compact div[style*="padding:5px"] { padding-top: 1.5px !important; padding-bottom: 1.5px !important; line-height: 1.2 !important; }
+@media print {
+  .wolh-page-last { min-height: auto !important; padding-bottom: 0mm !important; }
+}
 `;
 
 function rowUnits(r) {
@@ -228,12 +231,14 @@ function HtmlDocWithoutLH({ report }) {
         return (
           <div
             key={pageIndex}
+            className={`wolh-page ${isLastPage ? 'wolh-page-last' : ''}`}
             style={{
               boxSizing: 'border-box',
-              minHeight: '270mm',
+              minHeight: isLastPage ? 'auto' : '270mm',
               position: 'relative',
               pageBreakAfter: isLastPage ? 'auto' : 'always',
-              paddingBottom: '25mm', // 2026-11-17: was 45mm; signature block moved 2cm lower (bottom: -5mm)
+              pageBreakInside: 'avoid',
+              paddingBottom: isLastPage ? '0mm' : '25mm',
               marginBottom: isLastPage ? '0px' : '20px'
             }}
           >
@@ -329,12 +334,13 @@ function HtmlDocWithoutLH({ report }) {
               </>
             )}
 
-            {/* Signature Block - 2026-11-17: on last page, signature flows 1cm (10mm) after table/text to prevent blank space misuse; intermediate pages anchor to bottom */}
+            {/* Signature Block - 2026-11-17: on last page, signature flows ~1cm (8mm) after table/text to prevent blank space misuse; intermediate pages anchor to bottom */}
             <div style={isLastPage ? {
               position: 'relative',
-              marginTop: '10mm',
+              marginTop: '8mm',
               left: 0,
-              right: 0
+              right: 0,
+              pageBreakInside: 'avoid'
             } : {
               position: 'absolute',
               bottom: '-5mm', // 2026-11-17: was 15mm (lab asked 2cm lower)
