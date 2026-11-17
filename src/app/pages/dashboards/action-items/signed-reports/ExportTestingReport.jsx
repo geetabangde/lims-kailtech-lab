@@ -162,6 +162,8 @@ export function extractData(report) {
     isNabl = false;
   }
 
+  const room_temperature = report?.room_temperature ?? "";
+
   return {
     ulr, ktrcRef, displayLRN, receiptDate,
     condition_name, sealed_name, qtyStr,
@@ -169,7 +171,7 @@ export function extractData(report) {
     customerName, customerAddress, contactPerson, showContact, customerRef,
     productDesc, productName, grade, batchnoClean, brandValue,
     hasSpecs, test_results: toArray(test_results), remarkLines, signatories: finalSignatories,
-    nablStatus, nablLogo, isDraft, isNabl,
+    nablStatus, nablLogo, isDraft, isNabl, room_temperature,
   };
 }
 
@@ -273,6 +275,12 @@ export function HtmlSampleRows({ data }) {
         {data.productName}, Grade: {data.grade ?? ''}
         {data.brandValue ? `, ${data.brandValue}` : ''}
       </div>
+      {data.room_temperature ? (
+        <div style={{ ...SS.infoFull, display: 'flex' }}>
+          <div style={{ width: '50%', fontWeight: 'bold' }}>Environmental Condition:</div>
+          <div style={{ width: '50%', fontWeight: 'bold' }}>Room Temperature: {data.room_temperature}&deg;C</div>
+        </div>
+      ) : null}
     </>
   );
 }

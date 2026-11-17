@@ -124,6 +124,7 @@ function extractDataTwoSign(report) {
   const nablLogo = typeof nablObj === "object" ? nablObj?.logo : null;
   const isNabl = typeof nablObj === "object" ? Boolean(nablObj?.is_nabl) : false;
   const tid = trf_product?.id ?? report?.id ?? null; // For the End of Report check
+  const room_temperature = report?.room_temperature ?? "";
 
   return {
     ulr, ktrcRef, displayLRN, receiptDate,
@@ -132,7 +133,7 @@ function extractDataTwoSign(report) {
     customerName, customerAddress, contactPerson, showContact, customerRef,
     productDesc, productName, grade, batchnoClean,
     hasSpecs, test_results: toArray(test_results), remarkLines, signatories: finalSignatories,
-    nablStatus, nablLogo, isDraft, tid, isNabl
+    nablStatus, nablLogo, isDraft, tid, isNabl, room_temperature
   };
 }
 
