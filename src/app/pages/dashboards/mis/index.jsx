@@ -1138,13 +1138,16 @@ function MisClassic() {
   );
 }
 
+const CLASSIC_VIEW_ENABLED = false; // 2026-11-17: Classic View is disabled (to be removed later)
+
 // STAGED 2026-11-13: the new 22-column view is the default; management can fall back to the Classic table (unchanged above).
 export default function MisSampleFlow() {
   const isManagement =
     MANAGEMENT_IDS.includes(Number(localStorage.getItem("userId"))) ||
     ["admin", "4"].includes(localStorage.getItem("userRole"));
   const [view, setView] = useState(() => {
-    try { return localStorage.getItem("mis_view") === "classic" ? "classic" : "22col"; } catch { return "22col"; }
+    // 2026-11-17: Classic View is switched off (being retired); anyone with a stored "classic" choice lands on the 22-column view. Set CLASSIC_VIEW_ENABLED = true to bring it back.
+    try { return CLASSIC_VIEW_ENABLED && localStorage.getItem("mis_view") === "classic" ? "classic" : "22col"; } catch { return "22col"; }
   });
   const switchTo = (v) => {
     setView(v);

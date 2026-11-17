@@ -542,7 +542,7 @@ function GateTab({ canSee }) {
   useEffect(() => { if (canSee) load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!canSee) return <div className="p-4 text-sm text-gray-600">The gate backlog is available to management and the reporting team only.</div>;
 
-  const colour = { green: "bg-emerald-100 text-emerald-800", amber: "bg-amber-100 text-amber-800", red: "bg-red-100 text-red-800" };
+  const colour = { green: "bg-emerald-100 text-emerald-800", amber: "bg-amber-100 text-amber-800", red: "bg-red-100 text-red-800", booked: "bg-sky-100 text-sky-800" };
   const createHref = (g) => (g.purpose_id === 2
     ? `/dashboards/calibration-process/inward-entry-lab?caliblocation=Lab&calibacc=Nabl&gate=${g.id}&customer=${encodeURIComponent(g.customer)}&material=${encodeURIComponent(g.material)}`
     : `/dashboards/testing/trfs-starts-jobs/create?gate=${g.id}&customer=${encodeURIComponent(g.customer)}&material=${encodeURIComponent(g.material)}`);
@@ -553,7 +553,7 @@ function GateTab({ canSee }) {
         <label>From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="block border rounded-lg p-1.5" /></label>
         <label>To<input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="block border rounded-lg p-1.5" /></label>
         <button type="button" onClick={load} disabled={loading} className="px-4 py-2 rounded-lg bg-[#18457c] text-white font-semibold">{loading ? "Loading..." : "Filter"}</button>
-        {d && <span className="text-gray-600">Pending LRN: <b>{d.summary.total}</b> &middot; <Badge cls={colour.green}>&lt; 24 hrs {d.summary.green}</Badge> <Badge cls={colour.amber}>1-3 days {d.summary.amber}</Badge> <Badge cls={colour.red}>&gt; 3 days {d.summary.red}</Badge></span>}
+        {d && <span className="text-gray-600">Pending LRN: <b>{d.summary.total}</b> &middot; <Badge cls={colour.green}>&lt; 24 hrs {d.summary.green}</Badge> <Badge cls={colour.amber}>1-3 days {d.summary.amber}</Badge> <Badge cls={colour.red}>&gt; 3 days {d.summary.red}</Badge> &middot; <Badge cls={colour.booked}>Already booked (LRN found) {d.summary.booked || 0}</Badge></span>}
       </div>
       <div className="text-[11px] text-gray-500">{d?.note}</div>
       <div className="overflow-auto border rounded-lg max-h-[65vh]">
@@ -564,8 +564,10 @@ function GateTab({ canSee }) {
               <tr key={g.id} className="border-t">
                 <td className="px-2 py-1 font-mono">{g.id}</td><td className="px-2 py-1 whitespace-nowrap">{fmtDate(g.arrival)}</td><td className="px-2 py-1">{g.custodian || "-"}</td>
                 <td className="px-2 py-1">{g.customer}</td><td className="px-2 py-1">{g.material}</td><td className="px-2 py-1">{g.quantity}</td><td className="px-2 py-1">{g.purpose}</td>
-                <td className="px-2 py-1"><Badge cls={colour[g.colour]}>{g.age_days === 0 ? `${g.age_hours} hrs` : `${g.age_days} days`}</Badge></td>
-                <td className="px-2 py-1"><a href={createHref(g)} target="_blank" rel="noopener noreferrer" className="px-2 py-1 rounded bg-[#18457c] text-white text-[11px] font-semibold whitespace-nowrap">Create TRF / Assign LRN &#8599;</a></td>
+                <td className="px-2 py-1">{g.booked ? <Badge cls={colour.booked}>Booked</Badge> : <Badge cls={colour[g.colour]}>{g.age_days === 0 ? `${g.age_hours} hrs` : `${g.age_days} days`}</Badge>}</td>
+                <td className="px-2 py-1">{g.booked
+                  ? <span className="font-mono text-[11px] text-sky-900" title="LRN found for the same customer, booked within 14 days of this arrival">LRN: {g.lrn}</span>
+                  : <a href={createHref(g)} target="_blank" rel="noopener noreferrer" className="px-2 py-1 rounded bg-[#18457c] text-white text-[11px] font-semibold whitespace-nowrap">Create TRF / Assign LRN &#8599;</a>}</td>
               </tr>
             ))}
             {d && d.rows.length === 0 && <tr><td colSpan={9} className="p-4 text-center text-gray-500">No unbooked gate arrivals in this range.</td></tr>}
@@ -588,6 +590,7 @@ function EmailLogTab() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [openMail, setOpenMail] = useState(null);
+  const [mailCard, setMailCard] = useState(""); // "" = all, else live | test | failed | cancelled (same buckets as the summary cards)
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -602,6 +605,10 @@ function EmailLogTab() {
   }, [filters]);
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const mailBucket = (r) => (r.status === "failed" ? "failed" : r.status === "cancelled" ? "cancelled" : r.mode === "test" ? "test" : "live");
+  const shownMail = (data?.rows || []).filter((r) => !mailCard || mailBucket(r) === mailCard);
+  const pickCard = (k) => setMailCard((prev) => (prev === k ? "" : k));
 
   return (
     <div className="space-y-3">
@@ -624,26 +631,26 @@ function EmailLogTab() {
       </div>
       {data?.summary && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <div className="rounded-xl border p-3 border-gray-200 bg-white dark:bg-dark-800">
+          <button type="button" onClick={() => setMailCard("")} title="Show all emails" className={`text-left rounded-xl border p-3 border-gray-200 bg-white dark:bg-dark-800 cursor-pointer hover:shadow-sm ${mailCard === "" ? "ring-2 ring-[#18457c]" : ""}`}>
             <div className="text-[11px] uppercase tracking-wide text-gray-500">Emails</div>
             <div className="text-2xl font-bold mt-0.5">{data.summary.total}</div>
-          </div>
-          <div className="rounded-xl border p-3 border-emerald-200 bg-emerald-50">
+          </button>
+          <button type="button" onClick={() => pickCard("live")} title="Show only emails sent to customers" className={`text-left rounded-xl border p-3 border-emerald-200 bg-emerald-50 cursor-pointer hover:shadow-sm ${mailCard === "live" ? "ring-2 ring-emerald-600" : ""}`}>
             <div className="text-[11px] uppercase tracking-wide text-emerald-800">Sent to customers</div>
             <div className="text-2xl font-bold text-emerald-900 mt-0.5">{data.summary.sent_live}</div>
-          </div>
-          <div className="rounded-xl border p-3 border-blue-200 bg-blue-50">
+          </button>
+          <button type="button" onClick={() => pickCard("test")} title="Show only test emails" className={`text-left rounded-xl border p-3 border-blue-200 bg-blue-50 cursor-pointer hover:shadow-sm ${mailCard === "test" ? "ring-2 ring-blue-600" : ""}`}>
             <div className="text-[11px] uppercase tracking-wide text-blue-800">Test emails</div>
             <div className="text-2xl font-bold text-blue-900 mt-0.5">{data.summary.test}</div>
-          </div>
-          <div className="rounded-xl border p-3 border-red-200 bg-red-50">
+          </button>
+          <button type="button" onClick={() => pickCard("failed")} title="Show only failed emails" className={`text-left rounded-xl border p-3 border-red-200 bg-red-50 cursor-pointer hover:shadow-sm ${mailCard === "failed" ? "ring-2 ring-red-600" : ""}`}>
             <div className="text-[11px] uppercase tracking-wide text-red-800">Failed</div>
             <div className="text-2xl font-bold text-red-900 mt-0.5">{data.summary.failed}</div>
-          </div>
-          <div className="rounded-xl border p-3 border-gray-200 bg-gray-50">
+          </button>
+          <button type="button" onClick={() => pickCard("cancelled")} title="Show only cancelled emails" className={`text-left rounded-xl border p-3 border-gray-200 bg-gray-50 cursor-pointer hover:shadow-sm ${mailCard === "cancelled" ? "ring-2 ring-gray-600" : ""}`}>
             <div className="text-[11px] uppercase tracking-wide text-gray-600">Cancelled</div>
             <div className="text-2xl font-bold text-gray-800 mt-0.5">{data.summary.cancelled}</div>
-          </div>
+          </button>
         </div>
       )}
       <div className="overflow-auto border rounded-xl max-h-[65vh]">
@@ -652,7 +659,7 @@ function EmailLogTab() {
             {["When", "Sent by", "Type", "Reference", "Customer", "To", "Docs", "Invoice", "Mode", "Status"].map((h) => <th key={h} className="p-2 text-left whitespace-nowrap">{h}</th>)}
           </tr></thead>
           <tbody>
-            {(data?.rows || []).map((r) => (
+            {shownMail.map((r) => (
               <Fragment key={r.id}>
                 <tr onClick={() => setOpenMail(openMail === r.id ? null : r.id)} className={`border-t cursor-pointer hover:bg-blue-50/40 ${r.status === "failed" ? "bg-red-50" : ""}`}>
                   <td className="p-2 whitespace-nowrap">{fmtDate(r.sent_at)}</td>
@@ -684,7 +691,7 @@ function EmailLogTab() {
                 )}
               </Fragment>
             ))}
-            {!(data?.rows || []).length && <tr><td colSpan={10} className="p-6 text-center text-gray-500">No emails match the selected filters.</td></tr>}
+            {!shownMail.length && <tr><td colSpan={10} className="p-6 text-center text-gray-500">No emails match the selected filters.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -1344,7 +1351,7 @@ export default function Mis22({ onClassic }) {
               {scope && (
                 <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${tierBadge[scope.tier] || "bg-gray-100 text-gray-700"}`}>
                   {scope.tier === "management" ? "Management View (All Labs)" :
-                   scope.tier === "reporting" ? `Reporting & Dispatch View (${scope.user_name || "All Labs"})` :
+                   scope.tier === "reporting" ? (String(scope.department_name || "").includes("Business Development") ? `Business Development View (${scope.user_name || "All Labs"})` : `Reporting & Dispatch View (${scope.user_name || "All Labs"})`) :
                    scope.tier === "hod" ? `Department View: ${scope.department_name} (${scope.user_name || ""})` :
                    `Staff View: ${scope.user_name || "My Samples"}`}
                 </span>
@@ -1398,8 +1405,9 @@ export default function Mis22({ onClassic }) {
               <button
                 type="button"
                 onClick={onClassic}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200 transition-all"
-                title="Switch back to Classic view"
+                disabled
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-400 border border-slate-200 opacity-60 cursor-not-allowed transition-all"
+                title="Classic view is switched off (being retired)"
               >
                 Classic View
               </button>
