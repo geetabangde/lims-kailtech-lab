@@ -396,13 +396,18 @@ function HtmlDocWithoutLHTwoSign({ report }) {
               <>
                 <HtmlRemarks remarkLines={data.remarkLines} />
                 {String(data.tid) !== "1356" && (
-                  <div style={SS.endOfReport}>**End of Report**</div>
+                  <div style={{ ...SS.endOfReport, marginBottom: '0px' }}>**End of Report**</div>
                 )}
               </>
             )}
 
-            {/* Signature Block - Raised by 15mm above letterhead footer */}
-            <div style={{
+            {/* Signature Block - 2026-11-17: on last page, signature flows ~1cm (10mm) after table/text to prevent blank space misuse; intermediate pages anchor to bottom */}
+            <div style={isLastPage ? {
+              position: 'relative',
+              marginTop: '8mm',
+              left: 0,
+              right: 0
+            } : {
               position: 'absolute',
               bottom: '-5mm', // 2026-11-17: was 15mm (lab asked 2cm lower)
               left: 0,

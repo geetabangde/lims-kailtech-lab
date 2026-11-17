@@ -102,12 +102,15 @@ const SS = {
 };
 
 // Local signatories renderer — uses larger NABL-style logo sizing & 8.5px text
-function HtmlSignatoriesWOLH({ signatories }) {
+function HtmlSignatoriesWOLH({ signatories, isLastPage }) {
   if (!signatories.length) return null;
   const isSingle = signatories.length === 1;
 
+  const baseRow = isSingle ? S1.sigRowSingle : S1.sigRow;
+  const rowStyle = isLastPage ? { ...baseRow, marginTop: '0px' } : baseRow;
+
   return (
-    <div style={isSingle ? S1.sigRowSingle : S1.sigRow}>
+    <div style={rowStyle}>
       {signatories.map((s, i) => (
         <div key={i} style={isSingle ? S1.sigBoxSingle : S1.sigBox}>
           {s.displayTitle ? <div style={S1.sigTit}>{s.displayTitle}</div> : null}
@@ -127,7 +130,7 @@ function HtmlSignatoriesWOLH({ signatories }) {
     </div>
   );
 }
-HtmlSignatoriesWOLH.propTypes = { signatories: PropTypes.array.isRequired };
+HtmlSignatoriesWOLH.propTypes = { signatories: PropTypes.array.isRequired, isLastPage: PropTypes.bool };
 
 // ─── Page-fit model for the "Without Letter Head" report (measured 12-Nov-2026) ───
 // The signature block is fixed 15mm above the pre-printed letterhead footer and must never be overlapped.
@@ -311,18 +314,23 @@ function HtmlDocWithoutLH({ report }) {
             {isLastPage && (
               <>
                 <HtmlRemarks remarkLines={data.remarkLines} />
-                <div style={SS.endOfReport}>**End of Report**</div>
+                <div style={{ ...SS.endOfReport, marginBottom: '0px' }}>**End of Report**</div>
               </>
             )}
 
-            {/* Signature Block - Raised by 15mm above letterhead footer */}
-            <div style={{
+            {/* Signature Block - 2026-11-17: on last page, signature flows 1cm (10mm) after table/text to prevent blank space misuse; intermediate pages anchor to bottom */}
+            <div style={isLastPage ? {
+              position: 'relative',
+              marginTop: '10mm',
+              left: 0,
+              right: 0
+            } : {
               position: 'absolute',
               bottom: '-5mm', // 2026-11-17: was 15mm (lab asked 2cm lower)
               left: 0,
               right: 0
             }}>
-              <HtmlSignatoriesWOLH signatories={data.signatories} />
+              <HtmlSignatoriesWOLH signatories={data.signatories} isLastPage={isLastPage} />
             </div>
           </div>
         );
