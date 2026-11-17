@@ -236,16 +236,28 @@ function rowUnits(r) {
 
 function page1InfoExtraUnits(data) {
   const lines = (txt, perLine) => Math.max(1, Math.ceil(String(txt || '').length / perLine));
-  const sample = (lines(`Sample Identification: ${data.productDesc ?? ''}`, 125) - 1)
-    + (data.customerRef && data.customerRef !== '-' ? lines(`Customer Reference :- ${data.customerRef}`, 125) - 1 : 0)
-    + (lines(`Sample Particulars : ${data.productName ?? ''}, Grade: ${data.grade ?? ''}${data.brandValue ? ', ' + data.brandValue : ''}`, 125) - 1);
+  const sampleLines = (lines(`Sample Identification: ${data.productDesc ?? ''}`, 135) - 1)
+    + (data.customerRef && data.customerRef !== '-' ? lines(`Customer Reference :- ${data.customerRef}`, 135) - 1 : 0)
+    + (lines(`Sample Particulars : ${data.productName ?? ''}, Grade: ${data.grade ?? ''}${data.brandValue ? ', ' + data.brandValue : ''}`, 135) - 1);
   const leftLines = 1 + lines(data.customerName, 48) + lines(data.customerAddress, 52) + (data.showContact && data.contactPerson ? 1 : 0);
   const leftExtra = Math.max(0, Math.ceil((leftLines * 14 + 12 - 150) / 18));
-  return sample + leftExtra;
+  // An extra info text line is ~13px high vs ~18px for a table row unit (~0.6 penalty)
+  const sampleExtra = Math.ceil(sampleLines * 0.6);
+  return sampleExtra + leftExtra;
 }
 
 function paginateRows(rows, data) {
-  const cap1 = Math.max(4, PAGE_1_UNITS - page1InfoExtraUnits(data));
+  const extraInfo = page1InfoExtraUnits(data);
+  const cap1 = Math.max(4, PAGE_1_UNITS - extraInfo);
+
+  // Single-page rule (lab standard): reports with up to 18 units fit on page 1
+  // because signature on the last page flows naturally 8mm after the table rather than being pinned to the bottom.
+  const totalUnits = rows.reduce((sum, r) => sum + rowUnits(r), 0);
+  const remarkLinesCount = (data.remarkLines && data.remarkLines.length) || 0;
+  if (totalUnits <= PAGE_1_UNITS && (totalUnits + extraInfo + Math.ceil(remarkLinesCount / 2)) <= 21) {
+    return [rows];
+  }
+
   const pages = [];
   let cur = [];
   let used = 0;
@@ -261,10 +273,9 @@ function paginateRows(rows, data) {
     cur.push(r);
     used += u;
   });
-  const reserve = LAST_PAGE_RESERVE_UNITS + ((data.remarkLines && data.remarkLines.length) || 0);
+  const reserve = LAST_PAGE_RESERVE_UNITS + remarkLinesCount;
   const carry = [];
-  // 2026-11-16 (lab, BRN KTRC/2611000810): page 1 as the LAST page now gets the same +1 spare unit as later pages. Measured: 10 rows +
-  // "End of Report" fit page 1 with ~19px clear above the signature; before, the 10th row was carried alone to a second page.
+  // 2026-11-16 (lab, BRN KTRC/2611000810): page 1 as the LAST page now gets the same +1 spare unit as later pages.
   const lastLimit = cap + 1;
   while (cur.length > 1 && used + reserve > lastLimit) {
     const moved = cur.pop();
