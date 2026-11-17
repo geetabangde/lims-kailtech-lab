@@ -179,7 +179,7 @@ export const createGTMRows = (dataArray, instrument) => {
         const avgUuc = safeGetValue(point.average_uuc ?? point.averageuuc ?? '');
         const avgMaster = safeGetValue(point.average_master ?? point.averagemaster ?? '');
         const masterUnitSymbol = point.master_unit_description ?? point.master_unit_name ?? point.master_unit ?? '';
-        const cAvgMasterFallback = convertMasterAverage(avgMaster, masterUnitSymbol, getDecimalPlaces(point.master_least_count ?? point.least_count ?? '0.001'));
+        const cAvgMasterFallback = convertMasterAverage(avgMaster, masterUnitSymbol, getDecimalPlaces(point.master_least_count ?? point.least_count ?? '0.001'), setPointVal);
         const cAvgMaster = safeGetValue(point.converted_average_master ?? point.caveragemaster ?? cAvgMasterFallback ?? '');
         let errorVal = safeGetValue(point.error ?? '');
 
@@ -323,7 +323,7 @@ const pt100ResistanceToTemp = (resistance) => {
  * Resistance master units are converted through the PT100 curve; when the master
  * already reads in the UUC unit the average passes through unchanged.
  */
-const convertMasterAverage = (avgMaster, masterUnitSymbol, decimals) => {
+const convertMasterAverage = (avgMaster, masterUnitSymbol, decimals, setPoint) => {
     if (avgMaster === undefined || avgMaster === null || String(avgMaster).trim() === '') return '';
     const num = parseFloat(avgMaster);
     if (isNaN(num)) return '';
@@ -335,9 +335,17 @@ const convertMasterAverage = (avgMaster, masterUnitSymbol, decimals) => {
     }
 
     // Auto-detect Pt100 RTD resistance readings when master unit was set as °C instead of Ω
+    // 2026-11-17 (Hemant, Inward 5417 / Item 73051): a genuine degC master reading (100.246, 250.373 ...) sits right next to its set point and
+    // must NOT be treated as Pt100 ohms (it showed 0.6295 / 131.16 / 267.16 / 409.54). Treat 80-390 as ohms only when it is far from the set
+    // point AND the converted value is closer to it (e.g. 104.026 at a 10 degC point). No set point available -> previous behaviour.
     if (num >= 80 && num <= 390) {
         const temp = pt100ResistanceToTemp(num);
-        if (!isNaN(temp)) return temp.toFixed(decimals);
+        if (!isNaN(temp)) {
+            const sp = parseFloat(setPoint);
+            const looksLikeCelsius = !isNaN(sp) && Math.abs(num - sp) <= Math.max(5, Math.abs(sp) * 0.05);
+            const convertedCloser = isNaN(sp) || Math.abs(temp - sp) < Math.abs(num - sp);
+            if (!looksLikeCelsius && convertedCloser) return temp.toFixed(decimals);
+        }
     }
 
     // Same unit as the UUC - nothing to convert
@@ -549,7 +557,7 @@ const ObservationGTM = ({
         const cAvgMasterRowKey = `${masterRowIdx}-12`;
         const avgMasterRaw = getValue(`${pointId}-averagemaster`, getValue(`averagemaster${pointId}`, getValue(`${masterRowIdx}-11`, point.average_master ?? point.averagemaster ?? '')));
         const masterUnitFallback = getValue(`${pointId}-masterunit`, getValue(`masterunit${pointId}`, getValue(`${masterRowIdx}-4`, point.master_unit_id?.toString() ?? point.master_unit ?? '')));
-        const avgMasterFallback = convertMasterAverage(avgMasterRaw, getSelectedUnitSymbol(masterUnitFallback), errorDec);
+        const avgMasterFallback = convertMasterAverage(avgMasterRaw, getSelectedUnitSymbol(masterUnitFallback), errorDec, point?.set_point ?? point?.point);
         const cAvgMasterVal = getValue(cAvgMasterKey, getValue(cAvgMasterLegKey, getValue(cAvgMasterRowKey, point.caveragemaster ?? point.converted_average_master ?? avgMasterFallback ?? '')));
 
         let newDeviation = '';
@@ -621,7 +629,7 @@ const ObservationGTM = ({
         const errorDec = Math.max(lcDec, mlcDec);
 
         const masterUnitVal = getValue(`${pointId}-masterunit`, getValue(`masterunit${pointId}`, getValue(`${masterRowIdx}-4`, point.master_unit_id?.toString() ?? point.master_unit ?? '')));
-        const newCAvgMaster = convertMasterAverage(newAvgMaster, getSelectedUnitSymbol(masterUnitVal), errorDec);
+        const newCAvgMaster = convertMasterAverage(newAvgMaster, getSelectedUnitSymbol(masterUnitVal), errorDec, point?.set_point ?? point?.point);
 
         // Recompute deviation (substractminus) against the current UUC average
         const avgUucVal = getValue(`${pointId}-averageuuc`, getValue(`averageuuc${pointId}`, getValue(`${uucRowIdx}-12`, point.average_uuc ?? point.averageuuc ?? '')));
@@ -784,7 +792,7 @@ const ObservationGTM = ({
 
                             // Converted Average Master (caveragemaster) - auto-calculated from the master average
                             const cAvgMasterKey = `${pointId}-caveragemaster`;
-                            const cAvgMasterFallback = convertMasterAverage(avgMasterVal, getSelectedUnitSymbol(masterUnitVal), Math.max(effectiveLcDec, effectiveMlcDec));
+                            const cAvgMasterFallback = convertMasterAverage(avgMasterVal, getSelectedUnitSymbol(masterUnitVal), Math.max(effectiveLcDec, effectiveMlcDec), point?.set_point ?? point?.point);
                             const cAvgMasterVal = getValue(cAvgMasterKey, getValue(`caveragemaster${pointId}`, getValue(`${masterRowIdx}-12`, point.converted_average_master ?? point.caveragemaster ?? cAvgMasterFallback ?? '')));
 
                             // Calculated Deviation (Error) - only displayed if both UUC and Master Converted Average exist
