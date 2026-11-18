@@ -1021,6 +1021,48 @@ const INVOICE_OPTIONS = [
 ];
 const pickOpt = (list, id) => list.find((o) => o.id === id);
 
+// 18-Nov-2026: ONE place that applies every filter. `skip` = name of a filter group to leave out (used to tell the user which filter
+// is hiding the rows, e.g. "Email: Email sent" + Master Search "jindal" = 0 rows -> "remove Email sent: 8 rows").
+function filterRows(ctx, skip) {
+  const { hayRows, counted, firstRows, cols, f } = ctx;
+  const on = (k) => skip !== k;
+  let list = on("card")
+    ? applyCardFilters(hayRows, { topCard: f.topCard, kpi: f.kpi, lcStage: f.lcStage, lcStatus: f.lcStatus, showAll: f.showAll }, counted, firstRows)
+    : hayRows;
+  list = list.filter((r) => {
+    if (on("department") && f.department && r.department !== f.department) return false;
+    if (on("chemist") && f.chemist && r.allocated_to !== f.chemist) return false;
+    if (on("customer") && f.customer && !String(r.customer || "").toLowerCase().includes(f.customer.toLowerCase())) return false;
+    if (on("stage") && f.stage && r.stage !== f.stage) return false;
+    if (on("cat")) {
+      if (f.cat === "urgent" && r.priority !== "Urgent") return false;
+      if (f.cat === "gt3" && !(Number(r.overdue_days_22) > 3)) return false;
+      if (f.cat === "ontrack" && (Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE")) return false;
+    }
+    if (on("fPri") && f.fPri && r.priority !== f.fPri) return false;
+    if (on("fFlow") && f.fFlow && !pickOpt(FLOW_OPTIONS, f.fFlow)?.test(r)) return false;
+    if (on("fOver") && f.fOver && !pickOpt(OVERDUE_OPTIONS, f.fOver)?.test(r)) return false;
+    if (on("fEmail") && f.fEmail && !pickOpt(EMAIL_OPTIONS, f.fEmail)?.test(r)) return false;
+    if (on("fWa") && f.fWa && !pickOpt(WA_OPTIONS, f.fWa)?.test(r)) return false;
+    if (on("fInv") && f.fInv && !pickOpt(INVOICE_OPTIONS, f.fInv)?.test(r)) return false;
+    if (on("master") && f.masterTerms.length) {
+      const h = r._hay;
+      if (!f.masterTerms.every((t) => h.includes(t))) return false;
+    }
+    return true;
+  });
+  if (on("col")) {
+    const active = Object.entries(f.colFilters).filter(([, v]) => v);
+    if (active.length) {
+      list = list.filter((r) => active.every(([k, v]) => {
+        const c = cols.find((x) => x.key === k);
+        return c && String(c.value(r, 0) ?? "").toLowerCase().includes(v.toLowerCase());
+      }));
+    }
+  }
+  return list;
+}
+
 // ---- MAIN 8 COLUMNS DEFINITION ----
 const COLUMNS = (ctx) => [
   {
@@ -1258,35 +1300,13 @@ export default function Mis22({ onClassic }) {
   const masterTerms = useMemo(() => master.toLowerCase().split(/\s+/).filter(Boolean), [master]);
   const hayRows = useMemo(() => (masterTerms.length ? allRows.map((r) => ({ ...r, _hay: searchText(r) })) : allRows), [allRows, masterTerms.length]);
 
-  const rows = useMemo(() => {
-    let list = applyCardFilters(hayRows, { topCard, kpi, lcStage, lcStatus, showAll }, counted, firstRows).filter((r) => {
-      if (department && r.department !== department) return false;
-      if (chemist && r.allocated_to !== chemist) return false;
-      if (customer && !String(r.customer || "").toLowerCase().includes(customer.toLowerCase())) return false;
-      if (stage && r.stage !== stage) return false;
-      if (cat === "urgent" && r.priority !== "Urgent") return false;
-      if (cat === "gt3" && !(Number(r.overdue_days_22) > 3)) return false;
-      if (cat === "ontrack" && (Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE")) return false;
-      if (fPri && r.priority !== fPri) return false;
-      if (fFlow && !pickOpt(FLOW_OPTIONS, fFlow)?.test(r)) return false;
-      if (fOver && !pickOpt(OVERDUE_OPTIONS, fOver)?.test(r)) return false;
-      if (fEmail && !pickOpt(EMAIL_OPTIONS, fEmail)?.test(r)) return false;
-      if (fWa && !pickOpt(WA_OPTIONS, fWa)?.test(r)) return false;
-      if (fInv && !pickOpt(INVOICE_OPTIONS, fInv)?.test(r)) return false;
-      if (masterTerms.length) {
-        const h = r._hay;
-        if (!masterTerms.every((t) => h.includes(t))) return false;
-      }
-      return true;
-    });
+  const filterCtx = useMemo(() => ({
+    hayRows, counted, firstRows, cols,
+    f: { topCard, kpi, lcStage, lcStatus, showAll, department, chemist, customer, stage, cat, fPri, fFlow, fOver, fEmail, fWa, fInv, masterTerms, colFilters },
+  }), [hayRows, counted, firstRows, cols, topCard, kpi, lcStage, lcStatus, showAll, department, chemist, customer, stage, cat, fPri, fFlow, fOver, fEmail, fWa, fInv, masterTerms, colFilters]);
 
-    const active = Object.entries(colFilters).filter(([, v]) => v);
-    if (active.length) {
-      list = list.filter((r) => active.every(([k, v]) => {
-        const c = cols.find((x) => x.key === k);
-        return c && String(c.value(r, 0) ?? "").toLowerCase().includes(v.toLowerCase());
-      }));
-    }
+  const rows = useMemo(() => {
+    let list = filterRows(filterCtx, null);
 
     const sc = cols.find((c) => c.key === sort.key);
     if (sc) {
@@ -1299,10 +1319,35 @@ export default function Mis22({ onClassic }) {
       });
     }
     return list;
-  }, [hayRows, department, chemist, customer, stage, cat, colFilters, sort, cols, topCard, kpi, lcStage, lcStatus, showAll, counted, firstRows, fPri, fFlow, fOver, fEmail, fWa, fInv, masterTerms]);
+  }, [filterCtx, sort, cols]);
 
   const clearCards = () => { setTopCard(null); setKpi(null); setLcStage(null); setLcStatus(""); setShowAll(false); };
   const clearAll = () => { setDepartment(""); setChemist(""); setCustomer(""); setStage(""); setCat("all"); setMaster(""); setFFlow(""); setFOver(""); setFEmail(""); setFWa(""); setFInv(""); setFPri(""); setColFilters({}); setSort({ key: "booking_date", dir: "asc" }); clearCards(); };
+  const cardsFilterOn0 = !!(topCard || kpi || lcStage || lcStatus);
+  const cardLabel0 = topCard ? TOP_TILES.find((x) => x.key === topCard)?.label : kpi ? KPI_CARDS.find((x) => x.key === kpi)?.label : lcStage ? `${LC_CARDS.find((c) => c.no === lcStage)?.label}${lcStatus ? ` - ${lcStatus}` : ""}` : "";
+  const activeFilters = [
+    master && { k: "master", label: `Search: ${master}`, clear: () => setMaster("") },
+    cardsFilterOn0 && { k: "card", label: `Card: ${cardLabel0}`, clear: clearCards },
+    department && { k: "department", label: `Lab: ${department}`, clear: () => setDepartment("") },
+    chemist && { k: "chemist", label: `Chemist: ${chemist}`, clear: () => setChemist("") },
+    customer && { k: "customer", label: `Customer: ${customer}`, clear: () => setCustomer("") },
+    stage && { k: "stage", label: `Stage: ${stage}`, clear: () => setStage("") },
+    cat !== "all" && { k: "cat", label: `Quick view: ${cat}`, clear: () => setCat("all") },
+    fFlow && { k: "fFlow", label: `Flow: ${pickOpt(FLOW_OPTIONS, fFlow)?.label || fFlow}`, clear: () => setFFlow("") },
+    fOver && { k: "fOver", label: `Overdue: ${pickOpt(OVERDUE_OPTIONS, fOver)?.label || fOver}`, clear: () => setFOver("") },
+    fEmail && { k: "fEmail", label: `Email: ${pickOpt(EMAIL_OPTIONS, fEmail)?.label || fEmail}`, clear: () => setFEmail("") },
+    fWa && { k: "fWa", label: `WhatsApp: ${pickOpt(WA_OPTIONS, fWa)?.label || fWa}`, clear: () => setFWa("") },
+    fInv && { k: "fInv", label: `Invoice: ${pickOpt(INVOICE_OPTIONS, fInv)?.label || fInv}`, clear: () => setFInv("") },
+    fPri && { k: "fPri", label: `Priority: ${fPri}`, clear: () => setFPri("") },
+    ...Object.entries(colFilters).filter(([, v]) => v).map(([ck, v]) => ({ k: "col:" + ck, label: `Column ${cols.find((c) => c.key === ck)?.label || ck}: ${v}`, clear: () => setColFilters((p) => ({ ...p, [ck]: "" })) })),
+  ].filter(Boolean);
+  // when nothing matches: how many rows would show if ONE filter were removed (computed only for 0 rows)
+  const zeroHints = rows.length === 0 && allRows.length > 0 && activeFilters.length > 0
+    ? activeFilters.map((a) => {
+        const skip = a.k.startsWith("col:") ? "col" : a.k;
+        return { ...a, n: filterRows(filterCtx, skip).length };
+      }).filter((h) => h.n > 0).sort((a, b) => b.n - a.n).slice(0, 6)
+    : [];
   const scrollToTable = () => setTimeout(() => document.getElementById("mis-table")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
 
   const pickTop = (k) => { setKpi(null); setLcStage(null); setLcStatus(""); setShowAll(false); setTopCard((p) => (p === k ? null : k)); scrollToTable(); };
@@ -1722,8 +1767,8 @@ export default function Mis22({ onClassic }) {
 
               {/* Actions + quick view */}
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => load()} disabled={loading} title="Reload the rows for the From / To dates (all other filters apply instantly)" className="h-10 px-6 rounded-lg bg-[#18457c] text-white text-sm font-bold shadow-md hover:bg-[#133763]">
-                  {loading ? "Loading..." : "Load dates"}
+                <button type="button" onClick={() => load()} disabled={loading} title="Reload the rows for the From / To dates (all other filters apply instantly)" className="h-[60px] min-w-[180px] px-9 rounded-xl bg-[#18457c] text-white text-xl font-bold shadow-lg hover:bg-[#133763]">
+                  {loading ? "Loading..." : "Filter"}
                 </button>
                 <button type="button" onClick={clearAll} className="h-10 px-5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-800 hover:bg-gray-50 shadow-md">
                   Clear All
@@ -1760,6 +1805,20 @@ export default function Mis22({ onClassic }) {
                 </span>
               </div>
             </div>
+
+            {/* 18-Nov-2026: every active filter in ONE visible place (incl. the card filter, which used to hide above the panel) */}
+            {activeFilters.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs">
+                <span className="font-bold text-amber-900 uppercase tracking-wide">Active filters ({activeFilters.length}):</span>
+                {activeFilters.map((a) => (
+                  <span key={a.k} className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-white pl-3 pr-1 py-0.5 font-semibold text-amber-900">
+                    {a.label}
+                    <button type="button" onClick={a.clear} title="Remove this filter" aria-label={`Remove ${a.label}`} className="h-5 w-5 rounded-full text-sm font-bold leading-none text-amber-800 hover:bg-red-100 hover:text-red-700">&times;</button>
+                  </span>
+                ))}
+                <button type="button" onClick={clearAll} className="ml-auto rounded-lg border border-amber-400 bg-white px-3 py-1 font-bold text-amber-900 hover:bg-amber-100">Clear all filters</button>
+              </div>
+            )}
 
             {/* Truncated notice */}
             {data?.truncated && (
@@ -1835,8 +1894,18 @@ export default function Mis22({ onClassic }) {
                   ))}
                   {!loading && rows.length === 0 && (
                     <tr>
-                      <td colSpan={cols.length} className="p-8 text-center text-gray-500">
-                        No samples match the selected filters.
+                      <td colSpan={cols.length} className="p-8 text-center text-gray-600">
+                        <div className="font-semibold">No samples match the selected filters.</div>
+                        {zeroHints.length > 0 && (
+                          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
+                            <span>The rows are hidden by a combination of filters. Remove one to see them:</span>
+                            {zeroHints.map((h) => (
+                              <button key={h.k} type="button" onClick={h.clear} className="rounded-full border border-[#18457c] bg-white px-3 py-1 font-bold text-[#18457c] hover:bg-blue-50">
+                                Remove &quot;{h.label}&quot; &rarr; {h.n} row{h.n > 1 ? "s" : ""}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
