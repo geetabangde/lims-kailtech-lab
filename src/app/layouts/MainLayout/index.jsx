@@ -1,6 +1,6 @@
 // Import Dependencies
 import clsx from "clsx";
-import { Outlet } from "react-router";
+import { Outlet, useLocation } from "react-router";
 import { useState, useEffect } from "react";
 import axios from "utils/axios";
 
@@ -16,11 +16,15 @@ import { AllotmentAckPopup } from "components/modals/AllotmentAckPopup";
 export default function MainLayout() {
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
+  const { pathname } = useLocation();
+  const onMis = pathname.startsWith("/dashboards/mis");
 
   const [envLabName, setEnvLabName] = useState("Processing");
   const [envFormFields, setEnvFormFields] = useState([]);
 
   useEffect(() => {
+    // 18-Nov-2026: no Environmental Record pop-up on the MIS page (it covered the tracker). The check runs on the first other page instead, once per session.
+    if (onMis) return undefined;
     // ---------------------------------------------------------
     // STEP 2: AUTO-POPUP LOGIC (Environmental Record)
     // ---------------------------------------------------------
@@ -46,7 +50,7 @@ export default function MainLayout() {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [onMis]);
 
   return (
     <>
@@ -81,7 +85,7 @@ export default function MainLayout() {
       />
       
       <AddEnvironmentalRecordModal 
-        isOpen={isEnvModalOpen} 
+        isOpen={isEnvModalOpen && !onMis} 
         onClose={() => setIsEnvModalOpen(false)} 
         labName={envLabName}
         labId={5} // Based on the API example

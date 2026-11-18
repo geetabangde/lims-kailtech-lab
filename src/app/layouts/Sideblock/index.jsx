@@ -1,6 +1,6 @@
 // Import Dependencies
-import { Outlet } from "react-router";
-import { useState, useEffect } from "react";
+import { Outlet, useLocation } from "react-router";
+import { useState, useEffect, useRef } from "react";
 import axios from "utils/axios";
 
 // Local Imports
@@ -14,6 +14,9 @@ import { useLabsContext } from "app/contexts/labs/context";
 
 export default function Sideblock() {
   const { labs } = useLabsContext();
+  const { pathname } = useLocation();
+  const onMis = pathname.startsWith("/dashboards/mis");
+  const envCheckedRef = useRef(false);
 
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
@@ -23,6 +26,8 @@ export default function Sideblock() {
   const [currentLabId, setCurrentLabId] = useState(null);
 
   useEffect(() => {
+    // 18-Nov-2026: no Environmental Record pop-up on the MIS page (it covered the tracker). The check runs on the first other page instead, once per session.
+    if (onMis || envCheckedRef.current) return undefined;
     // ---------------------------------------------------------
     // STEP 2: AUTO-POPUP LOGIC (Environmental Record)
     // ---------------------------------------------------------
@@ -30,6 +35,7 @@ export default function Sideblock() {
       try {
         const userId = Number(localStorage.getItem("userId"));
         if (!userId || !labs || labs.length === 0) return;
+        envCheckedRef.current = true;
 
         // Find all labs allotted to this specific user
         const allottedLabs = labs.filter(lab => lab.users.includes(userId));
@@ -60,7 +66,7 @@ export default function Sideblock() {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [labs]);
+  }, [labs, onMis]);
 
   return (
     <>
@@ -88,7 +94,7 @@ export default function Sideblock() {
       />
 
       <AddEnvironmentalRecordModal
-        isOpen={isEnvModalOpen}
+        isOpen={isEnvModalOpen && !onMis}
         onClose={() => setIsEnvModalOpen(false)}
         labName={envLabName}
         labId={currentLabId}
