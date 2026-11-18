@@ -9,6 +9,7 @@ import { useThemeContext } from "app/contexts/theme/context";
 import { useAuthContext } from "app/contexts/auth/context";
 import { getFinancialYears } from "utils/financialYear";
 import { SymbolToolbar } from "components/shared/SymbolToolbar";
+import { DispatchQueueTimer } from "components/shared/DispatchQueueTimer";
 import { useState, useEffect } from "react";
 
 // ----------------------------------------------------------------------
@@ -74,6 +75,7 @@ export function Header() {
 
       {/* Actions & Profile Section - Flexible Center for balance */}
       <div className="flex items-center justify-end gap-4 px-[var(--margin-x)] shrink-0">
+        <DispatchQueueTimer />
         <Profile />
       </div>
     </header>

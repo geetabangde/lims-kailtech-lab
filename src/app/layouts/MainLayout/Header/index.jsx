@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { SidebarToggleBtn } from "components/shared/SidebarToggleBtn";
 import { Button } from "components/ui";
 import { Notifications } from "components/template/Notifications";
+import { DispatchQueueTimer } from "components/shared/DispatchQueueTimer";
 import { RightSidebar } from "components/template/RightSidebar";
 import { useThemeContext } from "app/contexts/theme/context";
 import { useAuthContext } from "app/contexts/auth/context";
@@ -67,6 +68,7 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2 ltr:-mr-1.5 rtl:-ml-1.5">
+        <DispatchQueueTimer />
         <Notifications />
         <RightSidebar />
       </div>
