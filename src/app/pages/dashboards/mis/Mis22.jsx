@@ -7,6 +7,9 @@ import { toast } from "sonner";
 import { Page } from "components/shared/Page";
 import * as XLSX from "xlsx";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import SendBatchDispatchModal from "../calibration-process/inward-entry-lab/SendBatchDispatchModal";
+import MarkSentModal from "../calibration-process/inward-entry-lab/MarkSentModal";
+import { canSendDispatchEmail, canSendTestingDispatchEmail } from "utils/dispatchAccess";
 
 // DD-MM-YYYY format everywhere (client rule). Accepts "YYYY-MM-DD" or "YYYY-MM-DD hh:mm:ss"; blank / zero dates show "-".
 const fmtDate = (v) => {
@@ -330,6 +333,113 @@ const MODAL_NAV = [
   { id: "md-history", label: "History" },
 ];
 
+// 18-Nov-2026: links to the report / invoice (open in a NEW tab, the MIS stays where it is), one-click Resend, and "Mark as sent (offline)" with its log.
+function DetailActions({ r, seeInvoice, onChanged }) {
+  const isCal = r.type === "Calibration";
+  const rs = r.resend || {};
+  const [docs, setDocs] = useState(null);
+  const [showResend, setShowResend] = useState(false);
+  const [showMark, setShowMark] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const ready = !!r.authorised_date;
+
+  useEffect(() => {
+    if (isCal || !r.pid || !ready) return undefined;
+    let live = true;
+    axios.get("/mis/doc-links", { params: { pid: r.pid } })
+      .then((x) => { if (live) setDocs(x.data?.data || {}); })
+      .catch(() => { if (live) setDocs({}); });
+    return () => { live = false; };
+  }, [isCal, r.pid, ready]);
+
+  const canSend = canSendDispatchEmail() || (!isCal && canSendTestingDispatchEmail());
+  const certHref = isCal && r.item_id && rs.inward
+    ? `/dashboards/calibration-process/inward-entry-lab/view-certificate/${rs.inward}/${r.item_id}?caliblocation=${encodeURIComponent(rs.caliblocation || "Lab")}&calibacc=${encodeURIComponent(rs.calibacc || "Nabl")}`
+    : null;
+  const invHref = seeInvoice && r.invoice_id
+    ? (isCal ? `/dashboards/accounts/calibration-invoice-list/view/${r.invoice_id}` : `/dashboards/accounts/testing-invoices/view/${r.invoice_id}`)
+    : null;
+  const linkCls = "inline-flex items-center gap-1 rounded-lg border border-[#18457c] bg-white px-3 py-1.5 text-xs font-bold text-[#18457c] hover:bg-blue-50";
+  const btnCls = "inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold shadow-sm";
+  const m = r.manual_sent;
+
+  const cancelMark = async () => {
+    if (cancelReason.trim().length < 3) { toast.error("Please give a reason for cancelling."); return; }
+    try {
+      const res = await axios.post("/dispatch/manual/cancel", { id: m.id, reason: cancelReason.trim() });
+      toast.success(res.data?.message || "Cancelled.");
+      setCancelOpen(false); setCancelReason("");
+      if (onChanged) onChanged();
+    } catch (e) {
+      toast.error(e?.message || (typeof e === "string" ? e : "Could not cancel."));
+    }
+  };
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Documents</span>
+        {certHref ? <a href={certHref} target="_blank" rel="noopener noreferrer" className={linkCls}>View certificate &#8599;</a> : null}
+        {!isCal && docs?.report_lh_url ? <a href={docs.report_lh_url} target="_blank" rel="noopener noreferrer" className={linkCls}>View report (letterhead) &#8599;</a> : null}
+        {!isCal && docs?.report_url ? <a href={docs.report_url} target="_blank" rel="noopener noreferrer" className={linkCls}>View report &#8599;</a> : null}
+        {!isCal && !ready ? <span className="text-xs italic text-gray-500">Report not issued yet</span> : null}
+        {!isCal && ready && !docs ? <span className="text-xs italic text-gray-500">Checking the report file...</span> : null}
+        {!isCal && ready && docs && !docs.report_url && !docs.report_lh_url ? <span className="text-xs italic text-gray-500">Report file not found</span> : null}
+        {invHref ? <a href={invHref} target="_blank" rel="noopener noreferrer" className={linkCls}>View invoice {r.invoice_no ? `(${r.invoice_no})` : ""} &#8599;</a> : (seeInvoice ? <span className="text-xs italic text-gray-500">No invoice linked</span> : null)}
+      </div>
+
+      {canSend && ready && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Actions</span>
+          <button type="button" onClick={() => setShowResend(true)} className={`${btnCls} border border-blue-400 bg-blue-200 text-black hover:bg-blue-300`}>Resend e-mail</button>
+          <button type="button" onClick={() => setShowMark(true)} className={`${btnCls} border border-emerald-400 bg-emerald-200 text-black hover:bg-emerald-300`}>Mark as sent (offline)</button>
+        </div>
+      )}
+
+      {m && (
+        <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900">
+          <div className="font-bold uppercase tracking-wide">Sent offline</div>
+          <div className="mt-1"><b>{m.mode}</b> on <b>{fmtDate(m.on)}</b>{m.detail ? <> &middot; {m.detail}</> : null}</div>
+          {m.remark ? <div className="mt-0.5">Remark: {m.remark}</div> : null}
+          <div className="mt-0.5 text-emerald-800">Marked by <b>{m.by || `User #${m.by_id}`}</b> on {fmtDate(m.at)} {String(m.at || "").slice(11, 16)}</div>
+          {(canSend || Number(localStorage.getItem("userId")) === Number(m.by_id)) && (
+            cancelOpen ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Reason for cancelling" className="min-w-[200px] flex-1 rounded border p-1" />
+                <button type="button" onClick={cancelMark} className="rounded bg-red-600 px-3 py-1 font-bold text-white">Cancel the mark</button>
+                <button type="button" onClick={() => setCancelOpen(false)} className="rounded border px-2 py-1">Keep it</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setCancelOpen(true)} className="mt-1 text-red-700 underline">Cancel this mark</button>
+            )
+          )}
+        </div>
+      )}
+
+      {showResend && (
+        <SendBatchDispatchModal
+          isOpen
+          onClose={() => setShowResend(false)}
+          inwardId={isCal ? Number(rs.inward) : undefined}
+          trfId={!isCal ? Number(rs.trf) : undefined}
+          onSuccess={() => { setShowResend(false); if (onChanged) onChanged(); }}
+        />
+      )}
+      {showMark && (
+        <MarkSentModal
+          isOpen
+          onClose={() => setShowMark(false)}
+          kind={isCal ? "calibration" : "testing"}
+          inwardId={isCal ? Number(rs.inward) : undefined}
+          trfId={!isCal ? Number(rs.trf) : undefined}
+          onDone={() => { if (onChanged) onChanged(); }}
+        />
+      )}
+    </div>
+  );
+}
+
 function DetailModal({ r, onClose, seeInvoice, onChanged }) {
   if (!r) return null;
   const isOverdue = Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE";
@@ -338,7 +448,7 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
   const holder = r.holder_name || r.holder_role || "-";
   const holderParts = splitNote(holder);
   const statusParts = splitNote(r.current_status || r.transferred_to || r.stage || "-");
-  const emailTone = r.email_status === "Sent" ? "green" : r.email_status === "Pending" ? "amber" : r.email_status === "Test only" ? "blue" : "slate";
+  const emailTone = (r.email_status === "Sent" || r.email_status === "Manual") ? "green" : r.email_status === "Pending" ? "amber" : r.email_status === "Test only" ? "blue" : "slate";
   const invChip = !seeInvoice ? null : r.invoice_no
     ? { value: r.invoice_payment || "Raised", note: r.invoice_no, tone: r.invoice_payment === "Paid" ? "green" : "amber" }
     : { value: "Not raised", note: "", tone: "slate" };
@@ -500,6 +610,7 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
                 </div>
               )}
               <EmailLogDetail logs={r.email_logs} pending={r.email_status === "Pending"} />
+              <DetailActions r={r} seeInvoice={seeInvoice} onChanged={onChanged} />
             </Section>
 
             {/* Allotment History / Trail */}
@@ -1004,6 +1115,7 @@ const EMAIL_OPTIONS = [
   { id: "pending", label: "Email pending", test: (r) => r.email_status === "Pending" },
   { id: "sent", label: "Email sent", test: (r) => r.email_status === "Sent" },
   { id: "test", label: "Test email only", test: (r) => r.email_status === "Test only" },
+  { id: "manual", label: "Sent offline (manual)", test: (r) => r.email_status === "Manual" },
   { id: "none", label: "No email yet (not authorised)", test: (r) => !r.email_status || r.email_status === "-" },
 ];
 const WA_SENT = (r) => !!r.whatsapp_status && !["-", "Pending", "Not enabled"].includes(r.whatsapp_status);
