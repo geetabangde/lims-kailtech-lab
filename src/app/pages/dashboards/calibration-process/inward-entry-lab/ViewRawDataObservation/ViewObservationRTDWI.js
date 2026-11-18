@@ -13,6 +13,14 @@ export const rtdwiTableConfig = {
   },
 };
 
+// 18-Nov-2026: show UUC average at the CRF least count and master averages at the master least count (decimals sent by the API as digit counts); unknown ('NA') -> value as saved
+const fmtDp = (val, dp) => {
+  const d = Number(dp);
+  const n = Number(val);
+  if (val === null || val === undefined || String(val).trim() === '' || !Number.isFinite(n) || dp === null || dp === undefined || String(dp).trim() === '' || !Number.isInteger(d) || d < 0 || d > 6) return safeGetValue(val);
+  return n.toFixed(d);
+};
+
 export const createRTDWIRows = (dataArray) => {
   const rows = [];
   dataArray.forEach((point) => {
@@ -33,7 +41,7 @@ export const createRTDWIRows = (dataArray) => {
       '-',
       '-',
       '-',
-      safeGetValue(point.average_uuc),
+      fmtDp(point.average_uuc, point.least_count),
       safeGetValue(point.error),
     ];
     rows.push(uucRow);
@@ -47,9 +55,9 @@ export const createRTDWIRows = (dataArray) => {
       safeGetValue(point.master_unit || point.master_unit_id || 'UNIT_SELECT'),
       safeGetValue(point.sensitivity_coefficient),
       ...masterReadings.slice(0, 5).map((val) => safeGetValue(val)),
-      safeGetValue(point.average_master),
+      fmtDp(point.average_master, point.master_least_count),
       safeGetValue(point.ambient_master),
-      safeGetValue(point.s_average_master),
+      fmtDp(point.s_average_master, point.master_least_count),
       safeGetValue(point.c_average_master),
       '-',
     ];

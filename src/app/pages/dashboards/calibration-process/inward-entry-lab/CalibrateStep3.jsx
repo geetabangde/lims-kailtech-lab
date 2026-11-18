@@ -5235,7 +5235,8 @@ const CalibrateStep3 = () => {
         Object.assign(newValues, computeRTDWICells(
           (r, c) => newValues[`${r}-${c}`] ?? tableInputValues[`${r}-${c}`] ?? staticRowsRtdwi[r]?.[c],
           staticRowsRtdwi.length,
-          (r) => selectedTableData.hiddenInputs?.masterUnits?.[r]
+          (r) => selectedTableData.hiddenInputs?.masterUnits?.[r],
+          (r) => selectedTableData.hiddenInputs?.decimals?.[r]
         ));
       } else if (selectedTableData.id === 'observationdg') {
         Object.assign(newValues, getDGCalculatedCells(rowIndex, calculated, selectedTableData.dgLayout || getDGLayout(false)));
@@ -6651,7 +6652,7 @@ const CalibrateStep3 = () => {
       // recalculate the whole grid and save every calculated cell that changed
       const staticRowsRtdwi = selectedTableData.staticRows || [];
       const getCellRtdwi = (r, c) => (r === rowIndex && c === colIndex ? cellValue : (tableInputValues[`${r}-${c}`] ?? staticRowsRtdwi[r]?.[c]));
-      const calcCells = computeRTDWICells(getCellRtdwi, staticRowsRtdwi.length, (r) => selectedTableData.hiddenInputs?.masterUnits?.[r]);
+      const calcCells = computeRTDWICells(getCellRtdwi, staticRowsRtdwi.length, (r) => selectedTableData.hiddenInputs?.masterUnits?.[r], (r) => selectedTableData.hiddenInputs?.decimals?.[r]);
       const nextCells = {};
       Object.entries(calcCells).forEach(([key, val]) => {
         const [r, c] = key.split('-').map(Number);

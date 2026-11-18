@@ -56,6 +56,13 @@ const rtdwiNum = (val) => {
 // Unrounded, without float noise (0.1 + 0.2 -> "0.3")
 const rtdwiFmt = (num) => (Number.isFinite(num) ? String(Number(num.toFixed(10))) : '');
 
+// 18-Nov-2026: decimals from the CRF matrix least count (UUC) / master matrix least count (master); null when unknown ('NA') -> old behaviour
+const rtdwiDp = (n) => {
+  const v = Number(n);
+  return n !== null && n !== undefined && String(n).trim() !== '' && Number.isInteger(v) && v >= 0 && v <= 6 ? v : null;
+};
+const rtdwiFmtDp = (num, dp) => (Number.isFinite(num) ? (dp === null ? rtdwiFmt(num) : num.toFixed(dp)) : '');
+
 const rtdwiMean = (getCell, row) => {
   const readings = [];
   for (let c = RTDWI_COLS.OBS_START; c <= RTDWI_COLS.OBS_END; c += 1) {
@@ -137,7 +144,7 @@ export const rtdwiMasterToC = (kind, mean, ambient) => {
  *  UUC:    Average (degC), Deviation = UUC average - master Average (degC)
  * getCell(row, col) returns the current text of a cell; getMasterUnitId(row) the saved unit id (optional fallback).
  */
-export const computeRTDWICells = (getCell, rowCount, getMasterUnitId) => {
+export const computeRTDWICells = (getCell, rowCount, getMasterUnitId, getDecimals) => {
   const out = {};
   const points = Math.floor(rowCount / 2);
 
@@ -151,12 +158,15 @@ export const computeRTDWICells = (getCell, rowCount, getMasterUnitId) => {
     const corrected = Number.isFinite(mean) ? mean + ambient : NaN;
     const masterC = rtdwiMasterToC(kind, mean, ambient);
     const uucMean = rtdwiMean(getCell, u);
+    const dpInfo = getDecimals ? (getDecimals(m) || getDecimals(u) || {}) : {};
+    const dpUuc = rtdwiDp(dpInfo.uuc);
+    const dpMaster = rtdwiDp(dpInfo.master);
 
-    out[`${m}-${RTDWI_COLS.AVERAGE}`] = rtdwiFmt(mean);
-    out[`${m}-${RTDWI_COLS.CORRECTED_AVERAGE}`] = rtdwiFmt(corrected);
+    out[`${m}-${RTDWI_COLS.AVERAGE}`] = rtdwiFmtDp(mean, dpMaster);
+    out[`${m}-${RTDWI_COLS.CORRECTED_AVERAGE}`] = rtdwiFmtDp(corrected, dpMaster);
     out[`${m}-${RTDWI_COLS.SENSITIVITY}`] = '1';
     out[`${m}-${RTDWI_COLS.CONVERTED_AVERAGE}`] = Number.isFinite(masterC) ? masterC.toFixed(3) : '';
-    out[`${u}-${RTDWI_COLS.CONVERTED_AVERAGE}`] = Number.isFinite(uucMean) ? uucMean.toFixed(3) : '';
+    out[`${u}-${RTDWI_COLS.CONVERTED_AVERAGE}`] = Number.isFinite(uucMean) ? uucMean.toFixed(dpUuc === null ? 3 : dpUuc) : '';
     out[`${u}-${RTDWI_COLS.DEVIATION}`] = Number.isFinite(uucMean) && Number.isFinite(masterC) ? (uucMean - masterC).toFixed(3) : '';
   }
 
@@ -173,6 +183,7 @@ export const createRTDWIRows = (dataArray, observationData) => {
   const repeatables = [];
   const values = [];
   const masterUnits = [];
+  const decimals = [];
 
   let pointsToProcess = [];
   if (observationData && observationData.calibration_points && Array.isArray(observationData.calibration_points)) {
@@ -208,6 +219,7 @@ export const createRTDWIRows = (dataArray, observationData) => {
     repeatables.push('1');
     values.push(setPoint || "0");
     masterUnits.push('');
+    decimals.push({ uuc: point.least_count, master: point.master_least_count });
 
     // Master Row
     const masterReadings = safeGetArray(point.master_values, 5);
@@ -230,16 +242,17 @@ export const createRTDWIRows = (dataArray, observationData) => {
     repeatables.push('1');
     values.push(setPoint || "0");
     masterUnits.push(point.master_unit ? String(point.master_unit) : '');
+    decimals.push({ uuc: point.least_count, master: point.master_least_count });
   });
 
   // Calculated cells are read-only: show them recalculated from the readings
-  const calc = computeRTDWICells((r, c) => rows[r]?.[c], rows.length, (r) => masterUnits[r]);
+  const calc = computeRTDWICells((r, c) => rows[r]?.[c], rows.length, (r) => masterUnits[r], (r) => decimals[r]);
   Object.entries(calc).forEach(([key, val]) => {
     const [r, c] = key.split('-').map(Number);
     if (rows[r]) rows[r][c] = val;
   });
 
-  return { rows, hiddenInputs: { calibrationPoints, types, repeatables, values, masterUnits } };
+  return { rows, hiddenInputs: { calibrationPoints, types, repeatables, values, masterUnits, decimals } };
 };
 
 /**
