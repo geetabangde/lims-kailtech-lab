@@ -394,7 +394,7 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
             <Section id="md-sample" title="Sample & Job Information">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-3">
                 <Field label="LRN"><span className="font-mono font-bold text-[15px]">{r.lrn || "-"}</span></Field>
-                <Field label="BRN (Booking Ref No)"><span className="font-mono text-blue-700 dark:text-blue-400">{r.brn || r.inward_no || "-"}</span></Field>
+                <Field label="BRN (Booking Ref No)"><span className="font-mono text-blue-700 dark:text-blue-400">{brnOf(r) || "-"}</span></Field>
                 <Field label="Inward Entry No."><span className="font-mono">{r.inward_no || "-"}</span></Field>
                 <Field label="Department"><Badge cls="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-semibold">{r.department || "-"}</Badge></Field>
                 <Field label="Priority">
@@ -443,7 +443,7 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
             </Section>
 
             {/* Execution, Review & Authorisation */}
-            <Section id="md-tat" title="TAT Clocks" accent="amber">
+            <Section id="md-tat" title="TAT Records" accent="amber">
               <TatClocks r={r} onChanged={onChanged} />
             </Section>
 
@@ -562,7 +562,7 @@ function GateTab({ canSee }) {
           <tbody>
             {(d?.rows || []).map((g) => (
               <tr key={g.id} className="border-t">
-                <td className="px-2 py-1 font-mono">{g.id}</td><td className="px-2 py-1 whitespace-nowrap">{fmtDate(g.arrival)}</td><td className="px-2 py-1">{g.custodian || "-"}</td>
+                <td className="px-2 py-1 font-mono">{g.id}</td><td className="px-2 py-1 whitespace-nowrap">{fmtDate(g.arrival)}{(String(g.arrival || "").match(/[ T](\d{2}:\d{2})/) || [])[1] ? <span className="block text-[10px] text-gray-500">{String(g.arrival).match(/[ T](\d{2}:\d{2})/)[1]}</span> : null}</td><td className="px-2 py-1">{g.custodian || "-"}</td>
                 <td className="px-2 py-1">{g.customer}</td><td className="px-2 py-1">{g.material}</td><td className="px-2 py-1">{g.quantity}</td><td className="px-2 py-1">{g.purpose}</td>
                 <td className="px-2 py-1">{g.booked ? <Badge cls={colour.booked}>Booked</Badge> : <Badge cls={colour[g.colour]}>{g.age_days === 0 ? `${g.age_hours} hrs` : `${g.age_days} days`}</Badge>}</td>
                 <td className="px-2 py-1">{g.booked
@@ -962,6 +962,12 @@ function FGroup({ title, children }) {
 }
 
 // ---- MASTER SEARCH + FLOW FILTERS (client side, on the rows already loaded) ----
+// 18-Nov-2026: a real BRN looks like KTRC/2609R007307. Testing TRFs have no BRN (the server puts the TRF id there) and the inward no. is not a BRN -> show "-" instead of a number.
+const brnOf = (r) => {
+  const b = String(r?.brn ?? "").trim();
+  return b && !/^\d+$/.test(b) ? b : "";
+};
+
 const searchText = (r) => {
   const parts = [
     r.inward_no, r.lrn, r.brn, r.ref_id, r.customer, r.package, r.department, r.allocated_to, r.bd_person, r.ulr_no, r.invoice_no, r.docket,
@@ -1051,9 +1057,9 @@ const COLUMNS = (ctx) => [
     key: "brn",
     label: "BRN",
     w: 130,
-    value: (r) => r.brn || r.inward_no || "",
-    render: (r) => <span className="font-mono text-blue-700 font-semibold">{r.brn || r.inward_no || "-"}</span>,
-    sort: (r) => r.brn || r.inward_no || "",
+    value: (r) => brnOf(r),
+    render: (r) => <span className="font-mono text-blue-700 font-semibold">{brnOf(r) || "-"}</span>,
+    sort: (r) => brnOf(r),
   },
   {
     key: "inward_no",
@@ -1319,7 +1325,7 @@ export default function Mis22({ onClassic }) {
         i + 1,
         fmtDate(r.booking_date),
         r.lrn || "",
-        r.brn || r.inward_no || "",
+        brnOf(r),
         r.inward_no || "",
         r.customer || "",
         r.department || "",
@@ -1716,13 +1722,13 @@ export default function Mis22({ onClassic }) {
 
               {/* Actions + quick view */}
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => load()} disabled={loading} title="Reload the rows for the From / To dates (all other filters apply instantly)" className="h-8 px-4 rounded-lg bg-[#18457c] text-white text-xs font-bold shadow-sm hover:bg-[#133763]">
+                <button type="button" onClick={() => load()} disabled={loading} title="Reload the rows for the From / To dates (all other filters apply instantly)" className="h-10 px-6 rounded-lg bg-[#18457c] text-white text-sm font-bold shadow-md hover:bg-[#133763]">
                   {loading ? "Loading..." : "Load dates"}
                 </button>
-                <button type="button" onClick={clearAll} className="h-8 px-3 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-800 hover:bg-gray-50 shadow-sm">
+                <button type="button" onClick={clearAll} className="h-10 px-5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-800 hover:bg-gray-50 shadow-md">
                   Clear All
                 </button>
-                <button type="button" onClick={exportExcel} disabled={!rows.length} className="h-8 px-3 rounded-lg bg-emerald-600 text-white text-xs font-bold shadow-sm hover:bg-emerald-700 flex items-center gap-1.5">
+                <button type="button" onClick={exportExcel} disabled={!rows.length} className="h-10 px-4 rounded-lg bg-emerald-600 text-white text-sm font-bold shadow-md hover:bg-emerald-700 flex items-center gap-1.5">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                   Export Excel (.xlsx)
                 </button>
@@ -1745,8 +1751,12 @@ export default function Mis22({ onClassic }) {
                     {p.label}
                   </button>
                 ))}
-                <span className="ml-auto text-xs font-bold text-[#18457c] bg-white border border-[#18457c]/20 rounded-full px-3 py-1">
-                  {rows.length} of {allRows.length} rows displayed
+                <span
+                  className={`ml-auto flex items-baseline gap-2 rounded-xl border-2 px-4 py-1.5 shadow-md transition-colors ${rows.length !== allRows.length ? "border-amber-500 bg-amber-50 text-amber-900" : "border-[#18457c] bg-white text-[#18457c]"}`}
+                  title={rows.length !== allRows.length ? "Filters are active: showing only the matching rows" : "All loaded rows are shown"}
+                >
+                  <span className="text-3xl font-extrabold leading-none tabular-nums">{rows.length}</span>
+                  <span className="text-sm font-bold">of {allRows.length} rows{rows.length !== allRows.length ? " (filtered)" : ""}</span>
                 </span>
               </div>
             </div>
