@@ -118,6 +118,9 @@ import {
 import ObservationGTM, { calculateGTMValues, createGTMRows, getGTMTableConfig } from './Observations/ObservationGTM';
 import ObservationPR, { calculatePRValues, createPRRows, getPRTableConfig } from './Observations/ObservationPR';
 import ObservationUpload from './Observations/ObservationUpload';
+// 18-Nov-2026 (Hemant): instrument (CRF) least count must be matched in BOTH directions (LC 0.1: 20.11 and 20 rejected, 20.1 / 20.0 accepted). false = old behaviour.
+const STRICT_CRF_LC_DECIMALS = true;
+
 const CalibrateStep3 = () => {
   const navigate = useNavigate();
   const { id, itemId: instId } = useParams();
@@ -1039,7 +1042,7 @@ const CalibrateStep3 = () => {
             if (!strVal) {
               newErrors[key] = 'This field is required';
             } else if (!isWaveform) {
-              const { isValid, error } = validateLeastCount(strVal, leastCount);
+              const { isValid, error } = validateLeastCount(strVal, leastCount, true);
               if (!isValid) {
                 newErrors[key] = error;
               }
@@ -1120,7 +1123,7 @@ const CalibrateStep3 = () => {
             }
           } else {
             // Scaled-integer least-count check; float % flagged valid values like 3 with LC 0.001
-            const { isValid, error } = validateLeastCount(value.trim(), leastCount);
+            const { isValid, error } = validateLeastCount(value.trim(), leastCount, true);
             if (!isValid) newErrors[key] = error;
           }
         }
@@ -1314,7 +1317,7 @@ const CalibrateStep3 = () => {
         if (!nominalValue.trim()) {
           newErrors[nominalKey] = 'This field is required';
         } else {
-          const { isValid, error } = validateLeastCount(nominalValue, uucLc);
+          const { isValid, error } = validateLeastCount(nominalValue, uucLc, true);
           if (!isValid) {
             newErrors[nominalKey] = error;
           }
@@ -1522,7 +1525,7 @@ const CalibrateStep3 = () => {
           } else if (isNaN(Number(value))) {
             newErrors[key] = 'Please enter a valid number';
           } else if (obsLc) {
-            const { isValid, error } = validateLeastCount(value.trim(), obsLc);
+            const { isValid, error } = validateLeastCount(value.trim(), obsLc, true);
             if (!isValid) newErrors[key] = error;
           }
         }
@@ -1601,6 +1604,8 @@ const CalibrateStep3 = () => {
 
               if (decPlaces > 0 && valDecPlaces > decPlaces) {
                 newErrors[key] = `Maximum ${decPlaces} decimal place(s) allowed for least count ${leastCount}`;
+              } else if (STRICT_CRF_LC_DECIMALS && decPlaces > 0 && valDecPlaces < decPlaces && !value.endsWith('.')) {
+                newErrors[key] = `Enter ${decPlaces} decimal place(s) as per CRF least count ${leastCount} (e.g. ${Number(value).toFixed(decPlaces)})`;
               } else if (numValue !== 0) {
                 const factor = 1000000;
                 const remainder = Math.round(numValue * factor) % Math.round(leastCount * factor);
@@ -1660,7 +1665,7 @@ const CalibrateStep3 = () => {
               }
 
               if (targetLc && targetLc !== 'NA' && targetLc !== 'No' && !isNaN(parseFloat(targetLc)) && parseFloat(targetLc) > 0) {
-                const { isValid, error } = validateLeastCount(value, targetLc);
+                const { isValid, error } = validateLeastCount(value, targetLc, !layout.masterObsIndices.includes(col));
                 if (!isValid) {
                   newErrors[key] = error;
                 }
@@ -4555,7 +4560,7 @@ const CalibrateStep3 = () => {
   };
 
   // ✅ CORRECTED: Complete least count validation with proper floating-point handling
-  const validateLeastCount = (value, leastCount) => {
+  const validateLeastCount = (value, leastCount, requireExactDecimals = false) => {
     if (value === '' || value === null || value === undefined) {
       return { isValid: true, error: null };
     }
@@ -4587,6 +4592,19 @@ const CalibrateStep3 = () => {
         isValid: false,
         error: `Maximum ${lcDecimals} decimal place(s) allowed for least count ${leastCount}`
       };
+    }
+
+    // 18-Nov-2026 (Hemant): for the instrument's (CRF) least count the reading must carry exactly the least count's decimals (LC 0.1: 20.0, not 20).
+    // Only when requireExactDecimals is passed (instrument / UUC side); master-standard checks are unchanged.
+    if (requireExactDecimals && STRICT_CRF_LC_DECIMALS && lcDecimals > 0) {
+      const rawStr = String(value).trim();
+      const rawDecimals = rawStr.includes('.') ? rawStr.split('.')[1].length : 0;
+      if (rawDecimals < lcDecimals && !rawStr.endsWith('.')) {
+        return {
+          isValid: false,
+          error: `Enter ${lcDecimals} decimal place(s) as per CRF least count ${leastCount} (e.g. ${numValue.toFixed(lcDecimals)})`
+        };
+      }
     }
 
     // 2️⃣ Check minimum value and divisibility - value must be >= least count and a multiple of least count
@@ -4777,7 +4795,7 @@ const CalibrateStep3 = () => {
         if (value.trim()) {
           // Float modulo is unreliable (3 % 0.001 is 0.000999..., not 0), so use the
           // scaled-integer check shared with the other templates.
-          const { isValid, error } = validateLeastCount(value.trim(), leastCount);
+          const { isValid, error } = validateLeastCount(value.trim(), leastCount, true);
           setObservationErrors(prevErrors => {
             const newErrors = { ...prevErrors };
             if (isValid) delete newErrors[key];
@@ -7479,6 +7497,8 @@ const CalibrateStep3 = () => {
           blurError = 'Please enter a valid number';
         } else if (decPlaces > 0 && valDecPlaces > decPlaces) {
           blurError = `Maximum ${decPlaces} decimal place(s) allowed for least count ${lcToValidate}`;
+        } else if (STRICT_CRF_LC_DECIMALS && colIndex === 1 && decPlaces > 0 && valDecPlaces < decPlaces && !String(value).endsWith('.')) {
+          blurError = `Enter ${decPlaces} decimal place(s) as per CRF least count ${lcToValidate} (e.g. ${numVal.toFixed(decPlaces)})`;
         } else if (numVal !== 0 && lcNum > 0) {
           if (Math.abs(numVal) < lcNum) {
             blurError = `Please enter a value with in leastcount ${lcToValidate}`;
