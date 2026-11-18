@@ -119,7 +119,8 @@ import ObservationGTM, { calculateGTMValues, createGTMRows, getGTMTableConfig } 
 import ObservationPR, { calculatePRValues, createPRRows, getPRTableConfig } from './Observations/ObservationPR';
 import ObservationUpload from './Observations/ObservationUpload';
 // 18-Nov-2026 (Hemant): instrument (CRF) least count must be matched in BOTH directions (LC 0.1: 20.11 and 20 rejected, 20.1 / 20.0 accepted). false = old behaviour.
-const STRICT_CRF_LC_DECIMALS = true;
+// PENDING: switched OFF on 18-Nov-2026 (decision: keep as a pending task). Set to true + build + deploy to activate.
+const STRICT_CRF_LC_DECIMALS = false;
 
 const CalibrateStep3 = () => {
   const navigate = useNavigate();
