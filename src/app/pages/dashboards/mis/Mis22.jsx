@@ -1834,11 +1834,11 @@ export default function Mis22({ onClassic }) {
               {rows.slice(0, mobileShow).map((r, idx) => {
                 const colBy = (k) => cols.find((c) => c.key === k);
                 return (
-                  <div key={r._k || idx} className="rounded-xl border border-gray-200 bg-white p-3 text-xs shadow-sm dark:bg-dark-800 dark:border-dark-600">
+                  <div key={r._k || idx} className="rounded-xl border border-gray-300 bg-white p-3 text-xs text-gray-900 shadow-sm">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="text-[13px]">{colBy("lrn")?.render(r, idx)}</div>
-                        <div className="mt-0.5 font-semibold text-gray-800 dark:text-gray-100">{r.customer}</div>
+                        <div className="mt-0.5 font-semibold text-gray-900">{r.customer}</div>
                       </div>
                       <div className="shrink-0">{colBy("action")?.render(r, idx)}</div>
                     </div>
@@ -1846,7 +1846,7 @@ export default function Mis22({ onClassic }) {
                       {cols.filter((c) => !["sno", "lrn", "customer", "action"].includes(c.key)).map((c) => (
                         <div key={c.key} className={c.key === "with_since" ? "col-span-2" : ""}>
                           <dt className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{c.label}</dt>
-                          <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{c.render(r, idx)}</dd>
+                          <dd className="mt-0.5 text-gray-900">{c.render(r, idx)}</dd>
                         </div>
                       ))}
                     </dl>
