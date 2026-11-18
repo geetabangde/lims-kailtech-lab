@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'utils/axios';
 import { toast } from 'sonner';
 
@@ -79,7 +80,8 @@ export default function SendDraftModal({ isOpen, onClose, inwardId }) {
 
   const canSend = !sending && data?.items?.length && confirmChecked && confirmResp && to.trim();
 
-  return (
+  // 18-Nov-2026: rendered into <body>: inside the table's sticky Actions cell a fixed modal was clipped under the page header and could not be scrolled
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/60 p-4 overflow-y-auto whitespace-normal">
       <div className="my-auto w-full max-w-2xl rounded-xl bg-white dark:bg-dark-800 text-gray-800 dark:text-dark-100 shadow-xl p-5 space-y-3 text-sm">
         <div className="flex items-center justify-between">
@@ -163,6 +165,7 @@ export default function SendDraftModal({ isOpen, onClose, inwardId }) {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
