@@ -260,6 +260,7 @@ function ViewSticker() {
                                 padding: '4px',
                                 fontFamily: 'Times New Roman, serif',
                                 boxSizing: 'content-box',
+                                overflow: 'hidden',
                                 color: '#000'
                             }}
                         >
@@ -296,15 +297,16 @@ function ViewSticker() {
                                     </div>
                                 )}
 
-                                <div style={{ textAlign: 'left', fontSize: '10px', lineHeight: '12px', paddingTop: '8px' }}>
+                                {/* 18-Nov-2026: long unbroken ID/Sr. values (e.g. CHLHI/PICU/NICU/PHOTOTHERAPY/06/SG26310006PA) ran out of the tag box and overlapped the next tag -> wrap inside the box */}
+                                <div style={{ textAlign: 'left', fontSize: '10px', lineHeight: '12px', paddingTop: '8px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                                     <b>Inst. Name:- </b>{rowitem.name || ''}
                                 </div>
 
-                                <div style={{ textAlign: 'left', fontSize: '10px', lineHeight: '12px' }}>
+                                <div style={{ textAlign: 'left', fontSize: '10px', lineHeight: '12px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                                     <b>Location:- </b>{rowitem.instlocation || 'NA'}
                                 </div>
 
-                                <div style={{ textAlign: 'left', fontSize: '10px', lineHeight: '12px' }}>
+                                <div style={{ textAlign: 'left', fontSize: '10px', lineHeight: '12px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                                     <b>ID/Sr.: - </b>{(rowitem.idno ?? '') + '/' + (rowitem.serialno ?? '')}
                                 </div>
 
