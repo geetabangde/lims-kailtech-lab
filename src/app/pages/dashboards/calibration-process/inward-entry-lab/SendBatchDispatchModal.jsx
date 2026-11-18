@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'utils/axios';
 import { toast } from 'sonner';
 
@@ -408,8 +409,9 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
   const allConfirmed =
     confirmChecklist && confirmResponsibility && (!(data?.test_mode || testMode) || confirmTestResponsibility) && blockers.length === 0;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto overflow-x-hidden whitespace-normal">
+  // 18-Nov-2026: rendered into <body> - inside the table's sticky Actions cell the fixed modal was clipped under the page header (title cut, top not reachable)
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto overflow-x-hidden whitespace-normal">
       <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
         {/* Top Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-t-2xl">
@@ -1334,6 +1336,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
