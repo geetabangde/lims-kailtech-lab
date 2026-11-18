@@ -1212,6 +1212,7 @@ export default function Mis22({ onClassic }) {
   const [gateCount, setGateCount] = useState(null);
   const [detailRow, setDetailRow] = useState(null);
   const [reopen, setReopen] = useState(null);
+  const [mobileShow, setMobileShow] = useState(60); // phone card list: show 60 samples, then "Show more"
 
   const load = useCallback(async (limOverride, range, typeOverride) => {
     const lim = typeof limOverride === "number" ? limOverride : limit;
@@ -1767,13 +1768,13 @@ export default function Mis22({ onClassic }) {
 
               {/* Actions + quick view */}
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => load()} disabled={loading} title="Reload the rows for the From / To dates (all other filters apply instantly)" className="h-[60px] min-w-[180px] px-9 rounded-xl bg-[#18457c] text-white text-xl font-bold shadow-lg hover:bg-[#133763]">
+                <button type="button" onClick={() => load()} disabled={loading} title="Reload the rows for the From / To dates (all other filters apply instantly)" className="h-12 w-full sm:h-[60px] sm:w-auto sm:min-w-[180px] px-9 rounded-xl bg-[#18457c] text-white text-lg sm:text-xl font-bold shadow-lg hover:bg-[#133763]">
                   {loading ? "Loading..." : "Filter"}
                 </button>
-                <button type="button" onClick={clearAll} className="h-10 px-5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-800 hover:bg-gray-50 shadow-md">
+                <button type="button" onClick={clearAll} className="h-10 flex-1 sm:flex-none px-5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-800 hover:bg-gray-50 shadow-md">
                   Clear All
                 </button>
-                <button type="button" onClick={exportExcel} disabled={!rows.length} className="h-10 px-4 rounded-lg bg-emerald-600 text-white text-sm font-bold shadow-md hover:bg-emerald-700 flex items-center gap-1.5">
+                <button type="button" onClick={exportExcel} disabled={!rows.length} className="h-10 flex-1 sm:flex-none justify-center px-4 rounded-lg bg-emerald-600 text-white text-sm font-bold shadow-md hover:bg-emerald-700 flex items-center gap-1.5">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                   Export Excel (.xlsx)
                 </button>
@@ -1797,7 +1798,7 @@ export default function Mis22({ onClassic }) {
                   </button>
                 ))}
                 <span
-                  className={`ml-auto flex items-baseline gap-2 rounded-xl border-2 px-4 py-1.5 shadow-md transition-colors ${rows.length !== allRows.length ? "border-amber-500 bg-amber-50 text-amber-900" : "border-[#18457c] bg-white text-[#18457c]"}`}
+                  className={`sm:ml-auto w-full sm:w-auto justify-center sm:justify-start flex items-baseline gap-2 rounded-xl border-2 px-4 py-1.5 shadow-md transition-colors ${rows.length !== allRows.length ? "border-amber-500 bg-amber-50 text-amber-900" : "border-[#18457c] bg-white text-[#18457c]"}`}
                   title={rows.length !== allRows.length ? "Filters are active: showing only the matching rows" : "All loaded rows are shown"}
                 >
                   <span className="text-3xl font-extrabold leading-none tabular-nums">{rows.length}</span>
@@ -1828,7 +1829,51 @@ export default function Mis22({ onClassic }) {
             )}
 
             {/* SIMPLIFIED MAIN TABLE (8 COLUMNS ONLY, NO EXPANDER ROWS) */}
-            <div id="mis-table" className="overflow-auto border rounded-xl max-h-[70vh] shadow-sm bg-white dark:bg-dark-800">
+            {/* 18-Nov-2026: phones (< 768 px) get one card per sample instead of a 1240 px wide table; the table stays for tablets / desktop */}
+            <div className="md:hidden space-y-2" id="mis-cards">
+              {rows.slice(0, mobileShow).map((r, idx) => {
+                const colBy = (k) => cols.find((c) => c.key === k);
+                return (
+                  <div key={r._k || idx} className="rounded-xl border border-gray-200 bg-white p-3 text-xs shadow-sm dark:bg-dark-800 dark:border-dark-600">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-[13px]">{colBy("lrn")?.render(r, idx)}</div>
+                        <div className="mt-0.5 font-semibold text-gray-800 dark:text-gray-100">{r.customer}</div>
+                      </div>
+                      <div className="shrink-0">{colBy("action")?.render(r, idx)}</div>
+                    </div>
+                    <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
+                      {cols.filter((c) => !["sno", "lrn", "customer", "action"].includes(c.key)).map((c) => (
+                        <div key={c.key} className={c.key === "with_since" ? "col-span-2" : ""}>
+                          <dt className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{c.label}</dt>
+                          <dd className="mt-0.5 text-gray-900 dark:text-gray-100">{c.render(r, idx)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                );
+              })}
+              {rows.length > mobileShow && (
+                <button type="button" onClick={() => setMobileShow((n) => n + 60)} className="h-11 w-full rounded-xl border border-[#18457c] bg-white text-sm font-bold text-[#18457c] hover:bg-blue-50">
+                  Show more ({rows.length - mobileShow} more samples)
+                </button>
+              )}
+              {!loading && rows.length === 0 && (
+                <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-600">
+                  <div className="font-semibold">No samples match the selected filters.</div>
+                  {zeroHints.length > 0 && (
+                    <div className="mt-3 flex flex-col gap-2 text-xs">
+                      {zeroHints.map((h) => (
+                        <button key={h.k} type="button" onClick={h.clear} className="rounded-full border border-[#18457c] bg-white px-3 py-1.5 font-bold text-[#18457c] hover:bg-blue-50">
+                          Remove &quot;{h.label}&quot; &rarr; {h.n} row{h.n > 1 ? "s" : ""}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div id="mis-table" className="hidden md:block overflow-auto border rounded-xl max-h-[70vh] shadow-sm bg-white dark:bg-dark-800">
               <table className="w-full text-xs border-collapse">
                 <thead className="sticky top-0 z-10 bg-gray-200 dark:bg-dark-800 shadow-sm">
                   {/* Column Header Titles with Sort click */}
