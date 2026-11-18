@@ -7,6 +7,19 @@ export const EXTRA_DISPATCH_USER_IDS = [];
 // Testing team: may use the TESTING report email (Signed Reports page) only. Keep in sync with server env DISPATCH_TESTING_USER_IDS (default 43 = Anita Dhakad).
 export const DISPATCH_TESTING_USER_IDS = [43];
 
+// "Mark as Sent (offline)": the dispatch managers PLUS this named list (Anita Dhakad 43, Manish Rathore 160). Keep in sync with the server env
+// DISPATCH_MARK_SENT_USER_IDS (EmailDispatchController::markSentGate). It does NOT allow sending e-mails.
+export const MARK_SENT_EXTRA_IDS = [43, 160];
+
+export function canMarkSentOffline() {
+  try {
+    if (MARK_SENT_EXTRA_IDS.includes(Number(localStorage.getItem("userId")))) return true;
+  } catch {
+    /* ignore */
+  }
+  return canSendDispatchEmail();
+}
+
 export function canSendTestingDispatchEmail() {
   try {
     return DISPATCH_TESTING_USER_IDS.includes(Number(localStorage.getItem("userId")));

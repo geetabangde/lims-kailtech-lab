@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import axios from "utils/axios";
 import { DispatchEmailButton } from "components/shared/DispatchEmailButton";
+import { MarkSentButton } from "components/shared/MarkSentButton";
 
 // ----------------------------------------------------------------------
 
@@ -139,6 +140,9 @@ export function RowActions({ row, table }) {
 
       {/* Email the final reports + testing invoice of this TRF (management only; test mode) */}
       <DispatchEmailButton trfId={trf} />
+
+      {/* 18-Nov-2026: reports handed over by hand / courier outside the LIMS - logged (who / when / how); the MIS shows the report as sent */}
+      <MarkSentButton kind="testing" trfId={trf} preselectIds={[id]} />
 
       {/* ── Request Revision — perm 411 ───────────────────────────── */}
       {permissions.includes(411) && (

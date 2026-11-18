@@ -14,7 +14,7 @@ const dmy = (v) => {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : (v || '');
 };
 
-export default function MarkSentModal({ isOpen, onClose, kind = 'calibration', inwardId, trfId, onDone }) {
+export default function MarkSentModal({ isOpen, onClose, kind = 'calibration', inwardId, trfId, onDone, preselectIds }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState([]);
@@ -22,21 +22,25 @@ export default function MarkSentModal({ isOpen, onClose, kind = 'calibration', i
   const [sentOn, setSentOn] = useState(isoToday());
   const [detail, setDetail] = useState('');
   const [remark, setRemark] = useState('');
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmVerified, setConfirmVerified] = useState(false);
+  const [confirmResp, setConfirmResp] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cancelId, setCancelId] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
 
   const params = kind === 'testing' ? { kind, trf_id: trfId } : { kind, inward_id: inwardId };
 
-  const load = () => {
+  const load = (initial) => {
     setLoading(true);
     axios.get('/dispatch/manual/candidates', { params })
       .then((r) => {
         const d = r.data?.data;
         setData(d);
         setMode((m) => m || d?.modes?.[0] || '');
-        setSelected((s) => s.filter((id) => (d?.items || []).some((i) => i.id === id && !i.manual)));
+        const okIds = (d?.items || []).filter((i) => !i.manual).map((i) => i.id);
+        setSelected((s) => (initial && Array.isArray(preselectIds) && preselectIds.length
+          ? preselectIds.map(Number).filter((id) => okIds.includes(id))
+          : s.filter((id) => okIds.includes(id))));
       })
       .catch((e) => { toast.error(e?.message || (typeof e === 'string' ? e : 'Could not load the reports.')); onClose(); })
       .finally(() => setLoading(false));
@@ -44,8 +48,8 @@ export default function MarkSentModal({ isOpen, onClose, kind = 'calibration', i
 
   useEffect(() => {
     if (!isOpen) return;
-    setData(null); setSelected([]); setDetail(''); setRemark(''); setConfirmed(false); setCancelId(null); setCancelReason(''); setSentOn(isoToday());
-    load();
+    setData(null); setSelected([]); setDetail(''); setRemark(''); setConfirmVerified(false); setConfirmResp(false); setCancelId(null); setCancelReason(''); setSentOn(isoToday());
+    load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, inwardId, trfId, kind]);
 
@@ -59,11 +63,11 @@ export default function MarkSentModal({ isOpen, onClose, kind = 'calibration', i
     if (!selected.length) { toast.error('Select at least one report.'); return; }
     if (!mode) { toast.error('Choose how the reports were sent.'); return; }
     if (mode === 'Other' && !detail.trim()) { toast.error('For "Other" please say how it was sent.'); return; }
-    if (!confirmed) { toast.error('Please tick the confirmation.'); return; }
+    if (!confirmVerified || !confirmResp) { toast.error('Please tick both confirmations.'); return; }
     setSaving(true);
     try {
       const r = await axios.post('/dispatch/manual/mark', {
-        ...params, item_ids: selected, mode, sent_on: sentOn, detail, remark, confirm: true,
+        ...params, item_ids: selected, mode, sent_on: sentOn, detail, remark, confirm_verified: true, confirm_responsible: true,
       });
       toast.success(r.data?.message || 'Marked as sent.');
       if (onDone) onDone();
@@ -88,7 +92,8 @@ export default function MarkSentModal({ isOpen, onClose, kind = 'calibration', i
     }
   };
 
-  const canSave = !saving && selected.length > 0 && confirmed && mode;
+  const canSave = !saving && selected.length > 0 && confirmVerified && confirmResp && mode;
+  const hasItems = (data?.items || []).length > 0;
 
   return createPortal(
     <div className="fixed inset-0 z-[110] flex items-start justify-center bg-black/60 p-4 overflow-y-auto whitespace-normal">
@@ -144,6 +149,7 @@ export default function MarkSentModal({ isOpen, onClose, kind = 'calibration', i
                 Some selected reports were already e-mailed / dispatched by challan. Marking them again is allowed (both records are kept; the earliest date counts in the MIS).
               </p>
             )}
+            {hasItems && (<>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block">How were they sent?
                 <select value={mode} onChange={(e) => setMode(e.target.value)} className="mt-1 block w-full border rounded p-1.5">
@@ -160,15 +166,25 @@ export default function MarkSentModal({ isOpen, onClose, kind = 'calibration', i
             <label className="block">Remark (optional)
               <textarea value={remark} onChange={(e) => setRemark(e.target.value)} rows={2} className="mt-1 block w-full border rounded p-1.5" />
             </label>
-            <label className="flex items-start gap-2 rounded border border-blue-200 bg-blue-50 p-2 text-xs">
-              <input type="checkbox" className="mt-0.5" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-              <span>I confirm that the selected reports were really sent / handed over as stated above. I understand my name, the date and the time of this entry are recorded.</span>
-            </label>
+            <div className="rounded border border-blue-200 bg-blue-50 p-2 space-y-2 text-xs">
+              <p className="text-blue-900">By marking these reports as sent you confirm that you have carried out the necessary checks and assume sole responsibility for this entry:</p>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-0.5" checked={confirmVerified} onChange={(e) => setConfirmVerified(e.target.checked)} />
+                <span>I have thoroughly verified the selected reports and the handover details entered above (how, date and detail).</span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-0.5" checked={confirmResp} onChange={(e) => setConfirmResp(e.target.checked)} />
+                <span>I accept full authorisation and sole responsibility for marking these reports as sent offline, including the accuracy of this entry. I understand my name, the date and the time are recorded.</span>
+              </label>
+            </div>
+            </>)}
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" onClick={onClose} className="px-3 py-1.5 rounded border">Close</button>
-              <button type="button" onClick={save} disabled={!canSave} className="px-3 py-1.5 rounded bg-[#18457c] text-white font-semibold disabled:opacity-50">
-                {saving ? 'Saving...' : `Mark ${selected.length || ''} as sent`}
-              </button>
+              {hasItems && (
+                <button type="button" onClick={save} disabled={!canSave} className="px-3 py-1.5 rounded bg-[#18457c] text-white font-semibold disabled:opacity-50">
+                  {saving ? 'Saving...' : `Mark ${selected.length || ''} as sent`}
+                </button>
+              )}
             </div>
           </>
         )}

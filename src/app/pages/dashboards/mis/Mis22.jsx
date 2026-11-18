@@ -9,7 +9,7 @@ import * as XLSX from "xlsx";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import SendBatchDispatchModal from "../calibration-process/inward-entry-lab/SendBatchDispatchModal";
 import MarkSentModal from "../calibration-process/inward-entry-lab/MarkSentModal";
-import { canSendDispatchEmail, canSendTestingDispatchEmail } from "utils/dispatchAccess";
+import { canSendDispatchEmail, canSendTestingDispatchEmail, canMarkSentOffline } from "utils/dispatchAccess";
 
 // DD-MM-YYYY format everywhere (client rule). Accepts "YYYY-MM-DD" or "YYYY-MM-DD hh:mm:ss"; blank / zero dates show "-".
 const fmtDate = (v) => {
@@ -39,12 +39,16 @@ function EmailLogDetail({ logs, pending }) {
       ) : (
         <div className="space-y-3">
           {list.map((m, idx) => (
-            <details key={m.id} open={idx === 0} className={`rounded-lg border p-3 text-xs space-y-1 bg-white dark:bg-dark-800 ${m.status === "failed" ? "border-red-300" : "border-gray-200 dark:border-dark-700"}`}>
+            <details key={m.id} open={idx === 0} className={`group rounded-lg border p-3 text-xs space-y-1 bg-white dark:bg-dark-800 ${m.status === "failed" ? "border-red-300" : "border-gray-200 dark:border-dark-700"}`}>
               <summary className="flex flex-wrap items-center gap-2 text-gray-700 dark:text-gray-200 cursor-pointer select-none">
+                {/* 18-Nov-2026: visible triangle (points right when closed, down when open) + hint, so users know the row opens and closes */}
+                <span aria-hidden="true" className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#18457c]/10 text-[10px] text-[#18457c] transition-transform duration-150 group-open:rotate-90">&#9654;</span>
                 <span className="font-semibold">{idx === 0 ? "Latest: " : "Earlier: "}{m.sent_at ? `${fmtDate(m.sent_at)} ${String(m.sent_at).slice(11, 16)}` : "-"}</span>
                 <span>{m.sent_by}{m.sent_by_role ? <span className="text-gray-500"> ({m.sent_by_role})</span> : null}</span>
                 <Badge cls={m.mode === "test" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}>{m.mode === "test" ? "TEST" : "LIVE"}</Badge>
                 <Badge cls={m.status === "failed" ? "bg-red-100 text-red-800" : "bg-slate-100 text-slate-700"}>{m.status}</Badge>
+                <span className="ml-auto text-[10px] font-medium text-gray-500 group-open:hidden">Click to open</span>
+                <span className="ml-auto hidden text-[10px] font-medium text-gray-500 group-open:inline">Click to close</span>
               </summary>
               <div><b>Subject:</b> {m.subject || "-"}</div>
               <div><b>To:</b> {join(m.to)} &nbsp; <b>CC:</b> {join(m.cc)} &nbsp; <b>BCC:</b> {join(m.bcc)}</div>
@@ -330,6 +334,7 @@ const MODAL_NAV = [
   { id: "md-tat", label: "TAT" },
   { id: "md-review", label: "Review" },
   { id: "md-email", label: "Email" },
+  { id: "md-docs", label: "Reports & Billing" },
   { id: "md-history", label: "History" },
 ];
 
@@ -354,6 +359,7 @@ function DetailActions({ r, seeInvoice, onChanged }) {
   }, [isCal, r.pid, ready]);
 
   const canSend = canSendDispatchEmail() || (!isCal && canSendTestingDispatchEmail());
+  const canMark = canMarkSentOffline();
   const certHref = isCal && r.item_id && rs.inward
     ? `/dashboards/calibration-process/inward-entry-lab/view-certificate/${rs.inward}/${r.item_id}?caliblocation=${encodeURIComponent(rs.caliblocation || "Lab")}&calibacc=${encodeURIComponent(rs.calibacc || "Nabl")}`
     : null;
@@ -389,11 +395,11 @@ function DetailActions({ r, seeInvoice, onChanged }) {
         {invHref ? <a href={invHref} target="_blank" rel="noopener noreferrer" className={linkCls}>View invoice {r.invoice_no ? `(${r.invoice_no})` : ""} &#8599;</a> : (seeInvoice ? <span className="text-xs italic text-gray-500">No invoice linked</span> : null)}
       </div>
 
-      {canSend && ready && (
+      {(canSend || canMark) && ready && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Actions</span>
-          <button type="button" onClick={() => setShowResend(true)} className={`${btnCls} border border-blue-400 bg-blue-200 text-black hover:bg-blue-300`}>Resend e-mail</button>
-          <button type="button" onClick={() => setShowMark(true)} className={`${btnCls} border border-emerald-400 bg-emerald-200 text-black hover:bg-emerald-300`}>Mark as sent (offline)</button>
+          {canSend && <button type="button" onClick={() => setShowResend(true)} className={`${btnCls} border border-blue-400 bg-blue-200 text-black hover:bg-blue-300`}>Resend e-mail</button>}
+          {canMark && <button type="button" onClick={() => setShowMark(true)} className={`${btnCls} border border-emerald-400 bg-emerald-200 text-black hover:bg-emerald-300`}>Mark as sent (offline)</button>}
         </div>
       )}
 
@@ -403,7 +409,7 @@ function DetailActions({ r, seeInvoice, onChanged }) {
           <div className="mt-1"><b>{m.mode}</b> on <b>{fmtDate(m.on)}</b>{m.detail ? <> &middot; {m.detail}</> : null}</div>
           {m.remark ? <div className="mt-0.5">Remark: {m.remark}</div> : null}
           <div className="mt-0.5 text-emerald-800">Marked by <b>{m.by || `User #${m.by_id}`}</b> on {fmtDate(m.at)} {String(m.at || "").slice(11, 16)}</div>
-          {(canSend || Number(localStorage.getItem("userId")) === Number(m.by_id)) && (
+          {(canMark || Number(localStorage.getItem("userId")) === Number(m.by_id)) && (
             cancelOpen ? (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Reason for cancelling" className="min-w-[200px] flex-1 rounded border p-1" />
@@ -437,6 +443,93 @@ function DetailActions({ r, seeInvoice, onChanged }) {
         />
       )}
     </div>
+  );
+}
+
+// 18-Nov-2026: "Reports & Billing" - every report of the sample's TRF / inward and every bill linked to them, each with its own link (new tab).
+function DocsSection({ r, seeInvoice }) {
+  const isCal = r.type === "Calibration";
+  const rs = r.resend || {};
+  const parent = isCal ? rs.inward : rs.trf;
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    if (!parent) { setData({ reports: [], invoices: [] }); return undefined; }
+    let live = true;
+    axios.get("/mis/docs", { params: { kind: isCal ? "calibration" : "testing", id: parent } })
+      .then((x) => { if (live) setData(x.data?.data || { reports: [], invoices: [] }); })
+      .catch(() => { if (live) setData({ reports: [], invoices: [], failed: true }); });
+    return () => { live = false; };
+  }, [isCal, parent]);
+
+  const linkCls = "inline-flex items-center rounded border border-[#18457c] bg-white px-2 py-0.5 text-[11px] font-bold text-[#18457c] hover:bg-blue-50";
+  const certHref = (id) => `/dashboards/calibration-process/inward-entry-lab/view-certificate/${rs.inward}/${id}?caliblocation=${encodeURIComponent(rs.caliblocation || "Lab")}&calibacc=${encodeURIComponent(rs.calibacc || "Nabl")}`;
+  const invHref = (id) => (isCal ? `/dashboards/accounts/calibration-invoice-list/view/${id}` : `/dashboards/accounts/testing-invoices/view/${id}`);
+  const isMine = (x) => (isCal ? Number(x.id) === Number(r.item_id) : Number(x.id) === Number(r.pid));
+
+  return (
+    <Section id="md-docs" title="Reports & Billing" accent="emerald">
+      {!data && <div className="text-xs text-gray-500 italic">Loading reports and bills...</div>}
+      {data?.failed && <div className="text-xs text-red-700">Could not load the report list.</div>}
+      {data && !data.failed && (
+        <div className="space-y-4">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1">Reports of this {isCal ? "inward" : "TRF"} ({data.reports.length})</div>
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-100 text-left"><tr>
+                  <th className="px-2 py-1.5">LRN</th><th className="px-2 py-1.5">{isCal ? "Instrument" : "Sample / product"}</th><th className="px-2 py-1.5">BRN</th>{!isCal && <th className="px-2 py-1.5">ULR</th>}<th className="px-2 py-1.5">Status</th><th className="px-2 py-1.5">Open (new tab)</th>
+                </tr></thead>
+                <tbody>
+                  {data.reports.length === 0 && <tr><td colSpan={6} className="px-2 py-3 text-center text-gray-500">No reports found.</td></tr>}
+                  {data.reports.map((x) => (
+                    <tr key={x.id} className={`border-t ${isMine(x) ? "bg-emerald-50" : ""}`}>
+                      <td className="px-2 py-1.5 font-mono font-semibold">{x.lrn}{isMine(x) ? <span className="ml-1 rounded bg-emerald-200 px-1 text-[9px] font-bold text-emerald-900">THIS ROW</span> : null}</td>
+                      <td className="px-2 py-1.5">{x.name}</td>
+                      <td className="px-2 py-1.5 font-mono">{x.brn || "-"}</td>
+                      {!isCal && <td className="px-2 py-1.5 font-mono">{x.ulr || "-"}</td>}
+                      <td className="px-2 py-1.5">{x.final ? <span className="rounded bg-emerald-100 px-1.5 font-bold text-emerald-800">{isCal ? "Authorised" : "Final"}</span> : <span className="rounded bg-amber-100 px-1.5 font-bold text-amber-800">Not final yet</span>}</td>
+                      <td className="px-2 py-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {isCal && rs.inward ? <a href={certHref(x.id)} target="_blank" rel="noopener noreferrer" className={linkCls}>Certificate &#8599;</a> : null}
+                          {!isCal && x.report_lh_url ? <a href={x.report_lh_url} target="_blank" rel="noopener noreferrer" className={linkCls}>Report (letterhead) &#8599;</a> : null}
+                          {!isCal && x.report_url ? <a href={x.report_url} target="_blank" rel="noopener noreferrer" className={linkCls}>Report &#8599;</a> : null}
+                          {!isCal && !x.report_url && !x.report_lh_url ? <span className="italic text-gray-500">{x.final ? "file not found" : "not issued"}</span> : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {seeInvoice ? (
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1">Bills linked to these reports ({data.invoices.length})</div>
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-100 text-left"><tr><th className="px-2 py-1.5">Invoice no.</th><th className="px-2 py-1.5">Date</th><th className="px-2 py-1.5">Amount</th><th className="px-2 py-1.5">Payment</th><th className="px-2 py-1.5">Open (new tab)</th></tr></thead>
+                  <tbody>
+                    {data.invoices.length === 0 && <tr><td colSpan={5} className="px-2 py-3 text-center text-gray-500">No bill linked yet.</td></tr>}
+                    {data.invoices.map((b) => (
+                      <tr key={b.id} className={`border-t ${r.invoice_no && r.invoice_no === b.no ? "bg-emerald-50" : ""}`}>
+                        <td className="px-2 py-1.5 font-mono font-semibold">{b.no}</td>
+                        <td className="px-2 py-1.5">{fmtDate(b.date)}</td>
+                        <td className="px-2 py-1.5">{`Rs ${Number(b.amount || 0).toLocaleString("en-IN")}`}</td>
+                        <td className="px-2 py-1.5"><Badge cls={b.payment === "Paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>{b.payment}*</Badge></td>
+                        <td className="px-2 py-1.5"><a href={invHref(b.id)} target="_blank" rel="noopener noreferrer" className={linkCls}>Open invoice &#8599;</a></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="text-[11px] text-gray-500 mt-1 italic">* Payment status is derived from invoice balance and is to be confirmed with Accounts for final decisions.</div>
+            </div>
+          ) : (
+            <div className="text-xs italic text-gray-500">Billing details are visible to management and reporting users only.</div>
+          )}
+        </div>
+      )}
+    </Section>
   );
 }
 
@@ -614,6 +707,8 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
             </Section>
 
             {/* Allotment History / Trail */}
+            <DocsSection r={r} seeInvoice={seeInvoice} />
+
             <Section id="md-history" title="Allotment & Re-allotment History" accent="slate">
               <TrailDetail r={r} />
             </Section>
