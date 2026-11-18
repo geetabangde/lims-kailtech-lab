@@ -32,10 +32,9 @@ export const gtmTableConfig = {
 export const getDecimalPlaces = (leastCount) => {
   if (!leastCount || leastCount === 'NA' || leastCount === 'N.A') return null;
   const s = String(leastCount).trim();
-  if (s.includes('.')) {
-    const parts = s.split('.');
-    return parts[parts.length - 1].length;
-  }
+  // 18-Nov-2026: the least count may carry a unit ("0.1 °C") - count only the digits after the decimal point (was 4 decimals: 10.3800)
+  const m = s.match(/\.(\d+)/);
+  if (m) return m[1].length;
   if (!isNaN(parseFloat(s))) return 0;
   return null;
 };

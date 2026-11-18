@@ -64,7 +64,14 @@ export default function SendDraftModal({ isOpen, onClose, inwardId }) {
       toast.success(r.data?.message || 'Sent.');
       onClose();
     } catch (e) {
-      toast.error(e?.message || (typeof e === 'string' ? e : 'The e-mail could not be sent.'));
+      const msg = e?.message || (typeof e === 'string' ? e : '');
+      // 18-Nov-2026: a big batch (80+ certificates) takes longer than the web server waits; the server keeps going and the e-mail IS sent.
+      if (/time-?out|server error occurred|something went wrong|network error/i.test(msg)) {
+        toast.warning('Large batch: the server is still preparing and sending this e-mail (it can take a few minutes). Do NOT click Send again - check the Email Log in the MIS to confirm.', { duration: 15000 });
+        onClose();
+      } else {
+        toast.error(msg || 'The e-mail could not be sent.');
+      }
     } finally {
       setSending(false);
     }
@@ -73,8 +80,8 @@ export default function SendDraftModal({ isOpen, onClose, inwardId }) {
   const canSend = !sending && data?.items?.length && confirmChecked && confirmResp && to.trim();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto whitespace-normal">
-      <div className="w-full max-w-2xl rounded-xl bg-white dark:bg-dark-800 text-gray-800 dark:text-dark-100 shadow-xl p-5 space-y-3 text-sm">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/60 p-4 overflow-y-auto whitespace-normal">
+      <div className="my-auto w-full max-w-2xl rounded-xl bg-white dark:bg-dark-800 text-gray-800 dark:text-dark-100 shadow-xl p-5 space-y-3 text-sm">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">Send DRAFT Certificates to Client</h2>
           <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-800 text-xl leading-none">&times;</button>
