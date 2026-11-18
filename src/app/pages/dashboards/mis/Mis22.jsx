@@ -938,6 +938,20 @@ function applyCardFilters(list, f, counted, firstRows) {
 // ---- FILTER PANEL LOOK (matches the Signed Reports page: light theme-blue panel, dark uppercase headings, h-8 inputs, primary focus ring) ----
 const F_LBL = "block text-[11px] font-bold uppercase tracking-wide text-gray-800 dark:text-gray-100 mb-1";
 const F_INP = "h-8 rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:bg-gray-100 dark:bg-dark-900 dark:border-dark-600 dark:text-gray-100";
+// 18-Nov-2026: wraps a filter field and shows a small x that clears ONLY that field (Clear All still clears everything)
+function FClr({ show, onClear, right = "right-6", children }) {
+  return (
+    <span className="relative block">
+      {children}
+      {show && (
+        <button type="button" onClick={onClear} title="Clear this filter" aria-label="Clear this filter"
+          className={`absolute ${right} top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full text-sm font-bold leading-none text-gray-500 hover:text-red-600 hover:bg-red-50`}>
+          &times;
+        </button>
+      )}
+    </span>
+  );
+}
 function FGroup({ title, children }) {
   return (
     <div className="rounded-lg border border-[#18457c]/15 bg-white dark:bg-dark-900/60 p-2.5 shadow-sm">
@@ -1151,11 +1165,11 @@ export default function Mis22({ onClassic }) {
   const [detailRow, setDetailRow] = useState(null);
   const [reopen, setReopen] = useState(null);
 
-  const load = useCallback(async (limOverride, range) => {
+  const load = useCallback(async (limOverride, range, typeOverride) => {
     const lim = typeof limOverride === "number" ? limOverride : limit;
     setLoading(true);
     try {
-      const res = await axios.get("/mis/tracker22", { params: { from: range?.from || from, to: range?.to || to, type, limit: lim }, timeout: 180000 });
+      const res = await axios.get("/mis/tracker22", { params: { from: range?.from || from, to: range?.to || to, type: typeOverride || type, limit: lim }, timeout: 180000 });
       const d = res.data?.data || null;
       setData(d);
       // Auto-lock type to calibration if scope is calibration only
@@ -1545,6 +1559,15 @@ export default function Mis22({ onClassic }) {
               )}
             </div>
 
+            {/* 18-Nov-2026: full-screen loader - blocks every click while the tracker loads (stops mis-clicks on cards / headers / buttons) */}
+            {loading && (
+              <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-3 bg-black/40 backdrop-blur-[2px] select-none cursor-wait" role="alert" aria-busy="true">
+                <svg className="h-12 w-12 animate-spin text-white" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-90" fill="#18457c" stroke="white" strokeWidth="0.5" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+                <div className="text-lg font-bold text-white drop-shadow">Loading Sample Flow Tracker...</div>
+                <div className="text-sm text-white/90 drop-shadow">Please wait while records are fetched and organized</div>
+              </div>
+            )}
+
             {/* FILTER PANEL (same design language as the Signed Reports page) */}
             <div className="rounded-xl border border-[#18457c]/20 bg-[#eef3fa] dark:bg-dark-800 p-3 space-y-3 shadow-sm">
               {/* MASTER SEARCH: any detail (inward no, LRN, BRN, customer, instrument / package, chemist, ULR, invoice, docket, e-mail address / subject / certificate no.) */}
@@ -1557,8 +1580,11 @@ export default function Mis22({ onClassic }) {
                       value={master}
                       onChange={(e) => setMaster(e.target.value)}
                       placeholder="Inward no, LRN, BRN, customer, package / instrument, chemist, ULR, invoice, docket, e-mail, certificate no..."
-                      className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-8 pr-3 text-xs text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:bg-dark-900 dark:border-dark-600 dark:text-gray-100"
+                      className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-8 pr-8 text-xs text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:bg-dark-900 dark:border-dark-600 dark:text-gray-100"
                     />
+                    {master && (
+                      <button type="button" onClick={() => setMaster("")} title="Clear this filter" aria-label="Clear this filter" className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full text-sm font-bold leading-none text-gray-500 hover:text-red-600 hover:bg-red-50">&times;</button>
+                    )}
                   </span>
                 </label>
                 <button
@@ -1590,11 +1616,13 @@ export default function Mis22({ onClassic }) {
                   </label>
                   <label>
                     <span className={F_LBL}>Type</span>
-                    <select value={type} onChange={(e) => setType(e.target.value)} disabled={isCalibOnly} className={`${F_INP} font-medium`}>
-                      {!isCalibOnly && <option value="all">All</option>}
-                      {!isCalibOnly && <option value="testing">Testing</option>}
-                      <option value="calibration">Calibration</option>
-                    </select>
+                    <FClr show={!isCalibOnly && type !== "all"} onClear={() => { setType("all"); load(undefined, undefined, "all"); }}>
+                      <select value={type} onChange={(e) => { setType(e.target.value); load(undefined, undefined, e.target.value); }} disabled={isCalibOnly} className={`${F_INP} font-medium`}>
+                        {!isCalibOnly && <option value="all">All</option>}
+                        {!isCalibOnly && <option value="testing">Testing</option>}
+                        <option value="calibration">Calibration</option>
+                      </select>
+                    </FClr>
                   </label>
                   <label>
                     <span className={F_LBL}>Rows</span>
@@ -1622,28 +1650,36 @@ export default function Mis22({ onClassic }) {
                 <FGroup title="Lab, People & Stage">
                   <label>
                     <span className={F_LBL}>Lab / Department</span>
-                    <select value={department} onChange={(e) => setDepartment(e.target.value)} disabled={departments.length <= 1} className={`${F_INP} font-medium`}>
-                      <option value="">All departments</option>
-                      {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-                    </select>
+                    <FClr show={!!department && departments.length > 1} onClear={() => setDepartment("")}>
+                      <select value={department} onChange={(e) => setDepartment(e.target.value)} disabled={departments.length <= 1} className={`${F_INP} font-medium`}>
+                        <option value="">All departments</option>
+                        {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </FClr>
                   </label>
                   <label>
                     <span className={F_LBL}>Chemist / Engineer</span>
-                    <select value={chemist} onChange={(e) => setChemist(e.target.value)} className={F_INP}>
-                      <option value="">All engineers/chemists</option>
-                      {chemists.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <FClr show={!!chemist} onClear={() => setChemist("")}>
+                      <select value={chemist} onChange={(e) => setChemist(e.target.value)} className={F_INP}>
+                        <option value="">All engineers/chemists</option>
+                        {chemists.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </FClr>
                   </label>
                   <label>
                     <span className={F_LBL}>Customer</span>
-                    <input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" className={`${F_INP} w-44`} />
+                    <FClr show={!!customer} onClear={() => setCustomer("")} right="right-1.5">
+                      <input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" className={`${F_INP} w-44 pr-7`} />
+                    </FClr>
                   </label>
                   <label>
                     <span className={F_LBL}>Stage</span>
-                    <select value={stage} onChange={(e) => setStage(e.target.value)} className={F_INP}>
-                      <option value="">All stages</option>
-                      {stages.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    <FClr show={!!stage} onClear={() => setStage("")}>
+                      <select value={stage} onChange={(e) => setStage(e.target.value)} className={F_INP}>
+                        <option value="">All stages</option>
+                        {stages.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </FClr>
                   </label>
                 </FGroup>
               </div>
@@ -1658,26 +1694,30 @@ export default function Mis22({ onClassic }) {
                 ].map((f) => (
                   <label key={f.label}>
                     <span className={F_LBL}>{f.label}</span>
-                    <select value={f.v} onChange={(e) => f.set(e.target.value)} className={`${F_INP} ${f.v ? "border-[#18457c] ring-1 ring-[#18457c]/30 font-semibold" : ""}`}>
-                      <option value="">{f.all}</option>
-                      {f.opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                    </select>
+                    <FClr show={!!f.v} onClear={() => f.set("")}>
+                      <select value={f.v} onChange={(e) => f.set(e.target.value)} className={`${F_INP} ${f.v ? "border-[#18457c] ring-1 ring-[#18457c]/30 font-semibold" : ""}`}>
+                        <option value="">{f.all}</option>
+                        {f.opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                      </select>
+                    </FClr>
                   </label>
                 ))}
                 <label>
                   <span className={F_LBL}>Priority</span>
-                  <select value={fPri} onChange={(e) => setFPri(e.target.value)} className={`${F_INP} ${fPri ? "border-[#18457c] ring-1 ring-[#18457c]/30 font-semibold" : ""}`}>
-                    <option value="">All priorities</option>
-                    <option value="Urgent">Urgent</option>
-                    <option value="Normal">Normal</option>
-                  </select>
+                  <FClr show={!!fPri} onClear={() => setFPri("")}>
+                    <select value={fPri} onChange={(e) => setFPri(e.target.value)} className={`${F_INP} ${fPri ? "border-[#18457c] ring-1 ring-[#18457c]/30 font-semibold" : ""}`}>
+                      <option value="">All priorities</option>
+                      <option value="Urgent">Urgent</option>
+                      <option value="Normal">Normal</option>
+                    </select>
+                  </FClr>
                 </label>
               </FGroup>
 
               {/* Actions + quick view */}
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => load()} disabled={loading} className="h-8 px-4 rounded-lg bg-[#18457c] text-white text-xs font-bold shadow-sm hover:bg-[#133763]">
-                  {loading ? "Loading..." : "Filter"}
+                <button type="button" onClick={() => load()} disabled={loading} title="Reload the rows for the From / To dates (all other filters apply instantly)" className="h-8 px-4 rounded-lg bg-[#18457c] text-white text-xs font-bold shadow-sm hover:bg-[#133763]">
+                  {loading ? "Loading..." : "Load dates"}
                 </button>
                 <button type="button" onClick={clearAll} className="h-8 px-3 rounded-lg border border-gray-300 bg-white text-xs font-bold text-gray-800 hover:bg-gray-50 shadow-sm">
                   Clear All
