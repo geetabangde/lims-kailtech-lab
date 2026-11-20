@@ -1,3 +1,4 @@
+import { hasGrade } from "utils/gradeDisplay";
 import { renderToStaticMarkup } from "react-dom/server";
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
@@ -160,7 +161,7 @@ function page1InfoExtraUnits(data) {
   const lines = (txt, perLine) => Math.max(1, Math.ceil(String(txt || '').length / perLine));
   const sampleLines = (lines(`Sample Identification: ${data.productDesc ?? ''}`, 135) - 1)
     + (data.customerRef && data.customerRef !== '-' ? lines(`Customer Reference :- ${data.customerRef}`, 135) - 1 : 0)
-    + (lines(`Sample Particulars : ${data.productName ?? ''}, Grade: ${data.grade ?? ''}${data.brandValue ? ', ' + data.brandValue : ''}`, 135) - 1);
+    + (lines(`Sample Particulars : ${data.productName ?? ''}${hasGrade(data.grade) ? ', Grade: ' + data.grade : ''}${data.brandValue ? ', ' + data.brandValue : ''}`, 135) - 1);
   const leftLines = 1 + lines(data.customerName, 48) + lines(data.customerAddress, 52) + (data.showContact && data.contactPerson ? 1 : 0);
   const leftExtra = Math.max(0, Math.ceil((leftLines * 14 + 12 - 150) / 18));
   // An extra info text line is ~13px high vs ~18px for a table row unit (~0.6 penalty)

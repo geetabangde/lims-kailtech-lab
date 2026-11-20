@@ -16,6 +16,7 @@
 //     if (paramcount == donecount): UPDATE trfProducts SET status=11
 //     include createcachetestreport.php
 
+import { hasGrade } from "utils/gradeDisplay";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import PropTypes from "prop-types";
@@ -521,7 +522,7 @@ export default function ApproveSignatureReport() {
                   {/* PHP: $proname Grade $grade $batchno */}
                   <tr>
                     <td colSpan={3} className="p-2 text-xs text-gray-700 dark:text-gray-300">
-                      Sample Particulars : {productName} Grade : {grade} {batchnoClean}
+                      Sample Particulars : {productName}{hasGrade(grade) ? ` Grade : ${grade}` : ""} {batchnoClean}
                     </td>
                   </tr>
                 </tbody>

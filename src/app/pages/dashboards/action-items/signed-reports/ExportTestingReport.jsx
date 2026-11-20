@@ -1,3 +1,4 @@
+import { hasGrade } from "utils/gradeDisplay";
 import { renderToStaticMarkup } from "react-dom/server";
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
@@ -272,7 +273,7 @@ export function HtmlSampleRows({ data }) {
       )}
       <div style={{ ...SS.infoFull }}>
         <span style={SS.bold}>Sample Particulars : </span>
-        {data.productName}, Grade: {data.grade ?? ''}
+        {data.productName}{hasGrade(data.grade) ? `, Grade: ${data.grade}` : ''}
         {data.brandValue ? `, ${data.brandValue}` : ''}
       </div>
       {data.room_temperature ? (

@@ -1,4 +1,5 @@
 // Import Dependencies
+import { hasGrade } from "utils/gradeDisplay";
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "utils/axios";
@@ -222,7 +223,7 @@ export default function FinalReportDetail() {
                   <tr>
                     <td colSpan={3} className="border-t border-gray-300 p-2 text-sm dark:border-dark-500">
                       <strong>Sample Particulars: </strong>
-                      {product.name ?? "—"} &nbsp; Grade: {report.grade ?? "—"}
+                      {product.name ?? "—"}{hasGrade(report.grade) ? <> &nbsp; Grade: {report.grade}</> : null}
                       {brandValue ? <>, {brandValue}</> : null}
                     </td>
                   </tr>

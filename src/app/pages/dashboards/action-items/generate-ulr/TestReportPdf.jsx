@@ -10,6 +10,7 @@
 //   <PrintWithoutLHButton report={report} />
 //   <PrintWithoutLHTwoSignButton report={report} />
 
+import { hasGrade } from "utils/gradeDisplay";
 import { useState } from "react";
 import {
   Document,
@@ -252,7 +253,7 @@ function PdfSampleRows({ data }) {
       <View style={[SS.infoFull, { borderTopWidth: 0.5, borderTopColor: BC }]}>
         <Text>
           <Text style={SS.bold}>Sample Particulars : </Text>
-          {data.productName}  Grade: {data.grade ?? ""}  {data.batchnoClean}
+          {data.productName}{hasGrade(data.grade) ? `  Grade: ${data.grade}` : ""}  {data.batchnoClean}
         </Text>
       </View>
     </>

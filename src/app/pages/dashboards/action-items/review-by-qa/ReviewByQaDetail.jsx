@@ -6,6 +6,7 @@
 // API: POST /actionitem/approve-submit-ulr  { hid }
 // API: GET  /actionitem/request-reset/{id}
 
+import { hasGrade } from "utils/gradeDisplay";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import PropTypes from "prop-types";
@@ -469,7 +470,7 @@ export default function ReviewByQaDetail() {
                   )}
                   <tr>
                     <td colSpan={3} className="p-2 text-gray-700 dark:text-gray-300">
-                      <strong>Sample Particulars:</strong> {productName} Grade: {grade} {batchnoClean}
+                      <strong>Sample Particulars:</strong> {productName}{hasGrade(grade) ? ` Grade: ${grade}` : ""} {batchnoClean}
                     </td>
                   </tr>
                 </tbody>

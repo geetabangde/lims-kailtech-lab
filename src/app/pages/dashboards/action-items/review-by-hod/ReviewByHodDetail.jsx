@@ -6,6 +6,7 @@
 //   POST /actionitem/approve-hod  { hid }          (PHP: finalpapproval.php)
 //   GET  /actionitem/request-reset/{id}
 
+import { hasGrade } from "utils/gradeDisplay";
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import PropTypes from "prop-types";
@@ -548,7 +549,7 @@ export default function ReviewByHodDetail() {
                   {/* PHP: Sample Particulars: $proname Grade: $grade $batchno */}
                   <tr>
                     <td colSpan={3} className="p-2 text-gray-700 dark:text-gray-300">
-                      Sample Particulars: {productName} Grade: {grade} {batchnoClean}
+                      Sample Particulars: {productName}{hasGrade(grade) ? ` Grade: ${grade}` : ""} {batchnoClean}
                     </td>
                   </tr>
                 </tbody>
