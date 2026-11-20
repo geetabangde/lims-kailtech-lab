@@ -1391,6 +1391,12 @@ const protectedRoutes = {
               }),
             },
             {
+              path: "enquiry-management",
+              lazy: async () => ({
+                Component: (await import("app/pages/dashboards/enquiry-management")).default,
+              }),
+            },
+            {
               path: "calibration-process",
               children: [
                 {

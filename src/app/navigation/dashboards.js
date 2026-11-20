@@ -44,6 +44,7 @@ const DASHBOARD_PERMISSION_RULES = {
   "/dashboards/master-data/manage-labs": [87],
   "/dashboards/master-data/view-activity-log": [381],
   "/dashboards/notifications": [],
+  "/dashboards/enquiry-management": [],
   "/dashboards/master-data/master-calibration-return": [69],
   "/dashboards/master-data/general-checklists": [382],
   "/dashboards/master-data/instrument-status": [342],
@@ -447,6 +448,14 @@ export const generateDashboardsConfig = (labs = [], userPermissions = []) => {
         title: "MIS - Sample Flow",
         Icon: MapIcon,
       },
+      // Enquiry Management (Restricted Phase 1: Sushil ID 41, Ruby ID 31, Manish Rathore ID 160)
+      ...([31, 41, 160].includes(employeeId) ? [{
+        id: "dashboards.enquiry-management",
+        type: NAV_TYPE_ITEM,
+        path: path(ROOT_DASHBOARDS, "/enquiry-management"),
+        title: "Enquiry Management",
+        Icon: MegaphoneIcon,
+      }] : []),
       {
         id: "dashboards.material-list",
         path: path(ROOT_DASHBOARDS, "/material-list"),
