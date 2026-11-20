@@ -26,12 +26,35 @@ export const createITRows = (dataArray) => {
     if (!point) return;
     const observations = safeGetArray(point.observations, 5);
     const lc = point.least_count_value || point.least_count_uuc ;
+    // 2026-11-20 (lab, Inward 5371 / Item 73385): Nominal 3 dp (UUC least count, 3 when NA),
+    // Average 2 dp (master least count), Error = printed Average - Nominal at the Nominal's dp.
+    // Display-only; same rule as the certificate (resulttableit.blade.php). Used by Raw Data only.
+    const decOf = (v) => {
+      const m = String(v ?? '').match(/^\s*[0-9]*\.([0-9]+)/);
+      if (m) return m[1].replace(/0+$/, '').length;
+      return /^\s*[0-9]+\s*$/.test(String(v ?? '')) ? 0 : null;
+    };
+    const nomDec = decOf(point.least_count) ?? 3;
+    const avgDec = decOf(point.master_least_count);
+    const nomRaw = point.nominal_value || point.test_point;
+    const nomNum = parseFloat(safeGetValue(nomRaw));
+    const avgNum = parseFloat(safeGetValue(point.average));
+    const nominalText = isNaN(nomNum) ? safeGetValue(nomRaw) : nomNum.toFixed(nomDec);
+    let averageText = formatValueByLc(point.average, null, lc);
+    let errorText = formatValueByLc(point.error, null, lc);
+    if (avgDec !== null && !isNaN(avgNum)) {
+      averageText = avgNum.toFixed(avgDec);
+      if (!isNaN(nomNum)) {
+        const err = parseFloat(averageText) - nomNum;
+        errorText = (Math.abs(err) < 0.0000005 ? 0 : err).toFixed(nomDec);
+      }
+    }
     const row = [
       point.sequence_number?.toString() || point.sr_no?.toString() || '',
-      safeGetValue(point.nominal_value || point.test_point),
+      nominalText,
       ...observations.slice(0, 5).map((obs) => formatValueByLc(obs, null, lc)),
-      formatValueByLc(point.average, null, lc),
-      formatValueByLc(point.error, null, lc),
+      averageText,
+      errorText,
     ];
     while (row.length < 9) {
       row.push('');
