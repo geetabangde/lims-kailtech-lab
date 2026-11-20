@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "utils/axios";
 import { toast } from "sonner";
 import { XMarkIcon } from "@heroicons/react/24/outline";
