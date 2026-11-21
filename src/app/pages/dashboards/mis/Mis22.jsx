@@ -841,7 +841,7 @@ function EmailLogTab() {
           </select>
         </label>
         <label>Search<input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} onKeyDown={(e) => e.key === "Enter" && load()} placeholder="customer / email / PO / subject" className="block border rounded-lg p-1.5 w-56" /></label>
-        <button type="button" onClick={load} disabled={loading} className="px-4 py-2 rounded-lg bg-[#18457c] text-white font-semibold">{loading ? "Loading..." : "Load"}</button>
+        <button type="button" onClick={load} disabled={loading} className="px-4 py-2 rounded-lg bg-[#18457c] text-white font-semibold">{loading ? "Filtering..." : "Filter"}</button>
       </div>
       {data?.summary && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
@@ -1409,7 +1409,7 @@ const COLUMNS = (ctx) => [
 ];
 
 // ---- MAIN MIS COMPONENT ----
-export default function Mis22({ onClassic }) {
+export default function Mis22() {
   const [from, setFrom] = useState(() => isoDate(new Date(Date.now() - 30 * 86400000)));
   const [to, setTo] = useState(() => isoDate(new Date()));
   const [type, setType] = useState("all");
@@ -1700,17 +1700,6 @@ export default function Mis22({ onClassic }) {
             >
               TAT Master
             </button>
-            {onClassic && (
-              <button
-                type="button"
-                onClick={onClassic}
-                disabled
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-400 border border-slate-200 opacity-60 cursor-not-allowed transition-all"
-                title="Classic view is switched off (being retired)"
-              >
-                Classic View
-              </button>
-            )}
           </div>
         </div>
 
@@ -1872,22 +1861,8 @@ export default function Mis22({ onClassic }) {
                     )}
                   </span>
                 </label>
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => {
-                    const t = isoDate(new Date());
-                    const f = isoDate(new Date(Date.now() - 399 * 86400000));
-                    setFrom(f); setTo(t); setLimit(10000);
-                    load(10000, { from: f, to: t });
-                  }}
-                  className="h-9 px-3 rounded-lg border border-[#18457c] bg-white text-[#18457c] text-xs font-bold hover:bg-blue-50 shadow-sm"
-                  title="Reload the last 13 months with the maximum Rows so the master search can find older samples"
-                >
-                  Search all dates
-                </button>
               </div>
-              <div className="text-[11px] text-gray-600 -mt-1">Master Search and the filters below work on the rows loaded for the From / To dates and Rows value; use &quot;Search all dates&quot; to look at the last 13 months.</div>
+              <div className="text-[11px] text-gray-600 -mt-1">Master Search and the filters below work on the rows loaded for the From / To dates and Rows value.</div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                 <FGroup title="Date & Scope">

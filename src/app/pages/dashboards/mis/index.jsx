@@ -1163,5 +1163,5 @@ export default function MisSampleFlow() {
       </>
     );
   }
-  return <Mis22 onClassic={isManagement ? () => switchTo("classic") : null} />;
+  return <Mis22 />;
 }
