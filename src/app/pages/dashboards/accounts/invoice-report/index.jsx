@@ -193,6 +193,7 @@ export default function InvoiceReport() {
     // Data rows — same columns as PHP table
     const rows = orders.map((row, idx) => ({
       "Sr. No":             idx + 1,
+      "Date of Bill":      row.invoicedate ? new Date(row.invoicedate).toLocaleDateString("en-GB") : "-",
       "Customer Name":     row.custname     ?? "-",
       "PO Number":         row.ponumber     ?? "-",
       "Invoice No":        row.invoiceno    ?? "-",
@@ -218,6 +219,7 @@ export default function InvoiceReport() {
     // Totals row — exactly jaise PHP me <tr> se Total Amount row tha
     rows.push({
       "Sr. No":             "Total Amount",
+      "Date of Bill":      "",
       "Customer Name":     "",
       "PO Number":         "",
       "Invoice No":        "",
@@ -499,19 +501,19 @@ export default function InvoiceReport() {
                         <Tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold dark:border-dark-400 dark:bg-dark-800">
                           {table.getVisibleLeafColumns().map((col) => {
                             const id = col.id;
-                            // "Total Amount" label spanning the first 4 cols (s_no, custname, ponumber, invoiceno)
+                            // "Total Amount" label spanning the first 5 cols (s_no, invoicedate, custname, ponumber, invoiceno)
                             if (id === "s_no") {
                               return (
                                 <Td
                                   key={id}
-                                  colSpan={4}
+                                  colSpan={5}
                                   className="py-2 text-right font-bold"
                                 >
                                   Total Amount
                                 </Td>
                               );
                             }
-                            if (["custname", "ponumber", "invoiceno"].includes(id)) {
+                            if (["invoicedate", "custname", "ponumber", "invoiceno"].includes(id)) {
                               return null; // absorbed by colSpan above
                             }
                             if (id === "subtotal")      return <Td key={id} className="py-2">{apiTotals.subtotal}</Td>;

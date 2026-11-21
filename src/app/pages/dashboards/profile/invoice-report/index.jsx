@@ -355,6 +355,7 @@ export default function MyInvoiceReportDashboard() {
               <thead>
                 <tr className="bg-gray-100 dark:bg-dark-800 border-b border-gray-200 dark:border-dark-500 text-xs font-bold uppercase text-gray-600 dark:text-dark-300">
                   <th className="px-3 py-3 w-16 text-center border-r border-gray-200 last:border-0 dark:border-dark-600">Sr. no</th>
+                  <th className="px-3 py-3 w-32 border-r border-gray-200 last:border-0 dark:border-dark-600">Date of Bill</th>
                   <th className="px-3 py-3 w-64 border-r border-gray-200 last:border-0 dark:border-dark-600">Customer Name</th>
                   <th className="px-3 py-3 w-32 border-r border-gray-200 last:border-0 dark:border-dark-600">Po Number</th>
                   <th className="px-3 py-3 w-40 border-r border-gray-200 last:border-0 dark:border-dark-600">Invoice No</th>
@@ -382,6 +383,7 @@ export default function MyInvoiceReportDashboard() {
                       className="hover:bg-gray-55/30 dark:hover:bg-dark-600/30 transition-colors"
                     >
                       <td className="px-3 py-2 text-center text-gray-700 dark:text-dark-200 border-r border-gray-200/50 last:border-0 dark:border-dark-600/50">{idx + 1}</td>
+                      <td className="px-3 py-2 text-gray-700 dark:text-dark-200 border-r border-gray-200/50 last:border-0 dark:border-dark-600/50">{row.invoicedate ? new Date(row.invoicedate).toLocaleDateString("en-GB") : "—"}</td>
                       <td className="px-3 py-2 font-semibold text-gray-850 dark:text-dark-50 truncate border-r border-gray-200/50 last:border-0 dark:border-dark-600/50">{row.custname}</td>
                       <td className="px-3 py-2 text-gray-700 dark:text-dark-200 truncate border-r border-gray-200/50 last:border-0 dark:border-dark-600/50">{row.ponumber || "—"}</td>
                       <td className="px-3 py-2 text-gray-600 dark:text-dark-300 font-mono border-r border-gray-200/50 last:border-0 dark:border-dark-600/50">{row.invoiceno}</td>
@@ -411,7 +413,7 @@ export default function MyInvoiceReportDashboard() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="18" className="h-32 text-center text-gray-500 text-sm">
+                    <td colSpan="19" className="h-32 text-center text-gray-500 text-sm">
                       {searched ? "No invoice records found matching the selected criteria." : "Please enter search ranges and click Search."}
                     </td>
                   </tr>
@@ -420,7 +422,7 @@ export default function MyInvoiceReportDashboard() {
                 {/* 12 Totals Summary Footers matching PHP exactly */}
                 {searched && reportData.length > 0 && (
                   <tr className="bg-gray-100/50 dark:bg-dark-800/40 border-t-2 border-gray-300 dark:border-dark-500 font-bold text-xs">
-                    <td colSpan="4" className="px-3 py-4 font-bold text-gray-800 dark:text-dark-100 uppercase tracking-wider text-right border-r border-gray-200/50 last:border-0 dark:border-dark-600/50">
+                    <td colSpan="5" className="px-3 py-4 font-bold text-gray-800 dark:text-dark-100 uppercase tracking-wider text-right border-r border-gray-200/50 last:border-0 dark:border-dark-600/50">
                       Total Amount
                     </td>
                     <td className="px-3 py-4 text-right text-gray-800 dark:text-dark-100 border-r border-gray-200/50 last:border-0 dark:border-dark-600/50">₹{totals.subtotal.toLocaleString("en-IN")}</td>

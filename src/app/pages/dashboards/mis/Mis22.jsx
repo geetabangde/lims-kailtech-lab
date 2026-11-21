@@ -533,8 +533,10 @@ function DocsSection({ r, seeInvoice }) {
   );
 }
 
-function DetailModal({ r, onClose, seeInvoice, onChanged }) {
+function DetailModal({ r, onClose, seeInvoice, isTopLevel, onChanged }) {
   if (!r) return null;
+  const isCal = r.type === "Calibration";
+  const canSeeConfidential = isTopLevel || isCal;
   const isOverdue = Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE";
   const href = resendHref(r);
   const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -555,10 +557,14 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
             <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center font-bold text-white text-xs shrink-0">MIS</div>
             <div className="min-w-0">
               <div className="text-lg font-bold flex flex-wrap items-center gap-2">
-                Sample Details: {r.lrn || r.brn || `Inward ${r.inward_no}`}
+                Sample Details: {r.lrn || (canSeeConfidential ? r.brn : null) || (canSeeConfidential ? `Inward ${r.inward_no}` : "")}
                 <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-white/20 text-white">{r.stage || r.department}</span>
               </div>
-              <div className="text-sm text-blue-100 truncate">{r.customer}</div>
+              {canSeeConfidential ? (
+                <div className="text-sm text-blue-100 truncate">{r.customer}</div>
+              ) : (
+                <div className="text-sm text-blue-200/60 italic">Customer confidential under ISO/IEC 17025</div>
+              )}
             </div>
           </div>
           <button type="button" onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors text-xl font-bold shrink-0" title="Close">
@@ -579,12 +585,12 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
                 tone={Number(r.overdue_days_22) > 0 || (isOverdue && !r.report_delivered) ? "red" : r.report_delivered ? "slate" : "green"}
               />
               <Chip label="With" value={holderParts.main} note={r.holder_since ? `since ${fmtDate(r.holder_since)}` : ""} tone="slate" />
-              <Chip label="Email" value={r.email_status || "-"} note={r.email_date ? fmtDate(r.email_date) : ""} tone={emailTone} />
+              {isTopLevel && <Chip label="Email" value={r.email_status || "-"} note={r.email_date ? fmtDate(r.email_date) : ""} tone={emailTone} />}
               {invChip ? <Chip label="Invoice" value={invChip.value} note={invChip.note} tone={invChip.tone} /> : null}
               {r.priority === "Urgent" ? <Chip label="Priority" value="Urgent" tone="red" /> : null}
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {MODAL_NAV.map((n) => (
+              {MODAL_NAV.filter((n) => !(["md-email", "md-docs"].includes(n.id) && !isTopLevel)).map((n) => (
                 <button key={n.id} type="button" onClick={() => goTo(n.id)} className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700 hover:bg-[#18457c] hover:text-white transition-colors">
                   {n.label}
                 </button>
@@ -597,13 +603,13 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
             <Section id="md-sample" title="Sample & Job Information">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-3">
                 <Field label="LRN"><span className="font-mono font-bold text-[15px]">{r.lrn || "-"}</span></Field>
-                <Field label="BRN (Booking Ref No)"><span className="font-mono text-blue-700 dark:text-blue-400">{brnOf(r) || "-"}</span></Field>
-                <Field label="Inward Entry No."><span className="font-mono">{r.inward_no || "-"}</span></Field>
+                <Field label="BRN (Booking Ref No)"><span className="font-mono text-blue-700 dark:text-blue-400">{canSeeConfidential ? (brnOf(r) || "-") : "-"}</span></Field>
+                <Field label="Inward Entry No."><span className="font-mono">{canSeeConfidential ? (r.inward_no || "-") : "-"}</span></Field>
                 <Field label="Department"><Badge cls="bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-semibold">{r.department || "-"}</Badge></Field>
                 <Field label="Priority">
                   <span className={r.priority === "Urgent" ? "text-red-600 font-bold" : ""}>{r.priority}{r.priority_days != null ? ` (${r.priority_days}d)` : ""}</span>
                 </Field>
-                <Field label="Customer" className="col-span-2 md:col-span-5"><span className="font-semibold">{r.customer || "-"}</span></Field>
+                <Field label="Customer" className="col-span-2 md:col-span-5"><span className="font-semibold">{canSeeConfidential ? (r.customer || "-") : <span className="italic text-gray-400 font-normal">Confidential under ISO/IEC 17025</span>}</span></Field>
                 <Field label="Package / Instrument / Material" className="col-span-2 md:col-span-5">{r.package || "-"}</Field>
                 <Field label="BD Person Name" className="col-span-2 md:col-span-2"><span className="font-bold text-[#18457c] dark:text-blue-300">{r.bd_person || "-"}</span></Field>
                 <Field label="Current Status" className="col-span-2 md:col-span-3">
@@ -671,43 +677,45 @@ function DetailModal({ r, onClose, seeInvoice, onChanged }) {
               </div>
             </Section>
 
-            {/* Commercial, Email & Dispatch */}
-            <Section id="md-email" title="Commercial, Email & Dispatch" accent="violet">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
-                {seeInvoice && (
-                  <>
-                    <Field label="Invoice No." empty={r.invoice_no ? null : "Not raised yet"}><span className="font-mono font-bold">{r.invoice_no}</span></Field>
-                    <Field label="Invoice Amount & Payment" empty={r.invoice_amount != null ? null : "-"}>
-                      <span className="font-semibold">{`Rs ${Number(r.invoice_amount || 0).toLocaleString("en-IN")}`}</span>
-                      {r.invoice_payment ? (
-                        <span className="ml-1.5"><Badge cls={r.invoice_payment === "Paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>{r.invoice_payment}*</Badge></span>
-                      ) : null}
-                    </Field>
-                  </>
-                )}
-                <Field label="Email Status">
-                  <Badge cls={emailTone === "green" ? "bg-emerald-100 text-emerald-800" : emailTone === "amber" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}>{r.email_status || "-"}</Badge>
-                  {r.email_date ? <span className="block text-[11px] font-normal text-gray-500">{fmtDate(r.email_date)}</span> : null}
-                  {href ? <a href={href} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-blue-700 underline mt-0.5">Resend &#8599;</a> : null}
-                </Field>
-                <Field label="WhatsApp Notification" empty={r.whatsapp_status ? null : "-"}>{r.whatsapp_status}</Field>
-                <Field label="Despatch Docket" empty={r.docket ? null : "No docket"}>
-                  <span className="font-mono">{r.docket}</span>
-                  {r.dispatch_date ? <span className="block text-[11px] font-normal text-gray-500">{fmtDate(r.dispatch_date)}</span> : null}
-                </Field>
-                <Field label="Customer Feedback" empty={r.feedback_status && r.feedback_status !== "Not collected" ? null : "Not collected"}>{r.feedback_status}</Field>
-              </div>
-              {seeInvoice && (
-                <div className="text-[11px] text-gray-500 mt-2 italic">
-                  * Payment status is derived from invoice balance and is to be confirmed with Accounts for final decisions.
+            {/* Commercial, Email & Dispatch (Top-level management only - ISO/IEC 17025 confidentiality) */}
+            {isTopLevel && (
+              <Section id="md-email" title="Commercial, Email & Dispatch" accent="violet">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
+                  {seeInvoice && (
+                    <>
+                      <Field label="Invoice No." empty={r.invoice_no ? null : "Not raised yet"}><span className="font-mono font-bold">{r.invoice_no}</span></Field>
+                      <Field label="Invoice Amount & Payment" empty={r.invoice_amount != null ? null : "-"}>
+                        <span className="font-semibold">{`Rs ${Number(r.invoice_amount || 0).toLocaleString("en-IN")}`}</span>
+                        {r.invoice_payment ? (
+                          <span className="ml-1.5"><Badge cls={r.invoice_payment === "Paid" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>{r.invoice_payment}*</Badge></span>
+                        ) : null}
+                      </Field>
+                    </>
+                  )}
+                  <Field label="Email Status">
+                    <Badge cls={emailTone === "green" ? "bg-emerald-100 text-emerald-800" : emailTone === "amber" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}>{r.email_status || "-"}</Badge>
+                    {r.email_date ? <span className="block text-[11px] font-normal text-gray-500">{fmtDate(r.email_date)}</span> : null}
+                    {href ? <a href={href} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-blue-700 underline mt-0.5">Resend &#8599;</a> : null}
+                  </Field>
+                  <Field label="WhatsApp Notification" empty={r.whatsapp_status ? null : "-"}>{r.whatsapp_status}</Field>
+                  <Field label="Despatch Docket" empty={r.docket ? null : "No docket"}>
+                    <span className="font-mono">{r.docket}</span>
+                    {r.dispatch_date ? <span className="block text-[11px] font-normal text-gray-500">{fmtDate(r.dispatch_date)}</span> : null}
+                  </Field>
+                  <Field label="Customer Feedback" empty={r.feedback_status && r.feedback_status !== "Not collected" ? null : "Not collected"}>{r.feedback_status}</Field>
                 </div>
-              )}
-              <EmailLogDetail logs={r.email_logs} pending={r.email_status === "Pending"} />
-              <DetailActions r={r} seeInvoice={seeInvoice} onChanged={onChanged} />
-            </Section>
+                {seeInvoice && (
+                  <div className="text-[11px] text-gray-500 mt-2 italic">
+                    * Payment status is derived from invoice balance and is to be confirmed with Accounts for final decisions.
+                  </div>
+                )}
+                <EmailLogDetail logs={r.email_logs} pending={r.email_status === "Pending"} />
+                <DetailActions r={r} seeInvoice={seeInvoice} onChanged={onChanged} />
+              </Section>
+            )}
 
-            {/* Allotment History / Trail */}
-            <DocsSection r={r} seeInvoice={seeInvoice} />
+            {/* Reports & Billing (Top-level management only - ISO/IEC 17025 confidentiality) */}
+            {isTopLevel && <DocsSection r={r} seeInvoice={seeInvoice} />}
 
             <Section id="md-history" title="Allotment & Re-allotment History" accent="slate">
               <TrailDetail r={r} />
@@ -1307,7 +1315,11 @@ const COLUMNS = (ctx) => [
     label: "BRN",
     w: 130,
     value: (r) => brnOf(r),
-    render: (r) => <span className="font-mono text-blue-700 font-semibold">{brnOf(r) || "-"}</span>,
+    render: (r) => {
+      const isCal = r.type === "Calibration";
+      const canSee = ctx.isTopLevel || isCal;
+      return <span className="font-mono text-blue-700 font-semibold">{canSee ? (brnOf(r) || "-") : "-"}</span>;
+    },
     sort: (r) => brnOf(r),
   },
   {
@@ -1315,7 +1327,11 @@ const COLUMNS = (ctx) => [
     label: "Inward No.",
     w: 110,
     value: (r) => r.inward_no || "",
-    render: (r) => <span className="font-mono font-semibold text-gray-900">{r.inward_no || "-"}</span>,
+    render: (r) => {
+      const isCal = r.type === "Calibration";
+      const canSee = ctx.isTopLevel || isCal;
+      return <span className="font-mono font-semibold text-gray-900">{canSee ? (r.inward_no || "-") : "-"}</span>;
+    },
     sort: (r) => r.inward_no || "",
   },
   {
@@ -1323,7 +1339,15 @@ const COLUMNS = (ctx) => [
     label: "Customer",
     w: 220,
     value: (r) => r.customer || "",
-    render: (r) => <span className="block max-w-[220px] truncate font-medium text-gray-800" title={r.customer}>{r.customer}</span>,
+    render: (r) => {
+      const isCal = r.type === "Calibration";
+      const canSee = ctx.isTopLevel || isCal;
+      return canSee ? (
+        <span className="block max-w-[220px] truncate font-medium text-gray-800" title={r.customer}>{r.customer}</span>
+      ) : (
+        <span className="italic text-gray-400 text-xs">Confidential (17025)</span>
+      );
+    },
     sort: (r) => r.customer || "",
   },
   {
@@ -1442,6 +1466,8 @@ export default function Mis22({ onClassic }) {
 
   const tier = data?.user_scope?.tier;
   const canSeeGate = tier === "management" || tier === "reporting";
+  const userId = Number(localStorage.getItem("userId") || data?.user_scope?.user_id || 0);
+  const isTopLevel = [31, 41, 160, 113, 65].includes(userId) || tier === "management" || tier === "reporting" || !!data?.user_scope?.is_management;
   useEffect(() => {
     if (!canSeeGate) return;
     axios.get("/mis/gate-pending").then((r) => setGateCount(r.data?.data?.summary || null)).catch(() => {});
@@ -1468,7 +1494,7 @@ export default function Mis22({ onClassic }) {
     setReopen(null);
   }, [allRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const cols = useMemo(() => COLUMNS({ openDetail: (r) => setDetailRow(r), seeInvoice }), [seeInvoice]);
+  const cols = useMemo(() => COLUMNS({ openDetail: (r) => setDetailRow(r), seeInvoice, isTopLevel }), [seeInvoice, isTopLevel]);
 
   // One row per LRN for Classic card filter rules
   const counted = useMemo(() => {
@@ -1925,12 +1951,14 @@ export default function Mis22({ onClassic }) {
                       </select>
                     </FClr>
                   </label>
-                  <label>
-                    <span className={F_LBL}>Customer</span>
-                    <FClr show={!!customer} onClear={() => setCustomer("")} right="right-1.5">
-                      <input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" className={`${F_INP} w-44 pr-7`} />
-                    </FClr>
-                  </label>
+                  {isTopLevel && (
+                    <label>
+                      <span className={F_LBL}>Customer</span>
+                      <FClr show={!!customer} onClear={() => setCustomer("")} right="right-1.5">
+                        <input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" className={`${F_INP} w-44 pr-7`} />
+                      </FClr>
+                    </label>
+                  )}
                   <label>
                     <span className={F_LBL}>Stage</span>
                     <FClr show={!!stage} onClear={() => setStage("")}>
@@ -2171,6 +2199,7 @@ export default function Mis22({ onClassic }) {
                 r={detailRow}
                 onClose={() => setDetailRow(null)}
                 seeInvoice={seeInvoice}
+                isTopLevel={isTopLevel}
                 onChanged={(row) => { setReopen({ lrn: row.lrn, type: row.type }); load(); }}
               />
             )}

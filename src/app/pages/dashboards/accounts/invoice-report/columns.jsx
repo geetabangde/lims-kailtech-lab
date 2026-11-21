@@ -9,6 +9,20 @@ export const columns = [
     header: "Sr. no",
     cell: (info) => info.row.index + 1,
   }),
+  columnHelper.accessor("invoicedate", {
+    id: "invoicedate",
+    header: () => <>Date of<br />Bill</>,
+    cell: (info) => {
+      const val = info.getValue();
+      if (!val) return "-";
+      try {
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? val : d.toLocaleDateString("en-GB");
+      } catch {
+        return val;
+      }
+    },
+  }),
   columnHelper.accessor("custname", {
     id: "custname",
     header: "Customer Name",
