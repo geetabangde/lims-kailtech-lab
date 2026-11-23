@@ -1149,9 +1149,9 @@ function applyCardFilters(list, f, counted, firstRows) {
   return r;
 }
 
-// ---- FILTER PANEL LOOK (matches the Signed Reports page: light theme-blue panel, dark uppercase headings, h-8 inputs, primary focus ring) ----
-const F_LBL = "block text-[11px] font-bold uppercase tracking-wide text-gray-800 dark:text-gray-100 mb-1";
-const F_INP = "h-8 rounded-lg border border-gray-300 bg-white px-2 text-xs text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:bg-gray-100 dark:bg-dark-900 dark:border-dark-600 dark:text-gray-100";
+// ---- FILTER PANEL LOOK (matches Kailtech theme & Sales/Enquiry page) ----
+const F_LBL = "block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5";
+const F_INP = "h-9 rounded-lg border border-gray-300 bg-white px-3 text-xs text-gray-800 shadow-sm transition-all focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:bg-gray-100 dark:bg-dark-900 dark:border-dark-600 dark:text-dark-100";
 // 18-Nov-2026: wraps a filter field and shows a small x that clears ONLY that field (Clear All still clears everything)
 function FClr({ show, onClear, right = "right-6", children }) {
   return (
@@ -1168,8 +1168,8 @@ function FClr({ show, onClear, right = "right-6", children }) {
 }
 function FGroup({ title, children }) {
   return (
-    <div className="rounded-lg border border-[#18457c]/15 bg-white dark:bg-dark-900/60 p-2.5 shadow-sm">
-      <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#18457c] dark:text-blue-300 mb-2 pb-1 border-b border-[#18457c]/10">{title}</div>
+    <div className="rounded-lg border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-900/60 p-2.5 shadow-sm">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2 pb-1 border-b border-gray-100 dark:border-dark-700">{title}</div>
       <div className="flex flex-wrap items-end gap-x-3 gap-y-2">{children}</div>
     </div>
   );
@@ -1842,19 +1842,19 @@ export default function Mis22() {
               </div>
             )}
 
-            {/* FILTER PANEL (same design language as the Signed Reports page) */}
-            <div className="rounded-xl border border-[#18457c]/20 bg-[#eef3fa] dark:bg-dark-800 p-3 space-y-3 shadow-sm">
+            {/* FILTER PANEL (matches Kailtech theme & Sales/Enquiry page) */}
+            <div className="rounded-xl border border-gray-200 dark:border-dark-700 bg-gray-50/80 dark:bg-dark-800 p-4 space-y-3 shadow-sm">
               {/* MASTER SEARCH: any detail (inward no, LRN, BRN, customer, instrument / package, chemist, ULR, invoice, docket, e-mail address / subject / certificate no.) */}
               <div className="flex flex-wrap items-end gap-2">
                 <label className="flex-1 min-w-[260px]">
-                  <span className={F_LBL}>Master Search <span className="normal-case font-medium text-gray-600">(any detail - several words: all must match)</span></span>
+                  <span className={F_LBL}>Master Search <span className="normal-case font-medium text-gray-500 dark:text-gray-400">(any detail - several words: all must match)</span></span>
                   <span className="relative block">
-                    <MagnifyingGlassIcon className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                    <MagnifyingGlassIcon className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     <input
                       value={master}
                       onChange={(e) => setMaster(e.target.value)}
                       placeholder="Inward no, LRN, BRN, customer, package / instrument, chemist, ULR, invoice, docket, e-mail, certificate no..."
-                      className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-8 pr-8 text-xs text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:bg-dark-900 dark:border-dark-600 dark:text-gray-100"
+                      className="h-9 w-full rounded-lg border border-gray-300 bg-white pl-8 pr-8 text-xs text-gray-800 shadow-sm transition-all focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:bg-dark-900 dark:border-dark-600 dark:text-dark-100 placeholder:text-gray-400"
                     />
                     {master && (
                       <button type="button" onClick={() => setMaster("")} title="Clear this filter" aria-label="Clear this filter" className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full text-sm font-bold leading-none text-gray-500 hover:text-red-600 hover:bg-red-50">&times;</button>
@@ -1862,7 +1862,7 @@ export default function Mis22() {
                   </span>
                 </label>
               </div>
-              <div className="text-[11px] text-gray-600 -mt-1">Master Search and the filters below work on the rows loaded for the From / To dates and Rows value.</div>
+              <div className="text-[11px] text-gray-500 dark:text-gray-400 -mt-1">Master Search and the filters below work on the rows loaded for the From / To dates and Rows value.</div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                 <FGroup title="Date & Scope">
@@ -1978,18 +1978,34 @@ export default function Mis22() {
 
               {/* Actions + quick view */}
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => load()} disabled={loading} title="Reload the rows for the From / To dates (all other filters apply instantly)" className="h-12 w-full sm:h-[60px] sm:w-auto sm:min-w-[180px] px-9 rounded-xl bg-[#18457c] text-white text-lg sm:text-xl font-bold shadow-lg hover:bg-[#133763]">
+                <button
+                  type="button"
+                  onClick={() => load()}
+                  disabled={loading}
+                  title="Reload the rows for the From / To dates (all other filters apply instantly)"
+                  className="h-10 px-6 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
                   {loading ? "Loading..." : "Filter"}
                 </button>
-                <button type="button" onClick={clearAll} className="h-10 flex-1 sm:flex-none px-5 rounded-lg border border-gray-300 bg-white text-sm font-bold text-gray-800 hover:bg-gray-50 shadow-md">
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="h-10 px-5 rounded-lg border border-gray-300 dark:border-dark-500 bg-white dark:bg-dark-700 text-sm font-semibold text-gray-700 dark:text-dark-100 hover:bg-gray-50 dark:hover:bg-dark-600 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                >
                   Clear All
                 </button>
-                <button type="button" onClick={exportExcel} disabled={!rows.length} className="h-10 flex-1 sm:flex-none justify-center px-4 rounded-lg bg-emerald-600 text-white text-sm font-bold shadow-md hover:bg-emerald-700 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={exportExcel}
+                  disabled={!rows.length}
+                  className="h-10 px-5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                   Export Excel (.xlsx)
                 </button>
-                <span className="mx-1 h-5 border-l border-[#18457c]/20" />
-                <span className="text-[11px] text-gray-800 font-bold uppercase tracking-wide">Quick View:</span>
+                <span className="mx-1 h-5 border-l border-gray-300 dark:border-dark-600" />
+                <span className="text-xs text-gray-700 dark:text-gray-300 font-bold uppercase tracking-wide">Quick View:</span>
                 {[
                   { id: "all", label: "All" },
                   { id: "urgent", label: "Urgent" },
@@ -2000,15 +2016,15 @@ export default function Mis22() {
                     key={p.id}
                     type="button"
                     onClick={() => setCat(p.id)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
-                      cat === p.id ? "bg-[#18457c] border-[#18457c] text-white shadow-sm" : "bg-white border-gray-300 text-gray-700 hover:bg-blue-50"
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                      cat === p.id ? "bg-primary-600 border-primary-600 text-white shadow-sm" : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 dark:bg-dark-700 dark:border-dark-600 dark:text-dark-100"
                     }`}
                   >
                     {p.label}
                   </button>
                 ))}
                 <span
-                  className={`sm:ml-auto w-full sm:w-auto justify-center sm:justify-start flex items-baseline gap-2 rounded-xl border-2 px-4 py-1.5 shadow-md transition-colors ${rows.length !== allRows.length ? "border-amber-500 bg-amber-50 text-amber-900" : "border-[#18457c] bg-white text-[#18457c]"}`}
+                  className={`sm:ml-auto w-full sm:w-auto justify-center sm:justify-start flex items-baseline gap-2 rounded-xl border-2 px-4 py-1.5 shadow-md transition-colors ${rows.length !== allRows.length ? "border-amber-500 bg-amber-50 text-amber-900" : "border-primary-600 bg-white text-primary-600"}`}
                   title={rows.length !== allRows.length ? "Filters are active: showing only the matching rows" : "All loaded rows are shown"}
                 >
                   <span className="text-3xl font-extrabold leading-none tabular-nums">{rows.length}</span>
@@ -2083,11 +2099,11 @@ export default function Mis22() {
                 </div>
               )}
             </div>
-            <div id="mis-table" className="hidden md:block overflow-auto border rounded-xl max-h-[70vh] shadow-sm bg-white dark:bg-dark-800">
+            <div id="mis-table" className="hidden md:block overflow-auto border border-gray-300 dark:border-dark-700 rounded-xl max-h-[70vh] shadow-sm bg-white dark:bg-dark-800">
               <table className="w-full text-xs border-collapse">
                 <thead className="sticky top-0 z-10 bg-gray-200 dark:bg-dark-800 shadow-sm">
                   {/* Column Header Titles with Sort click */}
-                  <tr>
+                  <tr className="bg-gray-200 dark:bg-dark-800 border-b border-gray-300 dark:border-dark-700">
                     {cols.map((c) => (
                       <th
                         key={c.key}
@@ -2096,34 +2112,34 @@ export default function Mis22() {
                           if (c.key === "action") return;
                           setSort((s) => ({ key: c.key, dir: s.key === c.key && s.dir === "asc" ? "desc" : "asc" }));
                         }}
-                        className={`px-3 py-2 text-left text-[11px] font-semibold uppercase text-gray-800 dark:text-dark-100 whitespace-nowrap border-b border-gray-300 select-none ${c.key !== "action" ? "cursor-pointer hover:bg-gray-300/70" : ""}`}
+                        className={`px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-800 dark:text-dark-100 whitespace-nowrap border-b border-gray-300 dark:border-dark-700 select-none ${c.key !== "action" ? "cursor-pointer hover:bg-gray-300/70" : ""}`}
                       >
                         <div className="flex items-center gap-1">
                           <span>{c.label}</span>
                           {sort.key === c.key && (
-                            <span className="text-blue-700 font-bold">{sort.dir === "asc" ? " \u25B2" : " \u25BC"}</span>
+                            <span className="text-primary-600 font-bold">{sort.dir === "asc" ? " \u25B2" : " \u25BC"}</span>
                           )}
                         </div>
                       </th>
                     ))}
                   </tr>
                   {/* Column Search Filters */}
-                  <tr>
+                  <tr className="bg-gray-100/90 dark:bg-dark-800/90 border-b border-gray-300 dark:border-dark-700 backdrop-blur-sm">
                     {cols.map((c) => (
-                      <th key={c.key} className="px-2 py-1.5 border-b border-t border-gray-300 bg-gray-50 dark:bg-dark-800/50">
+                      <th key={c.key} className="px-2 py-1.5 border-b border-t border-gray-300 dark:border-dark-700 bg-gray-50 dark:bg-dark-800/50">
                         {c.key !== "action" ? (
                           <div className="relative">
                             <input
                               value={colFilters[c.key] || ""}
                               onChange={(e) => setColFilters((f) => ({ ...f, [c.key]: e.target.value }))}
                               placeholder="Search..."
-                              className="w-full h-7 rounded-lg border border-gray-300 bg-white px-2 py-1 text-[10px] font-normal normal-case pr-5 focus:outline-none focus:ring-1 focus:ring-primary-500/40 dark:bg-dark-900 dark:border-dark-700"
+                              className="w-full h-8 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-normal normal-case pr-6 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 placeholder:text-gray-400 dark:bg-dark-900 dark:border-dark-600 dark:text-dark-100"
                             />
                             {colFilters[c.key] ? (
                               <button
                                 type="button"
                                 onClick={() => setColFilters((f) => ({ ...f, [c.key]: "" }))}
-                                className="absolute right-1.5 top-1 text-gray-400 hover:text-red-600 font-bold leading-none"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600 font-bold leading-none text-sm"
                               >
                                 &times;
                               </button>
