@@ -1,6 +1,6 @@
 //-------------------------------moin new code -----------------------------
 
-import { useState, useEffect, useMemo, useCallback, Component } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Component } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router';
 // import axios from 'axios';
 import axios from "utils/axios"
@@ -64,6 +64,7 @@ const Calibratestep2 = () => {
     const [supportMastersList, setSupportMastersList] = useState([]);
     const [calibrationPoints, setCalibrationPoints] = useState([]);
     const [matrixData, setMatrixData] = useState({});
+    const matrixValidityCache = useRef({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -219,21 +220,48 @@ const Calibratestep2 = () => {
         axios.defaults.headers.common['Accept'] = 'application/json';
     }, []);
 
-    // Fetch matrix data for a specific point
-    const fetchMatrixForPoint = async (cpid, validityid) => {
+    // Fetch matrix data for point(s) with cache by validityid
+    const fetchMatrixForPoints = async (cpidOrList, validityid) => {
+        const pointIds = Array.isArray(cpidOrList) ? cpidOrList : [cpidOrList];
+        if (!validityid) {
+            setMatrixData(prev => {
+                const next = { ...prev };
+                pointIds.forEach(pid => { next[pid] = []; });
+                return next;
+            });
+            return;
+        }
+
+        // If already cached for this validityid, use it immediately
+        if (matrixValidityCache.current[validityid]) {
+            const cachedOptions = matrixValidityCache.current[validityid];
+            setMatrixData(prev => {
+                const next = { ...prev };
+                pointIds.forEach(pid => { next[pid] = cachedOptions; });
+                return next;
+            });
+            return;
+        }
+
         try {
+            const firstPid = pointIds[0];
             const res = await axios.get('/calibrationprocess/getscope-matrix-data', {
-                params: { validityid, cpid, inwardid: id, instid: itemId }
+                params: { validityid, cpid: firstPid, inwardid: id, instid: itemId }
             });
             if (res.data.success === true || res.data.success === "true" || res.data.status === true || res.data.status === "true") {
-                const options = res.data.data.map(d => ({
+                const options = Array.isArray(res.data.data) ? res.data.data.map(d => ({
                     value: d.id,
                     label: d.name || d.label || d.id
-                }));
-                setMatrixData(prev => ({ ...prev, [cpid]: options }));
+                })) : [];
+                matrixValidityCache.current[validityid] = options;
+                setMatrixData(prev => {
+                    const next = { ...prev };
+                    pointIds.forEach(pid => { next[pid] = options; });
+                    return next;
+                });
             }
         } catch (err) {
-            console.error('Error fetching matrix data for', cpid, err);
+            console.error('Error fetching matrix data for', pointIds, err);
         }
     };
 
@@ -363,16 +391,22 @@ const Calibratestep2 = () => {
         fetchCalibrationDetails();
     }, [id, itemId, caliblocation, calibacc, employeeId, navigate]);
 
-    // Fetch matrix data when masters change
+    // Fetch matrix data when masters change (batched by validityid)
     useEffect(() => {
         if (instrumentInfo?.scopematrixvalidation === "Yes" && calibPointsState.length > 0) {
+            const validityToPoints = {};
             calibPointsState.forEach(point => {
                 const validityid = point.masters ? point.masters.join(',') : '';
                 if (validityid) {
-                    fetchMatrixForPoint(point.id, validityid);
+                    if (!validityToPoints[validityid]) validityToPoints[validityid] = [];
+                    validityToPoints[validityid].push(point.id);
                 } else {
                     setMatrixData(prev => ({ ...prev, [point.id]: [] }));
                 }
+            });
+
+            Object.keys(validityToPoints).forEach(validityid => {
+                fetchMatrixForPoints(validityToPoints[validityid], validityid);
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -516,7 +550,13 @@ const Calibratestep2 = () => {
         return Array.isArray(filtered) ? filtered : [];
     }, [supportMastersList]);
 
-    const getMatrixOptionsForPoint = useCallback((pointId) => {
+    const getMatrixOptionsForPoint = useCallback((pointId, validityid) => {
+        if (Array.isArray(matrixData[pointId]) && matrixData[pointId].length > 0) {
+            return matrixData[pointId];
+        }
+        if (validityid && matrixValidityCache.current[validityid]?.length > 0) {
+            return matrixValidityCache.current[validityid];
+        }
         return Array.isArray(matrixData[pointId]) ? matrixData[pointId] : [];
     }, [matrixData]);
 
@@ -1343,24 +1383,29 @@ const Calibratestep2 = () => {
                                                         {renderFieldError(`mastercalibid${point.calibpointid}`)}
 
                                                         {/* Third Select: Matrix / Scope - Shown if scopematrixvalidation is Yes */}
-                                                        {instrumentInfo?.scopematrixvalidation === "Yes" && getMatrixOptionsForPoint(point.id).length > 0 && (
-                                                            <div className="mt-2">
-                                                                <Select
-                                                                    isMulti={true}
-                                                                    value={getMatrixOptionsForPoint(point.id).filter(opt => Array.isArray(point.matrixMasters) && point.matrixMasters.includes(opt.value)) || []}
-                                                                    onChange={(selected) => handleCalibPointChange(point.id, 'matrixMasters', selected)}
-                                                                    options={getMatrixOptionsForPoint(point.id)}
-                                                                    isSearchable={true}
-                                                                    placeholder="Select Scope Matrix"
-                                                                    classNamePrefix="react-select"
-                                                                    className={`text-sm ${fieldErrors[`scopematrix${point.calibpointid}`] ? 'invalid' : ''}`}
-                                                                    styles={customSelectStyles}
-                                                                    menuPortalTarget={document.body}
-                                                                    menuPosition="fixed"
-                                                                />
-                                                                {renderFieldError(`scopematrix${point.calibpointid}`)}
-                                                            </div>
-                                                        )}
+                                                        {instrumentInfo?.scopematrixvalidation === "Yes" && (() => {
+                                                            const pointValidityId = point.masters ? point.masters.join(',') : '';
+                                                            const matrixOpts = getMatrixOptionsForPoint(point.id, pointValidityId);
+                                                            return (
+                                                                <div className="mt-2">
+                                                                    <Select
+                                                                        isMulti={true}
+                                                                        value={matrixOpts.filter(opt => Array.isArray(point.matrixMasters) && point.matrixMasters.includes(opt.value)) || []}
+                                                                        onChange={(selected) => handleCalibPointChange(point.id, 'matrixMasters', selected)}
+                                                                        options={matrixOpts}
+                                                                        isSearchable={true}
+                                                                        placeholder={matrixOpts.length > 0 ? "Select Scope Matrix" : (pointValidityId ? "Loading Scope Matrix..." : "Select Master First")}
+                                                                        noOptionsMessage={() => (pointValidityId ? "No scope matrix found for selected master" : "Select master first")}
+                                                                        classNamePrefix="react-select"
+                                                                        className={`text-sm ${fieldErrors[`scopematrix${point.calibpointid}`] ? 'invalid' : ''}`}
+                                                                        styles={customSelectStyles}
+                                                                        menuPortalTarget={document.body}
+                                                                        menuPosition="fixed"
+                                                                    />
+                                                                    {renderFieldError(`scopematrix${point.calibpointid}`)}
+                                                                </div>
+                                                            );
+                                                        })()}
 
                                                         {instrumentInfo?.supportmaster === "Yes" && (
                                                             <div className="mt-2">

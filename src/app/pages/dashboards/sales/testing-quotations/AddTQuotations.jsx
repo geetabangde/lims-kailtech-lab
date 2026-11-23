@@ -50,6 +50,7 @@ export default function AddTestingQuotation() {
 
   const [customers, setCustomers] = useState([]);
   const [customerAddresses, setCustomerAddresses] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [customerTypes, setCustomerTypes] = useState([]);
   const [specificPurposes, setSpecificPurposes] = useState([]);
   const [countries, setCountries] = useState([]);
@@ -107,6 +108,7 @@ export default function AddTestingQuotation() {
     if (val === "new") {
       setIsNewCustomer(true);
       setCustomerAddresses([]);
+      setContacts([]);
       setFormData((prev) => ({
         ...prev,
         customername: "",
@@ -119,18 +121,24 @@ export default function AddTestingQuotation() {
         country: "",
         state: "",
         stateid: "",
+        caddress: "",
+        cperson: "",
       }));
       setIsIndianCountry(false);
     } else if (val) {
       setIsNewCustomer(false);
       try {
-        const [addrRes, custRes] = await Promise.all([
+        const [addrRes, custRes, contactRes] = await Promise.all([
           axios.get(`/people/get-customers-address/${val}`).catch(() => null),
           axios.get(`/people/get-single-customer/${val}`).catch(() => null),
+          axios.get(`/get-concern-person/${val}`).catch(() => null),
         ]);
 
         const addresses = addrRes?.data?.data || [];
         const custData = custRes?.data?.data || {};
+        const contactList = contactRes?.data?.data || custData.contacts || [];
+
+        setContacts(contactList);
 
         const allAddresses = [];
         if (custData.address) {
@@ -164,19 +172,27 @@ export default function AddTestingQuotation() {
           ? `${addrData.address || ""} ${addrData.city || ""} ${addrData.pincode || ""}`.trim()
           : "";
 
+        const primaryContact = contactList[0] || {};
+        const contactName = primaryContact.name || addrData.contact_person || custData.pname || "";
+        const contactEmail = primaryContact.email || addrData.email || custData.email || "";
+        const contactMobile = primaryContact.mobile || addrData.mobile || custData.mobile || custData.pnumber || "";
+        const contactDesignation = primaryContact.designation || "";
+        const contactPersonId = primaryContact.id || addrData.contact_person_id || custData.contact_person_id || "";
+
         setFormData((prev) => ({
           ...prev,
           customername: custData.name || prev.customername,
           customeraddress: defaultAddressStr,
-          contactpersonname: addrData.contact_person || custData.pname || "",
-          concernpersonemail: addrData.email || custData.email || "",
-          concernpersonmobile: addrData.mobile || custData.mobile || custData.pnumber || "",
+          contactpersonname: contactName,
+          concernpersonemail: contactEmail,
+          concernpersonmobile: contactMobile,
+          concernpersondesignation: contactDesignation,
           gstno: custData.gstno || "",
           country: custData.country || "",
           state: custData.state || "",
           stateid: custData.stateid || "",
           caddress: addrData.id === "main" ? "" : (addrData.id || ""),
-          cperson: addrData.contact_person_id || custData.contact_person_id || "",
+          cperson: contactPersonId,
         }));
       } catch (err) {
         console.error("Error fetching customer details:", err);
@@ -530,21 +546,47 @@ export default function AddTestingQuotation() {
                       Contact Person Name
                     </label>
                     <Select
-                      options={Array.from(new Map(customerAddresses.filter(a => a.contact_person).map(a => [a.contact_person_id, { id: a.contact_person_id, name: a.contact_person }])).values()).map(c => ({
-                        value: c.id,
-                        label: c.name
-                      }))}
+                      options={contacts.length > 0
+                        ? contacts.map(c => ({
+                            value: c.id,
+                            label: c.name,
+                            email: c.email,
+                            mobile: c.mobile,
+                            designation: c.designation
+                          }))
+                        : Array.from(new Map(customerAddresses.filter(a => a.contact_person).map(a => [a.contact_person_id, { id: a.contact_person_id, name: a.contact_person, email: a.email, mobile: a.mobile }])).values()).map(c => ({
+                            value: c.id,
+                            label: c.name,
+                            email: c.email,
+                            mobile: c.mobile,
+                            designation: ""
+                          }))}
                       value={formData.cperson
                         ? { label: formData.contactpersonname, value: formData.cperson }
                         : (formData.contactpersonname ? { label: formData.contactpersonname, value: "" } : null)}
                       onChange={(opt) => {
                         if (opt) {
-                          setFormData(prev => ({ ...prev, cperson: opt.value, contactpersonname: opt.label }));
+                          setFormData(prev => ({
+                            ...prev,
+                            cperson: opt.value,
+                            contactpersonname: opt.label,
+                            concernpersonemail: opt.email || prev.concernpersonemail,
+                            concernpersonmobile: opt.mobile || prev.concernpersonmobile,
+                            concernpersondesignation: opt.designation || prev.concernpersondesignation
+                          }));
                         } else {
-                          setFormData(prev => ({ ...prev, cperson: "", contactpersonname: "" }));
+                          setFormData(prev => ({
+                            ...prev,
+                            cperson: "",
+                            contactpersonname: "",
+                            concernpersonemail: "",
+                            concernpersonmobile: "",
+                            concernpersondesignation: ""
+                          }));
                         }
                       }}
                       placeholder="Select Contact Person..."
+                      noOptionsMessage={() => "No contact persons found"}
                     />
                   </div>
                 </>
