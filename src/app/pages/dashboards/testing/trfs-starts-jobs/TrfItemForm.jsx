@@ -889,16 +889,53 @@ export default function TrfItemForm({ trfId, itemId, cloneId, onSuccess, onCance
 
       {/* ════ SECTION 5 — Price ════ */}
       {!loadingPkgDetails && form.package && (
-        <div className="flex items-center gap-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3">
-          <div>
-            <p className="text-xs text-green-600 dark:text-green-400 font-medium uppercase tracking-wide mb-0.5">Unit Cost</p>
-            <p className="text-xl font-bold text-green-700 dark:text-green-300">
-              ₹ {Number(form.unitcost).toLocaleString("en-IN")}
-            </p>
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div>
+              <label className="block text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide mb-1">
+                Rate / Unit Cost (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                name="unitcost"
+                value={form.unitcost ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const numVal = parseFloat(val) || 0;
+                  setForm((prev) => ({
+                    ...prev,
+                    unitcost: val,
+                    total: numVal,
+                  }));
+                }}
+                className="w-full border border-green-300 dark:border-green-700 rounded-lg px-3 py-2 text-sm font-bold text-green-800 dark:text-green-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder="Enter rate"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide mb-1">
+                Total Price (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                name="total"
+                value={form.total ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    total: val,
+                  }));
+                }}
+                className="w-full border border-green-300 dark:border-green-700 rounded-lg px-3 py-2 text-sm font-bold text-green-800 dark:text-green-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder="Total"
+              />
+            </div>
           </div>
-
-          <input type="hidden" name="unitcost" value={form.unitcost} />
-          <input type="hidden" name="total" value={form.total} />
         </div>
       )}
 

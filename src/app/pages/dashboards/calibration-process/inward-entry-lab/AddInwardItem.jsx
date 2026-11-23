@@ -205,7 +205,11 @@ export default function AddItem() {
         console.log(result);
         if (result.status === true || result.status === "true") {
           setInstrumentDetails(result.instrument);
-          setPriceMatrices(result.price_matrix || []);
+          const matricesWithOriginal = (result.price_matrix || []).map((m) => ({
+            ...m,
+            original_rate: m.rate,
+          }));
+          setPriceMatrices(matricesWithOriginal);
           setFormData((prev) => ({
             ...prev,
             name: result.instrument?.name || "",
@@ -1155,7 +1159,35 @@ export default function AddItem() {
                           </td>
                           <td className="border px-2 py-1">{matrix.packagename}</td>
                           <td className="border px-2 py-1">{matrix.packagedesc}</td>
-                          <td className="border px-2 py-1">{matrix.rate} ₹</td>
+                          <td className="border px-2 py-1">
+                            <div className="flex items-center space-x-1">
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={matrix.rate ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setPriceMatrices((prev) =>
+                                    prev.map((m) =>
+                                      m.id === matrix.id
+                                        ? { ...m, rate: val }
+                                        : m
+                                    )
+                                  );
+                                }}
+                                className="w-24 border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                                placeholder="Rate"
+                                disabled={loading}
+                              />
+                              <span className="text-gray-600 font-medium">₹</span>
+                            </div>
+                            {matrix.original_rate !== undefined && String(matrix.rate) !== String(matrix.original_rate) && (
+                              <div className="text-[11px] text-amber-600 mt-0.5 font-medium">
+                                Std: {matrix.original_rate} ₹
+                              </div>
+                            )}
+                          </td>
                           <td className="border px-2 py-1">{matrix.accreditation}</td>
                           <td className="border px-2 py-1">{matrix.location}</td>
                         </tr>
