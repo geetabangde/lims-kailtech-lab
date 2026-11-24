@@ -337,7 +337,7 @@ export default function CreateQuotationFromEnquiry() {
             }
         } catch (err) {
             console.error("Submission Error:", err);
-            toast.error("An error occurred while creating quotation");
+            toast.error(err?.response?.data?.message || "An error occurred while creating quotation");
         } finally {
             setSubmitting(false);
         }

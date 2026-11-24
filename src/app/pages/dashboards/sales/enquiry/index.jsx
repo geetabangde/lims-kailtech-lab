@@ -48,37 +48,57 @@ export default function EnquiryList() {
 
   const [rawData, setRawData] = useState([]);
   const [sourceFilter, setSourceFilter] = useState("");
+  const [cardFilter, setCardFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
   // Source quick-filter (client side, by lead_source text) - the list below works on `data`
-  const data = useMemo(() => {
+  const sourceRows = useMemo(() => {
     if (!sourceFilter) return rawData;
     return rawData.filter((r) =>
       String(r.lead_source || "").toLowerCase().includes(sourceFilter.toLowerCase()) ||
       (sourceFilter === "Repeat" && String(r.lead_source || "").toLowerCase().includes("existing")),
     );
   }, [rawData, sourceFilter]);
+  const isDue = (r) => {
+    const d = String(r.nextconactdate || "").split("/");
+    return (
+      String(r.status) === "0" &&
+      d.length === 3 &&
+      `${d[2]}-${d[1]}-${d[0]}` <= new Date().toISOString().slice(0, 10)
+    );
+  };
+  // The top cards are clickable: a card filters the table, clicking it again (or "Total") clears it
+  const data = useMemo(() => {
+    switch (cardFilter) {
+      case "pending": return sourceRows.filter((r) => String(r.status) === "0");
+      case "tech": return sourceRows.filter((r) => r.tech_verification_status === "Under Technical Verification");
+      case "quoted": return sourceRows.filter((r) => String(r.status) === "1");
+      case "regretted": return sourceRows.filter((r) => String(r.status) === "91");
+      case "due": return sourceRows.filter(isDue);
+      default: return sourceRows;
+    }
+  }, [sourceRows, cardFilter]);
   const setData = setRawData;
 
   const kpi = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const sum = (rows) => rows.reduce((a, r) => a + (Number(r.approxvalue) || 0), 0);
-    const quoted = data.filter((r) => String(r.status) === "1");
-    const pending = data.filter((r) => String(r.status) === "0");
+    const quoted = sourceRows.filter((r) => String(r.status) === "1");
+    const pending = sourceRows.filter((r) => String(r.status) === "0");
     const due = pending.filter((r) => {
       const d = String(r.nextconactdate || "").split("/");
       return d.length === 3 && `${d[2]}-${d[1]}-${d[0]}` <= today;
     });
     return {
-      total: data.length,
+      total: sourceRows.length,
       pending: pending.length,
-      tech: data.filter((r) => r.tech_verification_status === "Under Technical Verification").length,
+      tech: sourceRows.filter((r) => r.tech_verification_status === "Under Technical Verification").length,
       quoted: quoted.length,
       quotedValue: sum(quoted),
-      regretted: data.filter((r) => String(r.status) === "91").length,
+      regretted: sourceRows.filter((r) => String(r.status) === "91").length,
       due: due.length,
     };
-  }, [data]);
+  }, [sourceRows]);
 
   const [tableSettings, setTableSettings] = useState(tableConfig);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -206,7 +226,7 @@ export default function EnquiryList() {
   });
 
   const activeFilterCount =
-    [globalFilter, selectedAssignee, minDate, maxDate, statusFilter, sourceFilter].filter(
+    [globalFilter, selectedAssignee, minDate, maxDate, statusFilter, sourceFilter, cardFilter].filter(
       (v) => v !== "" && v !== null && v !== undefined,
     ).length + table.getState().columnFilters.length;
 
@@ -217,6 +237,7 @@ export default function EnquiryList() {
     setMaxDate("");
     setStatusFilter("");
     setSourceFilter("");
+    setCardFilter("");
     table.resetColumnFilters();
     table.setPageIndex(0);
   };
@@ -286,17 +307,28 @@ export default function EnquiryList() {
             <div className="px-[var(--margin-x)] pt-2">
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
                 {[
-                  ["Total Enquiries", kpi.total, "text-gray-800 dark:text-dark-100"],
-                  ["Pending", kpi.pending, "text-amber-600"],
-                  ["Under Technical Verification", kpi.tech, "text-purple-600"],
-                  ["Quotations Submitted", `${kpi.quoted} (₹${kpi.quotedValue.toLocaleString("en-IN")})`, "text-blue-600"],
-                  ["Regretted", kpi.regretted, "text-rose-600"],
-                  ["Follow-up Due", kpi.due, "text-orange-600"],
-                ].map(([label, value, color]) => (
-                  <div key={label} className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-dark-500 dark:bg-dark-800">
+                  ["", "Total Enquiries", kpi.total, "text-gray-800 dark:text-dark-100"],
+                  ["pending", "Pending", kpi.pending, "text-amber-600"],
+                  ["tech", "Under Technical Verification", kpi.tech, "text-purple-600"],
+                  ["quoted", "Quotations Submitted", `${kpi.quoted} (₹${kpi.quotedValue.toLocaleString("en-IN")})`, "text-blue-600"],
+                  ["regretted", "Regretted", kpi.regretted, "text-rose-600"],
+                  ["due", "Follow-up Due", kpi.due, "text-orange-600"],
+                ].map(([key, label, value, color]) => (
+                  <button
+                    type="button"
+                    key={label}
+                    onClick={() => setCardFilter(cardFilter === key ? "" : key)}
+                    title={key ? "Click to filter the list (click again to clear)" : "Show all"}
+                    className={clsx(
+                      "rounded-xl border bg-white px-4 py-3 text-left shadow-sm transition hover:shadow-md dark:bg-dark-800",
+                      cardFilter === key && key !== ""
+                        ? "border-primary-500 ring-2 ring-primary-500/40"
+                        : "border-gray-200 dark:border-dark-500",
+                    )}
+                  >
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-dark-300">{label}</p>
                     <p className={clsx("mt-1 text-lg font-bold", color)}>{value}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">

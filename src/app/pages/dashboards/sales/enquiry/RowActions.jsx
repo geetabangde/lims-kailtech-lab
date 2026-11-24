@@ -74,6 +74,8 @@ export function RowActions({ row, table }) {
 
   // ── Technical verification gate (opt-in: only acts when a status has been set) ──
   const techStatus = row.original.tech_verification_status || "";
+  // Only Ruby (31), Sushil (41) and Manish (160) may approve / reject / re-open (also enforced on the server)
+  const canDecideTech = [31, 41, 160].includes(Number(localStorage.getItem("userId")));
   const isUnderVerification = techStatus === "Under Technical Verification";
   const isTechRejected = techStatus === "Technical Regret / Out of Scope";
   const [techOpen, setTechOpen] = useState(false);
@@ -103,7 +105,15 @@ export function RowActions({ row, table }) {
             )}
 
             {/* Technical verification gate: only active once someone sets a status; blank = works as before */}
-            {hasConvertPerm && isUnderVerification && (
+            {hasConvertPerm && isUnderVerification && !canDecideTech && (
+              <span
+                className="inline-flex items-center justify-center rounded-md bg-purple-100 px-3 py-1.5 text-[10px] font-bold text-purple-700 min-w-[120px] shadow-sm"
+                title="Waiting for technical approval (Ruby / Sushil / Manish)"
+              >
+                Awaiting Tech. Approval
+              </span>
+            )}
+            {hasConvertPerm && isUnderVerification && canDecideTech && (
               <button
                 onClick={() => openTech("decide")}
                 className="inline-flex items-center justify-center rounded-md bg-purple-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-purple-700 min-w-[120px] shadow-sm"
@@ -120,12 +130,14 @@ export function RowActions({ row, table }) {
                 >
                   Technically Rejected
                 </span>
+                {canDecideTech && (
                 <button
                   onClick={() => openTech("reopen")}
                   className="inline-flex items-center justify-center rounded-md bg-gray-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-gray-700 min-w-[70px] shadow-sm"
                 >
                   Re-open
                 </button>
+                )}
               </>
             )}
             {hasEditPerm && !isUnderVerification && !isTechRejected && (

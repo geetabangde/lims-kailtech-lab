@@ -2761,6 +2761,14 @@ const protectedRoutes = {
                   }),
                 },
                 {
+                  path: "win-loss",
+                  lazy: async () => ({
+                    Component: (
+                      await import("app/pages/dashboards/sales/win-loss")
+                    ).default,
+                  }),
+                },
+                {
                   path: "rejection-log",
                   lazy: async () => ({
                     Component: (

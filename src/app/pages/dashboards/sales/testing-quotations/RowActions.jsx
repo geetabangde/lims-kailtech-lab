@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import AddQuoteFollowUpModal from "./AddQuoteFollowUpModal";
 import MarkConvertedModal from "./MarkConvertedModal";
 import QuotationDispatchModal from "../shared/QuotationDispatchModal";
+import PoDetailsModal from "../shared/PoDetailsModal";
 
 // ----------------------------------------------------------------------
 
@@ -25,6 +26,7 @@ export function RowActions({ row, table }) {
   const [followupMode, setFollowupMode] = useState("Add");
   const [convertOpen, setConvertOpen] = useState(false);
   const [dispatchOpen, setDispatchOpen] = useState(false);
+  const [poOpen, setPoOpen] = useState(false);
   const [revising, setRevising] = useState(false);
 
   const handleRevise = async () => {
@@ -288,13 +290,23 @@ export function RowActions({ row, table }) {
             </span>
           </>
         )}
-        {/* Log how/when this quotation was dispatched (Email / WhatsApp / Hand / Courier) */}
-        <button
-          onClick={() => setDispatchOpen(true)}
-          className="rounded bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700"
-        >
-          Log Dispatch
-        </button>
+        {/* Send by e-mail or log how/when this quotation was dispatched (not for drafts / old revisions / deleted) */}
+        {![0, 11, 99].includes(Number(status)) && (
+          <button
+            onClick={() => setDispatchOpen(true)}
+            className="rounded bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700"
+          >
+            Send / Log Dispatch
+          </button>
+        )}
+        {[2, 3].includes(Number(status)) && (
+          <button
+            onClick={() => setPoOpen(true)}
+            className="rounded bg-teal-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-teal-700"
+          >
+            PO Details
+          </button>
+        )}
       </div>
 
       <QuotationDispatchModal
@@ -302,7 +314,11 @@ export function RowActions({ row, table }) {
         id={id}
         type="testing"
         onClose={() => setDispatchOpen(false)}
+        defaultEmail={row.original.concernpersonemail}
+        quotationNo={row.original.quotationno}
+        customerName={row.original.customername}
       />
+      <PoDetailsModal show={poOpen} id={id} type="testing" onClose={() => setPoOpen(false)} />
 
       <AddQuoteFollowUpModal
         show={followupOpen}

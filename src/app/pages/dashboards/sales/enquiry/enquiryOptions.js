@@ -61,6 +61,8 @@ export const TECH_REJECT_REASONS = [
 export const whatsappLink = (mobile, name) => {
   const digits = String(mobile || "").replace(/\D/g, "").slice(-10);
   if (digits.length !== 10) return null;
-  const text = `Hello ${name || ""}, thank you for reaching out to Kailtech Test & Research Centre regarding your enquiry.`;
+  const clean = String(name || "").trim();
+  const hello = clean && clean !== "-" ? `Hello ${clean}` : "Hello";
+  const text = `${hello}, thank you for reaching out to Kailtech Test & Research Centre regarding your enquiry.`;
   return `https://wa.me/91${digits}?text=${encodeURIComponent(text)}`;
 };

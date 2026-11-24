@@ -114,6 +114,7 @@ const DASHBOARD_PERMISSION_RULES = {
   "/dashboards/sales/website-enquiry": [385],
   "/dashboards/sales/enquiry": [91],
   "/dashboards/sales/rejection-log": [346],
+  "/dashboards/sales/win-loss": [346],
   "/dashboards/sales/test-packages": [164],
   "/dashboards/sales/calibrations-quotations": [93],
   "/dashboards/sales/testing-quotations": [141],
@@ -1095,6 +1096,13 @@ export const generateDashboardsConfig = (labs = [], userPermissions = []) => {
             path: path(ROOT_DASHBOARDS, "/sales/enquiry"),
             title: "Enquiry",
             transKey: "nav.dashboards.enquiry",
+          },
+          {
+            id: "dashboards.win-loss",
+            type: NAV_TYPE_ITEM,
+            path: path(ROOT_DASHBOARDS, "/sales/win-loss"),
+            title: "Win / Loss Analytics",
+            transKey: "Win / Loss Analytics",
           },
           {
             id: "dashboards.rejection-log",
