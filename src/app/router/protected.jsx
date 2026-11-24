@@ -2590,6 +2590,26 @@ const protectedRoutes = {
                     ).default,
                   }),
                 },
+                {
+                  path: "signed-reports/request-revision",
+                  lazy: async () => ({
+                    Component: (
+                      await import(
+                        "app/pages/dashboards/action-items/signed-reports/RequestAmendment"
+                      )
+                    ).default,
+                  }),
+                },
+                {
+                  path: "signed-reports/amend/:id",
+                  lazy: async () => ({
+                    Component: (
+                      await import(
+                        "app/pages/dashboards/action-items/signed-reports/UploadAmendedReport"
+                      )
+                    ).default,
+                  }),
+                },
               ],
             },
             {

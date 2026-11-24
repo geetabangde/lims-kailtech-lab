@@ -1,5 +1,5 @@
 // Import Dependencies
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import axios from "utils/axios";
@@ -10,6 +10,26 @@ import { MarkSentButton } from "components/shared/MarkSentButton";
 
 function usePermissions() {
   return localStorage.getItem("userPermissions")?.split(",").map(Number) || [];
+}
+
+// Upload Amended Report is offered only once management has approved an amendment request for this report (or to open the
+// version list afterwards). Status comes from GET /testing/amendment/status/:id (new, additive).
+function AmendedUploadLink({ id }) {
+  const [st, setSt] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    axios.get(`/testing/amendment/status/${id}`).then((r) => alive && setSt(r.data?.data || null)).catch(() => {});
+    return () => { alive = false; };
+  }, [id]);
+  if (!st || (!st.approved_request_id && !(st.versions && st.versions.length))) return null;
+  return (
+    <Link
+      to={`/dashboards/action-items/signed-reports/amend/${id}`}
+      className="rounded-md bg-primary-600 px-2 py-1 text-center text-[10.5px] whitespace-nowrap font-semibold text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
+    >
+      {st.approved_request_id ? "Upload Amended Report" : "Report Versions"}
+    </Link>
+  );
 }
 
 export function RowActions({ row, table }) {
@@ -94,15 +114,8 @@ export function RowActions({ row, table }) {
         </Link>
       )}
 
-      {/* ── Upload Amended Report — perm 267 ──────────────────────── */}
-      {permissions.includes(267) && (
-        <Link
-          to={`/dashboards/action-items/signed-reports/amend/${id}`}
-          className="rounded-md bg-primary-600 px-2 py-1 text-center text-[10.5px] whitespace-nowrap font-semibold text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
-        >
-          Upload Amended Report
-        </Link>
-      )}
+      {/* ── Upload Amended Report — perm 267, only after the amendment request is approved ── */}
+      {permissions.includes(267) && <AmendedUploadLink id={id} />}
 
       {/* ── Regenerate Cache Copy — always shown ──────────────────── */}
       <button
@@ -144,13 +157,13 @@ export function RowActions({ row, table }) {
       {/* 18-Nov-2026: reports handed over by hand / courier outside the LIMS - logged (who / when / how); the MIS shows the report as sent */}
       <MarkSentButton kind="testing" trfId={trf} preselectIds={[id]} />
 
-      {/* ── Request Revision — perm 411 ───────────────────────────── */}
-      {permissions.includes(411) && (
+      {/* ── Request Amendment — perm 202 (or legacy 411) ───────────── */}
+      {(permissions.includes(202) || permissions.includes(411)) && (
         <Link
           to={`/dashboards/action-items/signed-reports/request-revision?tid=${id}&trf=${trf ?? ""}`}
           className="rounded-md bg-amber-500 px-2 py-1 text-center text-[10.5px] whitespace-nowrap font-semibold text-white shadow-sm transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-400"
         >
-          Request Revision
+          Request Amendment
         </Link>
       )}
 
