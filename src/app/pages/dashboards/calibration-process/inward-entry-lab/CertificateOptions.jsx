@@ -6,15 +6,11 @@ import PropTypes from "prop-types";
 import axios from "utils/axios";
 import { toast } from "sonner";
 
-// super admin, Shaheen Mave, Dharmendra Sharma, Hemant Ojha, Er. Sohail Khan, Pooja Agrawal (kept in step with CertificateController::canUseCertOptions)
-const NAMED_APPROVER_IDS = ["1", "32", "34", "110", "135", "136"];
-const APPROVER_PERMISSIONS = [105, 115, 278];
-
+// super admin (Ruby S. Malhotra #31 / hidden superadmin #1 only - management decision 2026-11-24)
 export function canUseCertificateOptions() {
   if (typeof window === "undefined") return false;
   const uid = String(localStorage.getItem("userId") || "");
-  const perms = (localStorage.getItem("userPermissions") || "").split(",").map(Number);
-  return NAMED_APPROVER_IDS.includes(uid) || APPROVER_PERMISSIONS.some((p) => perms.includes(p));
+  return uid === "1" || uid === "31";
 }
 
 const imgSize = (src) => new Promise((resolve) => {
