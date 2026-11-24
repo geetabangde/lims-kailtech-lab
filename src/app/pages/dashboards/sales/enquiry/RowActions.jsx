@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ConfirmModal } from "components/shared/ConfirmModal";
 import AddFollowUpModal from "./AddFollowUpModal";
 import { TechVerifyModal, RegretEnquiryModal } from "./DenialModals";
+import QuotationDispatchModal from "../shared/QuotationDispatchModal";
 
 // ----------------------------------------------------------------------
 
@@ -71,6 +72,30 @@ export function RowActions({ row, table }) {
   // The Regret popup (reason + remark, logged for management) lives in DenialModals.jsx
   const [regretOpen, setRegretOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
+
+  // ── Send the quotation created from this enquiry (e-mail / log dispatch) ──
+  const [sendInfo, setSendInfo] = useState(null);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendLoading, setSendLoading] = useState(false);
+  const handleSendQuotation = async () => {
+    setSendLoading(true);
+    try {
+      const res = await axios.get("/enquiry-lifecycle/enquiry-quotation", { params: { enquiry_id: id } });
+      const d = res.data;
+      if (!d?.found) {
+        toast.error(d?.message || "No quotation found for this enquiry");
+      } else if (!d.ready) {
+        toast.error(`Quotation ${d.quotationno} has no items yet. Complete it before sending.`);
+      } else {
+        setSendInfo(d);
+        setSendOpen(true);
+      }
+    } catch {
+      toast.error("Could not load the quotation of this enquiry");
+    } finally {
+      setSendLoading(false);
+    }
+  };
 
   // ── Technical verification gate (opt-in: only acts when a status has been set) ──
   const techStatus = row.original.tech_verification_status || "";
@@ -205,6 +230,17 @@ export function RowActions({ row, table }) {
           </>
         )}
 
+        {enquiryStatus === 1 && hasViewPerm && (
+          <button
+            onClick={handleSendQuotation}
+            disabled={sendLoading}
+            className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-indigo-700 min-w-[110px] shadow-sm disabled:opacity-60"
+            title="E-mail the quotation created from this enquiry (or log how it was dispatched)"
+          >
+            {sendLoading ? "Loading..." : "Send Quotation"}
+          </button>
+        )}
+
         {enquiryStatus === 91 && (
           <>
             {/* Regretted Enquiry (Disabled) */}
@@ -239,6 +275,17 @@ export function RowActions({ row, table }) {
         state={deleteError ? "error" : deleteSuccess ? "success" : "pending"}
       />
 
+      {sendInfo && (
+        <QuotationDispatchModal
+          show={sendOpen}
+          id={sendInfo.quotation_id}
+          type={sendInfo.quotation_type}
+          onClose={() => setSendOpen(false)}
+          defaultEmail={sendInfo.email}
+          quotationNo={sendInfo.quotationno}
+          customerName={sendInfo.customername}
+        />
+      )}
       <RegretEnquiryModal
         show={regretOpen}
         enquiry={row.original}
