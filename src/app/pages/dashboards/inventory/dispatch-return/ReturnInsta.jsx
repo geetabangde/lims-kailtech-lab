@@ -1,8 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "utils/axios";
 
 export default function ReturnInsta({ issueItems, register }) {
     const [fetchedData, setFetchedData] = useState({});
+
+    // Load the challan-linked quantity for every row as soon as the list is shown (it used to load only after "Issued To" was changed,
+    // so the Quantity box stayed empty). Additive: same endpoint, same handler.
+    useEffect(() => {
+        (issueItems || []).forEach((it) => {
+            const id = it.issue_id || it.id;
+            if (id && !it.checklist_not_filled) handleIssuedToChange(id);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [issueItems]);
 
     if (!issueItems || issueItems.length === 0) return null;
 
@@ -16,7 +26,7 @@ export default function ReturnInsta({ issueItems, register }) {
                 setFetchedData(prev => ({
                     ...prev,
                     [issueId]: {
-                        qty: response.data.return_qty,
+                        qty: response.data.issued_qty ?? response.data.return_qty,
                         type: response.data.type_of_use
                     }
                 }));
@@ -120,6 +130,7 @@ export default function ReturnInsta({ issueItems, register }) {
                                                                 max: Number(currentQty || 0)
                                                             })}
                                                             placeholder="Qty"
+                                                            defaultValue={currentQty || ""}
                                                         />
                                                     </>
                                                 ) : (
@@ -133,6 +144,9 @@ export default function ReturnInsta({ issueItems, register }) {
                                                 )
                                             ) : null}
                                         </div>
+                                        {fetchedData[issueId] && String(currentType) === "1" && (
+                                            <div className="mt-1 text-xs text-gray-500">Challan quantity: {currentQty}</div>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 dark:text-dark-100">{item.remark}</td>
 

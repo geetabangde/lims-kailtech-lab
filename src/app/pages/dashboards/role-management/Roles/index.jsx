@@ -60,7 +60,9 @@ export default function RolesDatatable() {
     // console.log("API response:", response.data); // debug
 
     if (response.data.status && Array.isArray(response.data.data)) {
-      setRoles(response.data.data); // ✅ correct assignment
+      // Management request 2026-11-24: the hidden "superadmin" role (id 40) is not shown in THIS list only.
+      // The role stays in the database and fully functional; other screens (e.g. employee permissions) are untouched.
+      setRoles(response.data.data.filter((r) => String(r.id) !== "40" && String(r.name).toLowerCase() !== "superadmin"));
     } else {
       console.warn("Unexpected response structure:", response.data);
       setRoles([]); // fallback
