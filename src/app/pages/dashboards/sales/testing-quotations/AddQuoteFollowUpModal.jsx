@@ -1,5 +1,7 @@
 // Import Dependencies
 import { useState, useEffect } from "react";
+import { logDenial } from "../shared/lifecycleApi";
+import { LOSS_REASONS } from "../enquiry/enquiryOptions";
 import { useNavigate } from "react-router-dom";
 import axios from "utils/axios";
 import { toast } from "sonner";
@@ -23,6 +25,7 @@ export default function AddQuoteFollowUpModal({ show, id, mode, onClose, onSucce
     next_follow_up_type: "call",
     reason: "", // For close mode
   });
+  const [lossCategory, setLossCategory] = useState("");
 
   const isCloseMode = mode === "Close";
   const displayTitle = title || (isCloseMode ? "Close Quotation (Lost)" : "Add Follow-Up Interaction");
@@ -41,6 +44,7 @@ export default function AddQuoteFollowUpModal({ show, id, mode, onClose, onSucce
         next_follow_up_type: "call",
         reason: "",
       });
+      setLossCategory("");
     }
   }, [show, id]);
 
@@ -51,6 +55,10 @@ export default function AddQuoteFollowUpModal({ show, id, mode, onClose, onSucce
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isCloseMode && !lossCategory) {
+      toast.error("Please select the reason category");
+      return;
+    }
     setIsSubmitting(true);
 
     let payload = {};
@@ -58,7 +66,7 @@ export default function AddQuoteFollowUpModal({ show, id, mode, onClose, onSucce
     if (isCloseMode) {
       payload = {
         tquotationid: Number(id),
-        reason: formData.reason
+        reason: `${lossCategory} - ${formData.reason}`
       };
     } else {
       payload = {
@@ -79,6 +87,9 @@ export default function AddQuoteFollowUpModal({ show, id, mode, onClose, onSucce
       const res = await axios.post("/sales/add-testing-followup", payload);
 
       if (res.data.tquotation_id || res.data.status === true || res.data.status === "true") {
+        if (isCloseMode) {
+          await logDenial({ event_type: "Quotation Lost", quotation_id: Number(id), quotation_type: "testing", reason_category: lossCategory, remark: formData.reason });
+        }
         toast.success(res.data.message );
         
         // If this is a close action, trigger a refresh to show the closed item
@@ -136,6 +147,21 @@ export default function AddQuoteFollowUpModal({ show, id, mode, onClose, onSucce
 
             {isCloseMode ? (
               <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Loss Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={lossCategory}
+                    onChange={(e) => setLossCategory(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                  >
+                    <option value="">Select reason...</option>
+                    {LOSS_REASONS.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Reason For Close <span className="text-red-500">*</span>

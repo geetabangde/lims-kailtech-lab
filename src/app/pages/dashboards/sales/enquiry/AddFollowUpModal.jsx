@@ -1,6 +1,8 @@
 // Import Dependencies
 import { useState, useEffect } from "react";
 import axios from "utils/axios";
+import { logDenial } from "../shared/lifecycleApi";
+import { LOSS_REASONS } from "./enquiryOptions";
 import { toast } from "sonner";
 import dayjs from "dayjs";
 
@@ -21,6 +23,7 @@ export default function AddFollowUpModal({ show, id, mode, onClose, onSuccess, t
     next_follow_up_type: "call",
     reason: "", // For close mode
   });
+  const [lossCategory, setLossCategory] = useState("");
 
   const isCloseMode = mode === "Close";
   const displayTitle = title || (isCloseMode ? "Close Enquiry" : "Add Follow-Up Interaction");
@@ -39,6 +42,7 @@ export default function AddFollowUpModal({ show, id, mode, onClose, onSuccess, t
         next_follow_up_type: "",
         reason: "",
       });
+      setLossCategory("");
     }
   }, [show, id]);
 
@@ -49,6 +53,10 @@ export default function AddFollowUpModal({ show, id, mode, onClose, onSuccess, t
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isCloseMode && !lossCategory) {
+      toast.error("Please select the reason category");
+      return;
+    }
     setIsSubmitting(true);
 
     let payload = {};
@@ -56,7 +64,7 @@ export default function AddFollowUpModal({ show, id, mode, onClose, onSuccess, t
     if (isCloseMode) {
       payload = {
         enquiryid: Number(id),
-        reason: formData.reason,
+        reason: `${lossCategory} - ${formData.reason}`,
         what: "Close" // Added based on PHP logic seen earlier
       };
     } else {
@@ -78,6 +86,9 @@ export default function AddFollowUpModal({ show, id, mode, onClose, onSuccess, t
       const res = await axios.post("/sales/add-follow-up", payload);
 
       if (res.data.status === true || res.data.status === "true") {
+        if (isCloseMode) {
+          await logDenial({ event_type: "Enquiry Closed", enquiry_id: Number(id), reason_category: lossCategory, remark: formData.reason });
+        }
         toast.success(res.data.message || "New Follow-Up has been Added");
         onSuccess?.();
         onClose();
@@ -128,6 +139,13 @@ export default function AddFollowUpModal({ show, id, mode, onClose, onSuccess, t
 
             {isCloseMode ? (
               <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Loss Category <span className="text-red-500">*</span></label>
+                  <select value={lossCategory} onChange={(e) => setLossCategory(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800">
+                    <option value="">Select reason...</option>
+                    {LOSS_REASONS.map((r) => (<option key={r} value={r}>{r}</option>))}
+                  </select>
+                </div>
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Reason For Close <span className="text-red-500">*</span>

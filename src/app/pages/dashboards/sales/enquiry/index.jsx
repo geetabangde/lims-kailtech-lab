@@ -155,7 +155,11 @@ export default function EnquiryList() {
           actions: false,
         } : {})
       },
-      columnPinning,
+      // Actions now live next to Enquiry No.; ignore any old "pinned right" setting saved in the browser
+      columnPinning: {
+        ...columnPinning,
+        right: (columnPinning?.right || []).filter((c) => c !== "actions"),
+      },
       expanded,
     },
     meta: {
@@ -200,6 +204,22 @@ export default function EnquiryList() {
     onColumnPinningChange: setColumnPinning,
     autoResetPageIndex,
   });
+
+  const activeFilterCount =
+    [globalFilter, selectedAssignee, minDate, maxDate, statusFilter, sourceFilter].filter(
+      (v) => v !== "" && v !== null && v !== undefined,
+    ).length + table.getState().columnFilters.length;
+
+  const clearAllFilters = () => {
+    setGlobalFilter("");
+    setSelectedAssignee("");
+    setMinDate("");
+    setMaxDate("");
+    setStatusFilter("");
+    setSourceFilter("");
+    table.resetColumnFilters();
+    table.setPageIndex(0);
+  };
 
   useDidUpdate(() => table.resetRowSelection(), [data]);
   useLockScrollbar(tableSettings.enableFullScreen);
@@ -258,6 +278,8 @@ export default function EnquiryList() {
             setStatusFilter={setStatusFilter}
             isResponsive={isResponsive}
             setIsResponsive={setIsResponsive}
+            onClearAll={clearAllFilters}
+            activeFilterCount={activeFilterCount}
           />
 
           {!tableSettings.enableFullScreen && (

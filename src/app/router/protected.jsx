@@ -1391,10 +1391,9 @@ const protectedRoutes = {
               }),
             },
             {
+              // Standalone register retired from the menu (2026-11-24): old links go to Sales > Enquiry
               path: "enquiry-management",
-              lazy: async () => ({
-                Component: (await import("app/pages/dashboards/enquiry-management")).default,
-              }),
+              element: <Navigate to="/dashboards/sales/enquiry" replace />,
             },
             {
               path: "calibration-process",
@@ -2758,6 +2757,14 @@ const protectedRoutes = {
                   lazy: async () => ({
                     Component: (
                       await import("app/pages/dashboards/sales/enquiry")
+                    ).default,
+                  }),
+                },
+                {
+                  path: "rejection-log",
+                  lazy: async () => ({
+                    Component: (
+                      await import("app/pages/dashboards/sales/rejection-log")
                     ).default,
                   }),
                 },

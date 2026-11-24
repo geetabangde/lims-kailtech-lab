@@ -113,6 +113,7 @@ const DASHBOARD_PERMISSION_RULES = {
   "/dashboards/sales": [164, 91, 385, 140, 141, 165],
   "/dashboards/sales/website-enquiry": [385],
   "/dashboards/sales/enquiry": [91],
+  "/dashboards/sales/rejection-log": [346],
   "/dashboards/sales/test-packages": [164],
   "/dashboards/sales/calibrations-quotations": [93],
   "/dashboards/sales/testing-quotations": [141],
@@ -448,14 +449,7 @@ export const generateDashboardsConfig = (labs = [], userPermissions = []) => {
         title: "MIS - Sample Flow",
         Icon: MapIcon,
       },
-      // Enquiry Management (Restricted Phase 1: Sushil ID 41, Ruby ID 31, Manish Rathore ID 160)
-      ...([31, 41, 160].includes(employeeId) ? [{
-        id: "dashboards.enquiry-management",
-        type: NAV_TYPE_ITEM,
-        path: path(ROOT_DASHBOARDS, "/enquiry-management"),
-        title: "Enquiry Management",
-        Icon: MegaphoneIcon,
-      }] : []),
+      // Standalone "Enquiry Management" link removed 2026-11-24: everything lives in Sales > Enquiry.
       {
         id: "dashboards.material-list",
         path: path(ROOT_DASHBOARDS, "/material-list"),
@@ -1101,6 +1095,13 @@ export const generateDashboardsConfig = (labs = [], userPermissions = []) => {
             path: path(ROOT_DASHBOARDS, "/sales/enquiry"),
             title: "Enquiry",
             transKey: "nav.dashboards.enquiry",
+          },
+          {
+            id: "dashboards.rejection-log",
+            type: NAV_TYPE_ITEM,
+            path: path(ROOT_DASHBOARDS, "/sales/rejection-log"),
+            title: "Rejection Log",
+            transKey: "Rejection Log",
           },
           {
             id: "dashboards.test-packages",

@@ -31,6 +31,8 @@ export function Toolbar({
   setStatusFilter,
   isResponsive,
   setIsResponsive,
+  onClearAll,
+  activeFilterCount = 0,
 }) {
   const permissions = JSON.parse(localStorage.getItem("userPermissions") || "[]");
 
@@ -55,6 +57,21 @@ export function Toolbar({
               </Button>
             </Link>
           )}
+          {/* Clear Filters */}
+          <button
+            type="button"
+            onClick={() => onClearAll?.()}
+            disabled={!activeFilterCount}
+            title="Clear all filters and search"
+            className={clsx(
+              "h-9 rounded-lg border px-4 text-sm font-semibold shadow-sm transition-all active:scale-95",
+              activeFilterCount
+                ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+                : "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400 dark:border-dark-600 dark:bg-dark-700 dark:text-dark-400",
+            )}
+          >
+            Clear Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
+          </button>
           {/* Refresh Button */}
           <button
             onClick={() => table.options.meta?.refetch?.()}
@@ -220,4 +237,8 @@ Toolbar.propTypes = {
   setMaxDate: PropTypes.func,
   statusFilter: PropTypes.string,
   setStatusFilter: PropTypes.func,
+  isResponsive: PropTypes.bool,
+  setIsResponsive: PropTypes.func,
+  onClearAll: PropTypes.func,
+  activeFilterCount: PropTypes.number,
 };

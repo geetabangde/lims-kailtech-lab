@@ -3,15 +3,20 @@ import { useState, useEffect } from "react";
 import axios from "utils/axios";
 import { toast } from "sonner";
 import { X } from "lucide-react";
+import PoFields, { emptyPo, persistPo } from "../shared/PoFields";
 
 // ----------------------------------------------------------------------
 
 export default function MarkConvertedModal({ show, id, onClose, onSuccess }) {
     const [comment, setComment] = useState("");
+    const [po, setPo] = useState(emptyPo);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        if (show) setComment("");
+        if (show) {
+            setComment("");
+            setPo(emptyPo);
+        }
     }, [show]);
 
     const handleSubmit = async (e) => {
@@ -30,6 +35,11 @@ export default function MarkConvertedModal({ show, id, onClose, onSuccess }) {
 
             if (res.data.status === true || res.data.status === "true") {
                 toast.success(res.data.message || "Testing quotation marked as converted ✅");
+                try {
+                    await persistPo(po, Number(id), "testing");
+                } catch {
+                    toast.error("Converted, but the PO details could not be saved");
+                }
                 onSuccess?.();
                 onClose();
             } else {
@@ -91,6 +101,7 @@ export default function MarkConvertedModal({ show, id, onClose, onSuccess }) {
                                 className="w-full border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-4 shadow-sm min-h-[120px] bg-gray-50/30"
                             />
                         </div>
+                        <PoFields po={po} setPo={setPo} />
                     </div>
 
                     {/* Footer */}

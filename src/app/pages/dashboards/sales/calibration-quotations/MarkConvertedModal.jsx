@@ -5,15 +5,20 @@ import { toast } from "sonner";
 
 // Local Imports
 import { Input } from "components/ui";
+import PoFields, { emptyPo, persistPo } from "../shared/PoFields";
 
 // ----------------------------------------------------------------------
 
 export default function MarkConvertedModal({ show, id, onClose, onSuccess }) {
   const [comment, setComment] = useState("");
+  const [po, setPo] = useState(emptyPo);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (show) setComment("");
+    if (show) {
+      setComment("");
+      setPo(emptyPo);
+    }
   }, [show]);
 
   const handleSubmit = async (e) => {
@@ -28,6 +33,11 @@ export default function MarkConvertedModal({ show, id, onClose, onSuccess }) {
 
       if (res.data.status === true || res.data.status === "true") {
         toast.success(res.data.message || "Quotation marked as converted ✅");
+        try {
+          await persistPo(po, Number(id), "calibration");
+        } catch {
+          toast.error("Converted, but the PO details could not be saved");
+        }
         onSuccess?.();
         onClose();
       } else {
@@ -85,6 +95,7 @@ export default function MarkConvertedModal({ show, id, onClose, onSuccess }) {
                 className="h-10 rounded-lg text-sm"
               />
             </div>
+            <PoFields po={po} setPo={setPo} />
           </div>
 
           {/* Footer */}

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 // Local Imports
 import AddQuoteFollowUpModal from "./AddQuoteFollowUpModal";
 import MarkConvertedModal from "./MarkConvertedModal";
+import QuotationDispatchModal from "../shared/QuotationDispatchModal";
 
 // ----------------------------------------------------------------------
 
@@ -23,6 +24,7 @@ export function RowActions({ row, table }) {
   const [followupOpen, setFollowupOpen] = useState(false);
   const [followupMode, setFollowupMode] = useState("Add");
   const [convertOpen, setConvertOpen] = useState(false);
+  const [dispatchOpen, setDispatchOpen] = useState(false);
   const navigate = useNavigate();
   const [revising, setRevising] = useState(false);
 
@@ -243,7 +245,21 @@ export function RowActions({ row, table }) {
             )}
           </>
         )}
+        {/* Log how/when this quotation was dispatched (Email / WhatsApp / Hand / Courier) */}
+        <button
+          onClick={() => setDispatchOpen(true)}
+          className="rounded bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700"
+        >
+          Log Dispatch
+        </button>
       </div>
+
+      <QuotationDispatchModal
+        show={dispatchOpen}
+        id={id}
+        type="calibration"
+        onClose={() => setDispatchOpen(false)}
+      />
 
       <AddQuoteFollowUpModal
         show={followupOpen}

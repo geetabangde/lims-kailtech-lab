@@ -44,7 +44,7 @@ export function RowActions({ row, table }) {
               to={`/dashboards/sales/website-enquiry/edit/${id}`}
               className="inline-flex w-32 items-center justify-center rounded bg-green-600 py-1 text-xs font-medium text-white shadow-sm transition hover:bg-green-700"
             >
-              Convert To enquiry
+              Add to Enquiry Register
             </Link>
 
             {/* Close Enquiry */}

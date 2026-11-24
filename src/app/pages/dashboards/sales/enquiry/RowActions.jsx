@@ -8,6 +8,7 @@ import { toast } from "sonner";
 // Local Imports
 import { ConfirmModal } from "components/shared/ConfirmModal";
 import AddFollowUpModal from "./AddFollowUpModal";
+import { TechVerifyModal, RegretEnquiryModal } from "./DenialModals";
 
 // ----------------------------------------------------------------------
 
@@ -16,14 +17,6 @@ const confirmDeleteMessages = {
     description: "Are you sure you want to delete this enquiry? This cannot be undone.",
   },
   success: { title: "Enquiry Deleted" },
-};
-
-const confirmRegretMessages = {
-  pending: {
-    description: "Are you sure you want to mark this enquiry as Regretted?",
-    actionText: "Ok",
-  },
-  success: { title: "Enquiry Regretted" },
 };
 
 export function RowActions({ row, table }) {
@@ -75,32 +68,20 @@ export function RowActions({ row, table }) {
   }, [id, row, table]);
 
   // ── Regret Logic ──────────────────────────────────────────────────────────────
+  // The Regret popup (reason + remark, logged for management) lives in DenialModals.jsx
   const [regretOpen, setRegretOpen] = useState(false);
-  const [regretLoading, setRegretLoading] = useState(false);
-  const [regretSuccess, setRegretSuccess] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
 
-  const handleRegret = useCallback(async () => {
-    setRegretLoading(true);
-    try {
-      // Implement Regretted Enquiry API
-      await axios.post(`/sales/regenrate-enquiry`, {
-        id,
-        status: 91,
-        remark: "Closed to catalogue",
-      });
-      setRegretSuccess(true);
-      toast.success("Enquiry marked as Regretted");
-      setTimeout(() => {
-        setRegretOpen(false);
-        table.options.meta?.refetch?.();
-      }, 800);
-    } catch {
-      toast.error("Failed to regret enquiry");
-    } finally {
-      setRegretLoading(false);
-    }
-  }, [id, table]);
+  // ── Technical verification gate (opt-in: only acts when a status has been set) ──
+  const techStatus = row.original.tech_verification_status || "";
+  const isUnderVerification = techStatus === "Under Technical Verification";
+  const isTechRejected = techStatus === "Technical Regret / Out of Scope";
+  const [techOpen, setTechOpen] = useState(false);
+  const [techMode, setTechMode] = useState("decide");
+  const openTech = (mode) => {
+    setTechMode(mode);
+    setTechOpen(true);
+  };
 
   // ── Permissions & Conditions (from PHP) ──────────────────────────────────────
   // PHP: if(in_array(94,$permissions) && $row["vertical"] == 1) ... else ... in_array($row["vertical"],[2,3])
@@ -121,8 +102,43 @@ export function RowActions({ row, table }) {
               </Link>
             )}
 
+            {/* Technical verification gate: only active once someone sets a status; blank = works as before */}
+            {hasConvertPerm && isUnderVerification && (
+              <button
+                onClick={() => openTech("decide")}
+                className="inline-flex items-center justify-center rounded-md bg-purple-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-purple-700 min-w-[120px] shadow-sm"
+                title="Technical feasibility must be approved before a quotation can be created"
+              >
+                Technical Verification
+              </button>
+            )}
+            {hasConvertPerm && isTechRejected && (
+              <>
+                <span
+                  className="inline-flex items-center justify-center rounded-md bg-rose-100 px-3 py-1.5 text-[10px] font-bold text-rose-700 min-w-[110px] shadow-sm"
+                  title={row.original.tech_verification_remark || "Technically rejected"}
+                >
+                  Technically Rejected
+                </span>
+                <button
+                  onClick={() => openTech("reopen")}
+                  className="inline-flex items-center justify-center rounded-md bg-gray-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-gray-700 min-w-[70px] shadow-sm"
+                >
+                  Re-open
+                </button>
+              </>
+            )}
+            {hasEditPerm && !isUnderVerification && !isTechRejected && (
+              <button
+                onClick={() => openTech("request")}
+                className="inline-flex items-center justify-center rounded-md border border-purple-400 bg-white px-3 py-1.5 text-[10px] font-bold text-purple-700 transition hover:bg-purple-50 min-w-[110px] shadow-sm"
+              >
+                Request Tech. Verification
+              </button>
+            )}
+
             {/* Convert To Quotation (btn-success) */}
-            {hasConvertPerm && (
+            {hasConvertPerm && !isUnderVerification && !isTechRejected && (
               <Link
                 to={`/dashboards/sales/enquiry/create-quotation/${id}`}
                 className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-emerald-700 min-w-[120px] shadow-sm"
@@ -154,10 +170,7 @@ export function RowActions({ row, table }) {
             {/* Regretted Enquiry (btn-danger) */}
             {hasEditPerm && (
               <button
-                onClick={() => {
-                  setRegretOpen(true);
-                  setRegretSuccess(false);
-                }}
+                onClick={() => setRegretOpen(true)}
                 className="inline-flex items-center justify-center rounded-md bg-red-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-red-700 min-w-[110px] shadow-sm"
               >
                 Regretted Enquiry
@@ -214,13 +227,18 @@ export function RowActions({ row, table }) {
         state={deleteError ? "error" : deleteSuccess ? "success" : "pending"}
       />
 
-      <ConfirmModal
+      <RegretEnquiryModal
         show={regretOpen}
+        enquiry={row.original}
         onClose={() => setRegretOpen(false)}
-        messages={confirmRegretMessages}
-        onOk={handleRegret}
-        confirmLoading={regretLoading}
-        state={regretSuccess ? "success" : "pending"}
+        onDone={() => table.options.meta?.refetch?.()}
+      />
+      <TechVerifyModal
+        show={techOpen}
+        mode={techMode}
+        enquiry={row.original}
+        onClose={() => setTechOpen(false)}
+        onDone={() => table.options.meta?.refetch?.()}
       />
       <AddFollowUpModal
         show={followUpOpen}

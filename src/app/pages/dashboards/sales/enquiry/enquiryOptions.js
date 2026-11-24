@@ -41,6 +41,23 @@ export const TECH_BADGE = {
   "Technical Regret / Out of Scope": "bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400",
 };
 
+// Structured denial / loss reasons (2026-11-24) - feed the management Rejection Log
+export const LOSS_REASONS = [
+  "Price High",
+  "Scope Not Available",
+  "Turnaround Time",
+  "Competitor Selected",
+  "Other",
+];
+export const TECH_REJECT_REASONS = [
+  "Outside Lab Scope / Accreditation",
+  "Range / CMC Not Available",
+  "Master / Reference Not Available",
+  "Test Method Not Available",
+  "Capacity / Turnaround Not Possible",
+  "Other",
+];
+
 export const whatsappLink = (mobile, name) => {
   const digits = String(mobile || "").replace(/\D/g, "").slice(-10);
   if (digits.length !== 10) return null;

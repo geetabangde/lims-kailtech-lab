@@ -41,6 +41,12 @@ export const columns = [
       );
     },
   }),
+  // Action column sits right after the Enquiry No. for quick access (moved 2026-11-24)
+  columnHelper.display({
+    id: "actions",
+    header: "Action",
+    cell: (info) => <div className="min-w-[160px] text-center"><RowActions {...info} /></div>,
+  }),
   columnHelper.accessor("added_on", {
     id: "added_on",
     header: "Date",
@@ -169,10 +175,5 @@ export const columns = [
     id: "enquirybyname",
     header: "Enquiry Recieved By",
     cell: (info) => <div className="min-w-[140px] whitespace-normal"><HighlightingCell {...info} /></div>,
-  }),
-  columnHelper.display({
-    id: "actions",
-    header: "Action",
-    cell: (info) => <div className="min-w-[100px] text-center"><RowActions {...info} /></div>,
   }),
 ];
