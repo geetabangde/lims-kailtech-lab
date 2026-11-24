@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import clsx from "clsx";
 import Select from "react-select";
 import { DatePicker } from "components/shared/form/Datepicker";
+import EnquiryExtraFields from "./EnquiryExtraFields";
 import dayjs from "dayjs";
 
 export default function EditEnquiry() {
@@ -45,6 +46,13 @@ export default function EditEnquiry() {
     action: "",
     nextconactdate: "",
     remark: "",
+    lead_source: "",
+    area: "",
+    payment_status: "",
+    sample_arrived: "",
+    whatsapp_number: "",
+    tech_verification_status: "",
+    tech_verification_remark: "",
   });
 
   const MODE_OPTIONS = [
@@ -95,6 +103,13 @@ export default function EditEnquiry() {
             ? dayjs(enquiry.nextconactdate).format("DD-MM-YYYY")
             : "",
           remark: enquiry.remark || "",
+          lead_source: enquiry.lead_source || "",
+          area: enquiry.area || "",
+          payment_status: enquiry.payment_status || "",
+          sample_arrived: enquiry.sample_arrived || "",
+          whatsapp_number: enquiry.whatsapp_number || "",
+          tech_verification_status: enquiry.tech_verification_status || "",
+          tech_verification_remark: enquiry.tech_verification_remark || "",
         });
         setShowCustomerDetail(true);
       }
@@ -745,6 +760,8 @@ export default function EditEnquiry() {
                 />
               </div>
             </div>
+
+            <EnquiryExtraFields formData={formData} setFormData={setFormData} />
 
             {/* Submit Button */}
             <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">

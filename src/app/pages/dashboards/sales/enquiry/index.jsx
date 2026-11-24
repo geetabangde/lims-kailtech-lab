@@ -11,7 +11,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import clsx from "clsx";
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "utils/axios";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ import { PaginationSection } from "components/shared/table/PaginationSection";
 import { useThemeContext } from "app/contexts/theme/context";
 
 import { columns } from "./columns";
+import { SOURCE_PILLS } from "./enquiryOptions";
 import { Toolbar } from "./Toolbar";
 import { tableConfig } from "./TableConfig";
 import { SelectedRowsActions } from "./SelectedRowsActions";
@@ -45,8 +46,39 @@ export default function EnquiryList() {
     }
   }, [navigate, permissions]);
 
-  const [data, setData] = useState([]);
+  const [rawData, setRawData] = useState([]);
+  const [sourceFilter, setSourceFilter] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // Source quick-filter (client side, by lead_source text) - the list below works on `data`
+  const data = useMemo(() => {
+    if (!sourceFilter) return rawData;
+    return rawData.filter((r) =>
+      String(r.lead_source || "").toLowerCase().includes(sourceFilter.toLowerCase()) ||
+      (sourceFilter === "Repeat" && String(r.lead_source || "").toLowerCase().includes("existing")),
+    );
+  }, [rawData, sourceFilter]);
+  const setData = setRawData;
+
+  const kpi = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const sum = (rows) => rows.reduce((a, r) => a + (Number(r.approxvalue) || 0), 0);
+    const quoted = data.filter((r) => String(r.status) === "1");
+    const pending = data.filter((r) => String(r.status) === "0");
+    const due = pending.filter((r) => {
+      const d = String(r.nextconactdate || "").split("/");
+      return d.length === 3 && `${d[2]}-${d[1]}-${d[0]}` <= today;
+    });
+    return {
+      total: data.length,
+      pending: pending.length,
+      tech: data.filter((r) => r.tech_verification_status === "Under Technical Verification").length,
+      quoted: quoted.length,
+      quotedValue: sum(quoted),
+      regretted: data.filter((r) => String(r.status) === "91").length,
+      due: due.length,
+    };
+  }, [data]);
 
   const [tableSettings, setTableSettings] = useState(tableConfig);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -87,9 +119,9 @@ export default function EnquiryList() {
         if (statusFilter !== "") {
           fetchedData = fetchedData.filter(item => String(item.status) === String(statusFilter));
         }
-        setData(fetchedData);
+        setRawData(fetchedData);
       } else {
-        setData([]);
+        setRawData([]);
       }
     } catch (err) {
       console.error(err);
@@ -227,6 +259,43 @@ export default function EnquiryList() {
             isResponsive={isResponsive}
             setIsResponsive={setIsResponsive}
           />
+
+          {!tableSettings.enableFullScreen && (
+            <div className="px-[var(--margin-x)] pt-2">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                {[
+                  ["Total Enquiries", kpi.total, "text-gray-800 dark:text-dark-100"],
+                  ["Pending", kpi.pending, "text-amber-600"],
+                  ["Under Technical Verification", kpi.tech, "text-purple-600"],
+                  ["Quotations Submitted", `${kpi.quoted} (₹${kpi.quotedValue.toLocaleString("en-IN")})`, "text-blue-600"],
+                  ["Regretted", kpi.regretted, "text-rose-600"],
+                  ["Follow-up Due", kpi.due, "text-orange-600"],
+                ].map(([label, value, color]) => (
+                  <div key={label} className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-dark-500 dark:bg-dark-800">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-dark-300">{label}</p>
+                    <p className={clsx("mt-1 text-lg font-bold", color)}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {SOURCE_PILLS.map((p) => (
+                  <button
+                    key={p.key || "all"}
+                    type="button"
+                    onClick={() => setSourceFilter(p.key)}
+                    className={clsx(
+                      "rounded-full border px-3 py-1 text-xs font-semibold transition",
+                      sourceFilter === p.key
+                        ? "border-primary-600 bg-primary-600 text-white"
+                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-dark-500 dark:bg-dark-800 dark:text-dark-100",
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div
             className={clsx(

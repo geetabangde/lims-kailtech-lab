@@ -2,6 +2,7 @@
 import { createColumnHelper } from "@tanstack/react-table";
 import clsx from "clsx";
 import { RowActions } from "./RowActions";
+import { TECH_BADGE } from "./enquiryOptions";
 import { DateCell, HighlightingCell, StatusCell, ContactPersonCell } from "./rows";
 
 const columnHelper = createColumnHelper();
@@ -72,6 +73,21 @@ export const columns = [
       );
     },
   }),
+  columnHelper.accessor("assigntoname", {
+    id: "assigntoname",
+    header: "Assigned BD / Staff",
+    cell: (info) => (
+      <div className="min-w-[140px] whitespace-normal">
+        {info.getValue() ? (
+          <span className="inline-block rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300">
+            {info.getValue()}
+          </span>
+        ) : (
+          <span className="text-gray-400">-</span>
+        )}
+      </div>
+    ),
+  }),
   columnHelper.display({
     id: "concernperson_all",
     header: () => <div className="min-w-[180px] whitespace-normal">Name of the <br />contact <br />person/User</div>,
@@ -81,6 +97,39 @@ export const columns = [
     id: "vertical_name",
     header: "Vertical",
     cell: (info) => <div className="min-w-[120px] whitespace-normal"><HighlightingCell {...info} /></div>,
+  }),
+  columnHelper.accessor("lead_source", {
+    id: "lead_source",
+    header: "Lead Source",
+    cell: (info) => <div className="min-w-[140px] whitespace-normal"><HighlightingCell {...info} /></div>,
+  }),
+  columnHelper.accessor("area", {
+    id: "area",
+    header: "City / Area",
+    cell: (info) => <div className="min-w-[100px]"><HighlightingCell {...info} /></div>,
+  }),
+  columnHelper.accessor("tech_verification_status", {
+    id: "tech_verification_status",
+    header: "Technical Verification",
+    cell: (info) => {
+      const v = info.getValue();
+      if (!v || v === "Not Required") return <span className="text-gray-400">-</span>;
+      return (
+        <span className={`inline-block min-w-[120px] rounded-full px-2.5 py-0.5 text-center text-[10px] font-bold uppercase tracking-wide ${TECH_BADGE[v] || ""}`}>
+          {v}
+        </span>
+      );
+    },
+  }),
+  columnHelper.accessor("payment_status", {
+    id: "payment_status",
+    header: "Payment",
+    cell: (info) => <div className="min-w-[90px]"><HighlightingCell {...info} /></div>,
+  }),
+  columnHelper.accessor("sample_arrived", {
+    id: "sample_arrived",
+    header: "Sample Arrived",
+    cell: (info) => <div className="min-w-[70px] text-center"><HighlightingCell {...info} /></div>,
   }),
   columnHelper.accessor("approxqty", {
     id: "approxqty",
@@ -119,11 +168,6 @@ export const columns = [
   columnHelper.accessor("enquirybyname", {
     id: "enquirybyname",
     header: "Enquiry Recieved By",
-    cell: (info) => <div className="min-w-[140px] whitespace-normal"><HighlightingCell {...info} /></div>,
-  }),
-  columnHelper.accessor("assigntoname", {
-    id: "assigntoname",
-    header: "Assign To",
     cell: (info) => <div className="min-w-[140px] whitespace-normal"><HighlightingCell {...info} /></div>,
   }),
   columnHelper.display({

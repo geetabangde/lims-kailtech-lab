@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import clsx from "clsx";
 import Select from "react-select";
 import { DatePicker } from "components/shared/form/Datepicker";
+import EnquiryExtraFields from "./EnquiryExtraFields";
 
 export default function AddEnquiry() {
   const navigate = useNavigate();
@@ -45,6 +46,13 @@ export default function AddEnquiry() {
     action: "",
     nextconactdate: "",
     remark: "",
+    lead_source: "",
+    area: "",
+    payment_status: "",
+    sample_arrived: "",
+    whatsapp_number: "",
+    tech_verification_status: "",
+    tech_verification_remark: "",
   });
 
   const MODE_OPTIONS = [
@@ -701,6 +709,8 @@ export default function AddEnquiry() {
                 />
               </div>
             </div>
+
+            <EnquiryExtraFields formData={formData} setFormData={setFormData} />
 
             {/* Submit Button */}
             <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">

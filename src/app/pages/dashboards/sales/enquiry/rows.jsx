@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import { Highlight } from "components/shared/Highlight";
 import { useLocaleContext } from "app/contexts/locale/context";
 import { ensureString } from "utils/ensureString";
+import { whatsappLink } from "./enquiryOptions";
 
 // ----------------------------------------------------------------------
 
@@ -50,6 +51,7 @@ export function ContactPersonCell({ row, table }) {
         concernpersonemail: email, 
         concernpersonmobile: mobile 
     } = row.original;
+    const waLink = whatsappLink(row.original.whatsapp_number || mobile, name);
 
     return (
         <div className="flex flex-col gap-0.5 text-sm text-gray-600 dark:text-dark-300">
@@ -70,6 +72,11 @@ export function ContactPersonCell({ row, table }) {
                  <p className="text-gray-700 dark:text-dark-200 font-mono">
                     <Highlight query={globalQuery}>{ensureString(mobile)}</Highlight>
                  </p>
+            )}
+            {waLink && (
+                 <a href={waLink} target="_blank" rel="noreferrer" className="mt-0.5 inline-flex w-fit items-center rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-emerald-700">
+                    WhatsApp
+                 </a>
             )}
         </div>
     );
