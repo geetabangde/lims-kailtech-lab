@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useLocation } from "react-router";
 import SendBatchDispatchModal from "./SendBatchDispatchModal";
 import SendDraftModal from "./SendDraftModal";
+import SendTraceabilityModal from "./SendTraceabilityModal";
 import MarkSentModal from "./MarkSentModal";
 import { canSendDispatchEmail } from "utils/dispatchAccess";
 
@@ -31,6 +32,7 @@ export function RowActions({ row, table }) {
   const [deleteError, setDeleteError] = useState(false);
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
   const [draftModalOpen, setDraftModalOpen] = useState(false);
+  const [traceabilityModalOpen, setTraceabilityModalOpen] = useState(false);
   const [markSentOpen, setMarkSentOpen] = useState(false);
 
   // Convert localStorage string to array of numbers
@@ -256,6 +258,11 @@ export function RowActions({ row, table }) {
             onClick: () => setDraftModalOpen(true),
           },
           {
+            label: "Send Traceability",
+            color: "!bg-purple-200 !text-black hover:!bg-purple-300 border border-purple-400 shadow-sm font-bold",
+            onClick: () => setTraceabilityModalOpen(true),
+          },
+          {
             // 18-Nov-2026: reports handed over by hand / courier outside the LIMS - logged (who / when / how), MIS shows them as sent
             label: "Mark as Sent (offline)",
             color: "!bg-emerald-200 !text-black hover:!bg-emerald-300 border border-emerald-400 shadow-sm font-bold",
@@ -308,6 +315,12 @@ export function RowActions({ row, table }) {
       <SendDraftModal
         isOpen={draftModalOpen}
         onClose={() => setDraftModalOpen(false)}
+        inwardId={row.original.id}
+      />
+
+      <SendTraceabilityModal
+        isOpen={traceabilityModalOpen}
+        onClose={() => setTraceabilityModalOpen(false)}
         inwardId={row.original.id}
       />
 
