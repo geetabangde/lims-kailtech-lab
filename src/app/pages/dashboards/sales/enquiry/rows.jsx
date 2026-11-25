@@ -82,7 +82,27 @@ export function ContactPersonCell({ row, table }) {
     );
 }
 
-export function StatusCell({ getValue }) {
+// Status labels (2026-11-25): "Quotation Submitted" was only "quotation created". quote_state comes from the list API.
+const QUOTE_STATES = {
+    pending: ["Pending", "bg-warning-100 text-warning-700 border-warning-200 dark:bg-warning-500/10 dark:text-warning-400 dark:border-warning-500/20"],
+    created: ["Quotation Created", "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:border-slate-500/20"],
+    in_preparation: ["Quotation In Preparation", "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20"],
+    ready_to_send: ["Quotation Ready to Send", "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20"],
+    sent: ["Quotation Sent", "bg-success-100 text-success-700 border-success-200 dark:bg-success-500/10 dark:text-success-400 dark:border-success-500/20"],
+    order_received: ["Order Received", "bg-emerald-200 text-emerald-900 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30"],
+    regretted: ["Regretted", "bg-error-100 text-error-700 border-error-200 dark:bg-error-500/10 dark:text-error-400 dark:border-error-500/20"],
+};
+
+export function StatusCell({ getValue, row }) {
+    const qs = row?.original?.quote_state;
+    if (qs && QUOTE_STATES[qs]) {
+        const [text, cls] = QUOTE_STATES[qs];
+        return (
+            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border shadow-sm ${cls}`}>
+                {text}
+            </span>
+        );
+    }
     const val = String(getValue());
     let label = "Unknown";
     let color = "info";
@@ -121,5 +141,6 @@ ContactPersonCell.propTypes = {
 };
 
 StatusCell.propTypes = {
-    getValue: PropTypes.func
+    getValue: PropTypes.func,
+    row: PropTypes.object
 };

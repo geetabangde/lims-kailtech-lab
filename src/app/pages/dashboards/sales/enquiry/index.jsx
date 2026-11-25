@@ -94,6 +94,8 @@ export default function EnquiryList() {
       tech: sourceRows.filter((r) => r.tech_verification_status === "Under Technical Verification").length,
       quoted: quoted.length,
       quotedValue: sum(quoted),
+      ready: quoted.filter((r) => r.quote_state === "ready_to_send").length,
+      sent: quoted.filter((r) => r.quote_state === "sent" || r.quote_state === "order_received").length,
       regretted: sourceRows.filter((r) => String(r.status) === "91").length,
       due: due.length,
     };
@@ -315,10 +317,10 @@ export default function EnquiryList() {
                   ["", "Total Enquiries", kpi.total, "text-gray-800 dark:text-dark-100"],
                   ["pending", "Pending", kpi.pending, "text-amber-600"],
                   ["tech", "Under Technical Verification", kpi.tech, "text-purple-600"],
-                  ["quoted", "Quotations Submitted", `${kpi.quoted} (₹${kpi.quotedValue.toLocaleString("en-IN")})`, "text-blue-600"],
+                  ["quoted", "Quotations Created", `${kpi.quoted} (₹${kpi.quotedValue.toLocaleString("en-IN")})`, "text-blue-600", `Ready to send: ${kpi.ready} · Sent: ${kpi.sent}`],
                   ["regretted", "Regretted", kpi.regretted, "text-rose-600"],
                   ["due", "Follow-up Due", kpi.due, "text-orange-600"],
-                ].map(([key, label, value, color]) => (
+                ].map(([key, label, value, color, sub]) => (
                   <button
                     type="button"
                     key={label}
@@ -333,6 +335,7 @@ export default function EnquiryList() {
                   >
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-dark-300">{label}</p>
                     <p className={clsx("mt-1 text-lg font-bold", color)}>{value}</p>
+                    {sub && <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-dark-300">{sub}</p>}
                   </button>
                 ))}
               </div>
