@@ -58,10 +58,12 @@ export default function EnquiryList() {
       (sourceFilter === "Repeat" && String(r.lead_source || "").toLowerCase().includes("existing")),
     );
   }, [rawData, sourceFilter]);
+  // an enquiry whose order was received (marked on the enquiry or its quotation converted) is no longer "pending"
+  const isOrderDone = (r) => Number(r.closed) === 1 || r.quote_state === "order_received";
   const isDue = (r) => {
     const d = String(r.nextconactdate || "").split("/");
     return (
-      String(r.status) === "0" &&
+      String(r.status) === "0" && !isOrderDone(r) &&
       d.length === 3 &&
       `${d[2]}-${d[1]}-${d[0]}` <= new Date().toISOString().slice(0, 10)
     );
@@ -69,7 +71,7 @@ export default function EnquiryList() {
   // The top cards are clickable: a card filters the table, clicking it again (or "Total") clears it
   const data = useMemo(() => {
     switch (cardFilter) {
-      case "pending": return sourceRows.filter((r) => String(r.status) === "0");
+      case "pending": return sourceRows.filter((r) => String(r.status) === "0" && !isOrderDone(r));
       case "tech": return sourceRows.filter((r) => r.tech_verification_status === "Under Technical Verification");
       case "quoted": return sourceRows.filter((r) => String(r.status) === "1");
       case "regretted": return sourceRows.filter((r) => String(r.status) === "91");
@@ -83,7 +85,7 @@ export default function EnquiryList() {
     const today = new Date().toISOString().slice(0, 10);
     const sum = (rows) => rows.reduce((a, r) => a + (Number(r.approxvalue) || 0), 0);
     const quoted = sourceRows.filter((r) => String(r.status) === "1");
-    const pending = sourceRows.filter((r) => String(r.status) === "0");
+    const pending = sourceRows.filter((r) => String(r.status) === "0" && !isOrderDone(r));
     const due = pending.filter((r) => {
       const d = String(r.nextconactdate || "").split("/");
       return d.length === 3 && `${d[2]}-${d[1]}-${d[0]}` <= today;

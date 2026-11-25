@@ -9,6 +9,7 @@ import { toast } from "sonner";
 // Local Imports
 import AddFollowUpModal from "./AddFollowUpModal";
 import ActionTakenModal from "./ActionTakenModal";
+import OrderReceivedModal from "./OrderReceivedModal";
 import CalMarkConvertedModal from "../calibration-quotations/MarkConvertedModal";
 import TestMarkConvertedModal from "../testing-quotations/MarkConvertedModal";
 import { TechVerifyModal, RegretEnquiryModal } from "./DenialModals";
@@ -42,6 +43,7 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
   const [regretOpen, setRegretOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
+  const [orderRecvOpen, setOrderRecvOpen] = useState(false); // order received straight on the enquiry (no quotation yet)
 
   // close the menu on outside click / Escape
   useEffect(() => {
@@ -63,10 +65,10 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
   // ── View / Order Received: both need the quotation created from this enquiry ──
   const [orderInfo, setOrderInfo] = useState(null);
   const [orderOpen, setOrderOpen] = useState(false);
-  const findQuotation = async () => {
+  const findQuotation = async (quiet = false) => {
     const res = await axios.get("/enquiry-lifecycle/enquiry-quotation", { params: { enquiry_id: id } });
     if (!res.data?.found) {
-      toast.error(res.data?.message || "No quotation found for this enquiry");
+      if (!quiet) toast.error(res.data?.message || "No quotation found for this enquiry");
       return null;
     }
     return res.data;
@@ -83,8 +85,13 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
   };
   const handleOrderReceived = async () => {
     try {
-      const d = await findQuotation();
-      if (!d) return;
+      const d = await findQuotation(true);
+      if (!d) {
+        // no quotation yet: record the order on the enquiry itself
+        setOrderRecvOpen(true);
+        onClose?.();
+        return;
+      }
       setOrderInfo(d);
       setOrderOpen(true);
       onClose?.();
@@ -213,6 +220,19 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
               </Link>
             )}
 
+            {/* Order Received (management request 2026-11-25): the customer placed the order, with or without a quotation */}
+            {hasEditPerm && !row.original.order_received && (
+              <button
+                onClick={() => {
+                  setOrderRecvOpen(true);
+                  onClose?.();
+                }}
+                className="inline-flex items-center justify-center rounded-md bg-teal-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-teal-700 min-w-[110px] shadow-sm"
+              >
+                Order Received
+              </button>
+            )}
+
             {/* Add Follow-Up (btn-info) */}
             {hasFollowUpPerm && (
               <button
@@ -316,6 +336,12 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
           document.body,
         )}
 
+      <OrderReceivedModal
+        show={orderRecvOpen}
+        enquiry={row.original}
+        onClose={() => setOrderRecvOpen(false)}
+        onDone={() => table.options.meta?.refetch?.()}
+      />
       <ActionTakenModal
         show={actionOpen}
         enquiry={row.original}

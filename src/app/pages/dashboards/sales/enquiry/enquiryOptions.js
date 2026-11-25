@@ -127,6 +127,6 @@ export function enquiryTone(row) {
     today.setHours(0, 0, 0, 0);
     if (due && due < today) return "overdue";
   }
-  if (status === "0" && workingHoursBetween(row.added_on) > QUOTE_TAT_HOURS) return "late";
+  if (status === "0" && !Number(row.closed) && workingHoursBetween(row.added_on) > QUOTE_TAT_HOURS) return "late";
   return "";
 }
