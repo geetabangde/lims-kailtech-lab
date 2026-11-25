@@ -11,13 +11,26 @@ export const DISPATCH_TESTING_USER_IDS = [43];
 // DISPATCH_MARK_SENT_USER_IDS (EmailDispatchController::markSentGate). It does NOT allow sending e-mails.
 export const MARK_SENT_EXTRA_IDS = [43, 160];
 
+// Role-based rights (2026-11-25): permissions of the module "MIS - Sample Flow Tracker", ticked in Role Management / HRM > Extra Permissions.
+// They ADD to the fixed lists above (the server applies the same "old list OR permission" rule). The ids are the rows created on 2026-11-25.
+export const PERM_SEND_REPORTS = 498; // MIS: Action - Send / Resend Reports to Customers
+export const PERM_MARK_SENT = 499; // MIS: Action - Mark Reports as Sent (offline)
+function hasPerm(id) {
+  try {
+    const list = JSON.parse(localStorage.getItem("userPermissions") || "[]");
+    return Array.isArray(list) && list.map(Number).includes(id);
+  } catch {
+    return false;
+  }
+}
+
 export function canMarkSentOffline() {
   try {
     if (MARK_SENT_EXTRA_IDS.includes(Number(localStorage.getItem("userId")))) return true;
   } catch {
     /* ignore */
   }
-  return canSendDispatchEmail();
+  return hasPerm(PERM_MARK_SENT) || canSendDispatchEmail();
 }
 
 export function canSendTestingDispatchEmail() {
@@ -37,5 +50,5 @@ export function canSendDispatchEmail() {
   } catch {
     return false;
   }
-  return DISPATCH_MANAGEMENT_IDS.includes(userId) || EXTRA_DISPATCH_USER_IDS.includes(userId) || role === "admin" || role === "4";
+  return DISPATCH_MANAGEMENT_IDS.includes(userId) || EXTRA_DISPATCH_USER_IDS.includes(userId) || role === "admin" || role === "4" || hasPerm(PERM_SEND_REPORTS);
 }
