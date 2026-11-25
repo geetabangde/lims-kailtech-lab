@@ -1096,9 +1096,14 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                             {item.invoice_ok === undefined ? (
                               <span className="text-gray-400">-</span>
                             ) : item.invoice_ok ? (
-                              <span className="text-emerald-600 font-medium">{item.invoice_no}</span>
+                              <span className={includeInvoice ? "text-emerald-600 font-medium" : "text-gray-400 line-through"}>
+                                {item.invoice_no}
+                                {!includeInvoice && <span className="ml-1 text-[9px] no-underline font-normal text-gray-500">(Excluded)</span>}
+                              </span>
                             ) : (
-                              <span className="text-red-500 font-semibold">Not ready</span>
+                              <span className={includeInvoice ? "text-red-500 font-semibold" : "text-gray-400 line-through"}>
+                                {includeInvoice ? "Not ready" : (item.invoice_no || "Excluded")}
+                              </span>
                             )}
                           </td>
                           <td className="p-2.5 text-right">
@@ -1117,17 +1122,56 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                 </div>
               </div>
 
-              {/* Linked Tax Invoice Banner */}
-              {data?.invoices?.length > 0 && (
-                <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-between text-xs text-emerald-950 dark:text-emerald-200">
-                  <div className="flex items-center gap-2">
+              {/* Linked Tax Invoice Banner with Operator Check/Uncheck Option */}
+              {data?.invoices?.length > 0 ? (
+                <div
+                  className={`p-3 rounded-xl border transition-colors flex items-center justify-between text-xs ${
+                    includeInvoice
+                      ? 'bg-emerald-50/70 dark:bg-emerald-950/25 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-200'
+                      : 'bg-gray-100/90 dark:bg-gray-800/60 border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}
+                >
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={includeInvoice}
+                      onChange={(e) => setIncludeInvoice(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                    />
                     <div>
-                      <span className="font-bold">Linked Tax Invoice: </span>
-                      {data.invoices[0].invoiceno} (Dated: {data.invoices[0].date})
+                      <span className="font-bold">
+                        {includeInvoice ? 'Include Linked Tax Invoice: ' : 'Tax Invoice Excluded: '}
+                      </span>
+                      <span className={includeInvoice ? 'font-medium' : 'line-through text-gray-500'}>
+                        {data.invoices[0].invoiceno} (Dated: {data.invoices[0].date})
+                      </span>
+                      <span
+                        className={`ml-2 px-1.5 py-0.5 text-[10px] rounded font-semibold ${
+                          includeInvoice
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
+                        }`}
+                      >
+                        {includeInvoice ? '✅ Will be attached' : '⚠️ Reports Only (Bill will NOT be emailed)'}
+                      </span>
                     </div>
+                  </label>
+                  <div className="font-bold text-sm text-right">
+                    <div className={includeInvoice ? 'text-emerald-900 dark:text-emerald-100' : 'text-gray-400 line-through'}>
+                      ₹ {Number(data.invoices[0].finaltotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                    {!includeInvoice && (
+                      <div className="text-[10px] font-normal text-amber-600 dark:text-amber-400">
+                        Bill unchecked by operator
+                      </div>
+                    )}
                   </div>
-                  <div className="font-bold text-sm">
-                    ₹ {Number(data.invoices[0].finaltotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </div>
+              ) : (
+                <div className="p-2.5 bg-gray-50 dark:bg-gray-800/40 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl flex items-center justify-between text-xs text-gray-500">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Tax Invoice:</span>
+                    <span>No tax invoice linked to this inward / TRF (Dispatching Reports Only)</span>
                   </div>
                 </div>
               )}
@@ -1231,7 +1275,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                       className="mt-0.5 rounded text-indigo-600 focus:ring-0"
                     />
                     <span className="text-xs text-gray-800 dark:text-gray-200 font-medium">
-                      I have thoroughly verified all certificate contents, report attachments, linked Tax Invoice details, and client P.O. references.
+                      I have thoroughly verified all certificate contents, report attachments{includeInvoice ? ', linked Tax Invoice details,' : ''} and client P.O. references.
                     </span>
                   </label>
 
