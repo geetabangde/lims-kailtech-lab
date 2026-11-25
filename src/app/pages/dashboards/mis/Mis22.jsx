@@ -533,10 +533,10 @@ function DocsSection({ r, seeInvoice }) {
   );
 }
 
-function DetailModal({ r, onClose, seeInvoice, isTopLevel, canCustomer, onChanged }) {
+function DetailModal({ r, onClose, seeInvoice, isTopLevel, canCustomer, calCustomer, onChanged }) {
   if (!r) return null;
   const isCal = r.type === "Calibration";
-  const canSeeConfidential = (canCustomer ?? isTopLevel) || isCal;
+  const canSeeConfidential = (canCustomer ?? isTopLevel) || (isCal && calCustomer !== false);
   const isOverdue = Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE";
   const href = resendHref(r);
   const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1317,7 +1317,7 @@ const COLUMNS = (ctx) => [
     value: (r) => brnOf(r),
     render: (r) => {
       const isCal = r.type === "Calibration";
-      const canSee = (ctx.canCustomer ?? ctx.isTopLevel) || isCal;
+      const canSee = (ctx.canCustomer ?? ctx.isTopLevel) || (isCal && ctx.calCustomer !== false);
       return <span className="font-mono text-blue-700 font-semibold">{canSee ? (brnOf(r) || "-") : "-"}</span>;
     },
     sort: (r) => brnOf(r),
@@ -1329,7 +1329,7 @@ const COLUMNS = (ctx) => [
     value: (r) => r.inward_no || "",
     render: (r) => {
       const isCal = r.type === "Calibration";
-      const canSee = (ctx.canCustomer ?? ctx.isTopLevel) || isCal;
+      const canSee = (ctx.canCustomer ?? ctx.isTopLevel) || (isCal && ctx.calCustomer !== false);
       return <span className="font-mono font-semibold text-gray-900">{canSee ? (r.inward_no || "-") : "-"}</span>;
     },
     sort: (r) => r.inward_no || "",
@@ -1341,7 +1341,7 @@ const COLUMNS = (ctx) => [
     value: (r) => r.customer || "",
     render: (r) => {
       const isCal = r.type === "Calibration";
-      const canSee = (ctx.canCustomer ?? ctx.isTopLevel) || isCal;
+      const canSee = (ctx.canCustomer ?? ctx.isTopLevel) || (isCal && ctx.calCustomer !== false);
       return canSee ? (
         <span className="block max-w-[220px] truncate font-medium text-gray-800" title={r.customer}>{r.customer}</span>
       ) : (
@@ -1468,11 +1468,15 @@ export default function Mis22() {
   // Role-based MIS (2026-11-25): the server sends user_scope.features when the MIS permissions are active; without it the old rules apply unchanged.
   const feat = data?.user_scope?.features;
   const canSeeGate = feat ? !!feat.gate : (tier === "management" || tier === "reporting");
+  // Email Log / TAT Master buttons are hidden for people who are not allowed to use them (role-based mode; unchanged when the server sends no features)
+  const canSeeMail = feat ? !!feat.email : true;
+  const canSeeTat = feat ? !!(feat.tatEdit || feat.topLevel || tier === "hod") : true;
   const userId = Number(localStorage.getItem("userId") || data?.user_scope?.user_id || 0);
   const isTopLevel = feat
     ? !!(feat.docs || feat.email)
     : ([31, 41, 160, 113, 65].includes(userId) || tier === "management" || tier === "reporting" || !!data?.user_scope?.is_management);
-  const canCustomer = feat ? !!feat.customer : undefined; // real customer name / BRN of testing samples (calibration rows stay visible as before)
+  const canCustomer = feat ? !!feat.customer : undefined; // real customer name / BRN of testing samples
+  const calCustomer = feat ? feat.customerCalibration !== false : undefined; // calibration rows: visible to every tier except the ground-level login
   useEffect(() => {
     if (!canSeeGate) return;
     axios.get("/mis/gate-pending").then((r) => setGateCount(r.data?.data?.summary || null)).catch(() => {});
@@ -1499,7 +1503,7 @@ export default function Mis22() {
     setReopen(null);
   }, [allRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const cols = useMemo(() => COLUMNS({ openDetail: (r) => setDetailRow(r), seeInvoice, isTopLevel, canCustomer }), [seeInvoice, isTopLevel, canCustomer]);
+  const cols = useMemo(() => COLUMNS({ openDetail: (r) => setDetailRow(r), seeInvoice, isTopLevel, canCustomer, calCustomer }), [seeInvoice, isTopLevel, canCustomer, calCustomer]);
 
   // One row per LRN for Classic card filter rules
   const counted = useMemo(() => {
@@ -1687,24 +1691,28 @@ export default function Mis22() {
                 Unbooked at Gate {gateCount ? `(${gateCount.total})` : ""}
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setTab("mail")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                tab === "mail" ? "bg-[#18457c] text-white shadow-sm" : "bg-white text-gray-700 border hover:bg-gray-50"
-              }`}
-            >
-              Email Log
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("tat")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                tab === "tat" ? "bg-[#18457c] text-white shadow-sm" : "bg-white text-gray-700 border hover:bg-gray-50"
-              }`}
-            >
-              TAT Master
-            </button>
+            {canSeeMail && (
+              <button
+                type="button"
+                onClick={() => setTab("mail")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  tab === "mail" ? "bg-[#18457c] text-white shadow-sm" : "bg-white text-gray-700 border hover:bg-gray-50"
+                }`}
+              >
+                Email Log
+              </button>
+            )}
+            {canSeeTat && (
+              <button
+                type="button"
+                onClick={() => setTab("tat")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  tab === "tat" ? "bg-[#18457c] text-white shadow-sm" : "bg-white text-gray-700 border hover:bg-gray-50"
+                }`}
+              >
+                TAT Master
+              </button>
+            )}
           </div>
         </div>
 
@@ -1712,10 +1720,10 @@ export default function Mis22() {
         {tab === "gate" && <GateTab canSee={canSeeGate} />}
 
         {/* Tab 2: Email Log */}
-        {tab === "mail" && <EmailLogTab />}
+        {tab === "mail" && canSeeMail && <EmailLogTab />}
 
         {/* Tab 3: TAT Master */}
-        {tab === "tat" && <TatMasterTab canEdit={feat ? !!feat.tatEdit : tier === "management"} calibPackages={[...new Set(allRows.filter((x) => (x.type || "") === "Calibration").map((x) => x.package).filter(Boolean))].sort()} />}
+        {tab === "tat" && canSeeTat && <TatMasterTab canEdit={feat ? !!feat.tatEdit : tier === "management"} calibPackages={[...new Set(allRows.filter((x) => (x.type || "") === "Calibration").map((x) => x.package).filter(Boolean))].sort()} />}
 
         {/* Tab 4: Sample Tracker Main Table */}
         {tab === "table" && (
@@ -2197,6 +2205,7 @@ export default function Mis22() {
                 seeInvoice={seeInvoice}
                 isTopLevel={isTopLevel}
                 canCustomer={canCustomer}
+                calCustomer={calCustomer}
                 onChanged={(row) => { setReopen({ lrn: row.lrn, type: row.type }); load(); }}
               />
             )}
