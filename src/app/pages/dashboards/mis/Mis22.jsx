@@ -533,10 +533,10 @@ function DocsSection({ r, seeInvoice }) {
   );
 }
 
-function DetailModal({ r, onClose, seeInvoice, isTopLevel, onChanged }) {
+function DetailModal({ r, onClose, seeInvoice, isTopLevel, canCustomer, onChanged }) {
   if (!r) return null;
   const isCal = r.type === "Calibration";
-  const canSeeConfidential = isTopLevel || isCal;
+  const canSeeConfidential = (canCustomer ?? isTopLevel) || isCal;
   const isOverdue = Number(r.overdue_days_22) > 0 || r.testing_status === "OVERDUE";
   const href = resendHref(r);
   const goTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1317,7 +1317,7 @@ const COLUMNS = (ctx) => [
     value: (r) => brnOf(r),
     render: (r) => {
       const isCal = r.type === "Calibration";
-      const canSee = ctx.isTopLevel || isCal;
+      const canSee = (ctx.canCustomer ?? ctx.isTopLevel) || isCal;
       return <span className="font-mono text-blue-700 font-semibold">{canSee ? (brnOf(r) || "-") : "-"}</span>;
     },
     sort: (r) => brnOf(r),
@@ -1329,7 +1329,7 @@ const COLUMNS = (ctx) => [
     value: (r) => r.inward_no || "",
     render: (r) => {
       const isCal = r.type === "Calibration";
-      const canSee = ctx.isTopLevel || isCal;
+      const canSee = (ctx.canCustomer ?? ctx.isTopLevel) || isCal;
       return <span className="font-mono font-semibold text-gray-900">{canSee ? (r.inward_no || "-") : "-"}</span>;
     },
     sort: (r) => r.inward_no || "",
@@ -1341,7 +1341,7 @@ const COLUMNS = (ctx) => [
     value: (r) => r.customer || "",
     render: (r) => {
       const isCal = r.type === "Calibration";
-      const canSee = ctx.isTopLevel || isCal;
+      const canSee = (ctx.canCustomer ?? ctx.isTopLevel) || isCal;
       return canSee ? (
         <span className="block max-w-[220px] truncate font-medium text-gray-800" title={r.customer}>{r.customer}</span>
       ) : (
@@ -1465,9 +1465,14 @@ export default function Mis22() {
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tier = data?.user_scope?.tier;
-  const canSeeGate = tier === "management" || tier === "reporting";
+  // Role-based MIS (2026-11-25): the server sends user_scope.features when the MIS permissions are active; without it the old rules apply unchanged.
+  const feat = data?.user_scope?.features;
+  const canSeeGate = feat ? !!feat.gate : (tier === "management" || tier === "reporting");
   const userId = Number(localStorage.getItem("userId") || data?.user_scope?.user_id || 0);
-  const isTopLevel = [31, 41, 160, 113, 65].includes(userId) || tier === "management" || tier === "reporting" || !!data?.user_scope?.is_management;
+  const isTopLevel = feat
+    ? !!(feat.docs || feat.email)
+    : ([31, 41, 160, 113, 65].includes(userId) || tier === "management" || tier === "reporting" || !!data?.user_scope?.is_management);
+  const canCustomer = feat ? !!feat.customer : undefined; // real customer name / BRN of testing samples (calibration rows stay visible as before)
   useEffect(() => {
     if (!canSeeGate) return;
     axios.get("/mis/gate-pending").then((r) => setGateCount(r.data?.data?.summary || null)).catch(() => {});
@@ -1494,7 +1499,7 @@ export default function Mis22() {
     setReopen(null);
   }, [allRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const cols = useMemo(() => COLUMNS({ openDetail: (r) => setDetailRow(r), seeInvoice, isTopLevel }), [seeInvoice, isTopLevel]);
+  const cols = useMemo(() => COLUMNS({ openDetail: (r) => setDetailRow(r), seeInvoice, isTopLevel, canCustomer }), [seeInvoice, isTopLevel, canCustomer]);
 
   // One row per LRN for Classic card filter rules
   const counted = useMemo(() => {
@@ -1710,7 +1715,7 @@ export default function Mis22() {
         {tab === "mail" && <EmailLogTab />}
 
         {/* Tab 3: TAT Master */}
-        {tab === "tat" && <TatMasterTab canEdit={tier === "management"} calibPackages={[...new Set(allRows.filter((x) => (x.type || "") === "Calibration").map((x) => x.package).filter(Boolean))].sort()} />}
+        {tab === "tat" && <TatMasterTab canEdit={feat ? !!feat.tatEdit : tier === "management"} calibPackages={[...new Set(allRows.filter((x) => (x.type || "") === "Calibration").map((x) => x.package).filter(Boolean))].sort()} />}
 
         {/* Tab 4: Sample Tracker Main Table */}
         {tab === "table" && (
@@ -2191,6 +2196,7 @@ export default function Mis22() {
                 onClose={() => setDetailRow(null)}
                 seeInvoice={seeInvoice}
                 isTopLevel={isTopLevel}
+                canCustomer={canCustomer}
                 onChanged={(row) => { setReopen({ lrn: row.lrn, type: row.type }); load(); }}
               />
             )}
