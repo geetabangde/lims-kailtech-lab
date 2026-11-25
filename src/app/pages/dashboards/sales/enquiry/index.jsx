@@ -10,12 +10,11 @@ import {
   getExpandedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import clsx from "clsx";
+import clsx from "clsx";
 import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "utils/axios";
 import { toast } from "sonner";
-import { RowActions } from "./RowActions";
 
 // Local Imports
 import { Table, Card, THead, TBody, Th, Tr, Td } from "components/ui";
@@ -28,7 +27,7 @@ import { PaginationSection } from "components/shared/table/PaginationSection";
 import { useThemeContext } from "app/contexts/theme/context";
 
 import { columns } from "./columns";
-import { SOURCE_PILLS } from "./enquiryOptions";
+import { SOURCE_PILLS, enquiryTone } from "./enquiryOptions";
 import { Toolbar } from "./Toolbar";
 import { tableConfig } from "./TableConfig";
 import { SelectedRowsActions } from "./SelectedRowsActions";
@@ -168,14 +167,19 @@ export default function EnquiryList() {
       globalFilter,
       sorting,
       columnVisibility: {
+        // Redesign 2026-11-25: these stay available in the column toggle but start hidden
+        enquirybyname: false,
+        payment_status: false,
+        sample_arrived: false,
+        approxqty: false,
+        nextconactdate: false,
         ...columnVisibility,
+        id: false,
         ...(isResponsive ? {
-          enquirybyname: false,
           assigntoname: false,
-          actions: false,
         } : {})
       },
-      // Actions now live next to Enquiry No.; ignore any old "pinned right" setting saved in the browser
+      // The old Action column is gone (actions live behind the + button in Status)
       columnPinning: {
         ...columnPinning,
         right: (columnPinning?.right || []).filter((c) => c !== "actions"),
@@ -425,10 +429,16 @@ export default function EnquiryList() {
                               <Td
                                 key={cell.id}
                                 className={clsx(
-                                  "relative bg-white text-sm",
-                                  cardSkin === "shadow"
-                                    ? "dark:bg-dark-700"
-                                    : "dark:bg-dark-900",
+                                  "relative text-sm",
+                                  // late = red, order lost = maroon, on time = no colour
+                                  enquiryTone(row.original) === "late"
+                                    ? "!bg-red-100 dark:!bg-red-900/30"
+                                    : enquiryTone(row.original) === "lost"
+                                      ? "!bg-[#e9d3d3] dark:!bg-[#4a1f1f]"
+                                      : clsx(
+                                          "bg-white",
+                                          cardSkin === "shadow" ? "dark:bg-dark-700" : "dark:bg-dark-900",
+                                        ),
                                   cell.column.getIsPinned() && "sticky right-0 z-10 shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.1)]",
                                 )}
                               >
@@ -459,14 +469,6 @@ export default function EnquiryList() {
                                     <span className="text-sm text-gray-600 dark:text-dark-300">
                                       {row.original.assigntoname || "-"}
                                     </span>
-                                  </div>
-                                  <div className="flex flex-col sm:flex-row gap-1 sm:gap-2 pt-2 border-t border-gray-100 dark:border-dark-600">
-                                    <span className="text-sm font-bold text-gray-800 dark:text-dark-100 w-44 shrink-0 mt-1">
-                                      Action:
-                                    </span>
-                                    <div className="flex flex-wrap gap-2">
-                                      <RowActions row={row} table={table} />
-                                    </div>
                                   </div>
                                 </div>
                               </Td>

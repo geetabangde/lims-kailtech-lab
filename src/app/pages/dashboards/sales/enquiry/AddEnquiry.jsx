@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import clsx from "clsx";
 import Select from "react-select";
 import { DatePicker } from "components/shared/form/Datepicker";
-import EnquiryExtraFields from "./EnquiryExtraFields";
+import { FINALIZATION_OPTIONS } from "./enquiryOptions";
 
 export default function AddEnquiry() {
   const navigate = useNavigate();
@@ -40,20 +40,40 @@ export default function AddEnquiry() {
     description: "",
     modeof: "0",
     modeother: "",
-    approxqty: "",
     approxvalue: "",
     expecteddateforfinalization: "",
-    action: "",
-    nextconactdate: "",
-    remark: "",
-    lead_source: "",
-    area: "",
-    payment_status: "",
-    sample_arrived: "",
-    whatsapp_number: "",
-    tech_verification_status: "",
-    tech_verification_remark: "",
   });
+
+  // Add Enquiry redesign 2026-11-25: New / Existing customer toggle and quick finalization choices
+  const [customerMode, setCustomerMode] = useState("existing");
+  const [finalChoice, setFinalChoice] = useState("");
+  const today = dayjs().format("YYYY-MM-DD");
+
+  const handleFinalChoice = (opt) => {
+    const v = opt ? opt.value : "";
+    setFinalChoice(v);
+    const found = FINALIZATION_OPTIONS.find((o) => o.value === v);
+    setFormData((prev) => ({
+      ...prev,
+      expecteddateforfinalization:
+        found && found.days !== null ? dayjs().add(found.days, "day").format("YYYY-MM-DD") : "",
+    }));
+  };
+
+  const switchCustomerMode = (mode) => {
+    setCustomerMode(mode);
+    setFormData((prev) => ({
+      ...prev,
+      customerid: mode === "new" ? "new" : "",
+      name: "",
+      address: "",
+      concernpersonname: "",
+      concernpersonmobile: "",
+      concernpersondesignation: "",
+      concernpersonemail: "",
+    }));
+    setShowCustomerDetail(mode === "new");
+  };
 
   const MODE_OPTIONS = [
     { value: "0", label: "Telephone" },
@@ -65,7 +85,6 @@ export default function AddEnquiry() {
   ];
 
   // Dropdown options state
-  const [admins, setAdmins] = useState([]);
   const [verticals, setVerticals] = useState([]);
   const [customerTypes, setCustomerTypes] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -73,12 +92,6 @@ export default function AddEnquiry() {
 
   const fetchDropdownData = async () => {
     try {
-      // Fetch admins (for enquiry received by and assigned to)
-      const adminsRes = await axios.get("/people/get-customer-bd");
-      if (adminsRes.data?.data) {
-        setAdmins(adminsRes.data.data);
-      }
-
       // Fetch verticals
       const verticalsRes = await axios.get("/master/vertical-list");
       if (verticalsRes.data?.data) {
@@ -178,12 +191,12 @@ export default function AddEnquiry() {
     e.preventDefault();
 
     // Validation matching PHP logic (bvalidator)
-    if (!formData.enquiryby) {
-      toast.error("Please select Enquiry Received By");
+    if (formData.date > today) {
+      toast.error("Enquiry date cannot be a future date");
       return;
     }
-    if (!formData.assignto) {
-      toast.error("Please select Enquiry Assigned To");
+    if (customerMode === "existing" && !formData.customerid) {
+      toast.error("Please select the customer");
       return;
     }
     if (!formData.vertical) {
@@ -219,28 +232,15 @@ export default function AddEnquiry() {
       }
     }
 
-    if (!formData.approxqty) {
-      toast.error("Please enter Approx Qty");
-      return;
-    }
-    if (!formData.remark) {
-      toast.error("Please enter Remark");
-      return;
-    }
 
     setLoading(true);
     try {
-      // Format dates to MM/DD/YYYY for the API as per project standards
+      // Dates go as ISO YYYY-MM-DD (the backend accepts this and rejects a future enquiry date)
       const formattedData = {
         ...formData,
         approxvalue: Number(formData.approxvalue || 0), // Ensure number
-        date: formData.date ? dayjs(formData.date).format("MM/DD/YYYY") : "",
-        expecteddateforfinalization: formData.expecteddateforfinalization
-          ? dayjs(formData.expecteddateforfinalization).format("MM/DD/YYYY")
-          : "",
-        nextconactdate: formData.nextconactdate
-          ? dayjs(formData.nextconactdate).format("MM/DD/YYYY")
-          : "",
+        date: formData.date || today,
+        expecteddateforfinalization: formData.expecteddateforfinalization || "",
       };
 
       const response = await axios.post("/sales/create-enquiry", formattedData);
@@ -283,10 +283,13 @@ export default function AddEnquiry() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Enquiry Date
+                <span className="block text-[11px] font-normal text-gray-400">
+                  Defaults to today; a past date is allowed. The punching date is recorded automatically.
+                </span>
               </label>
               <div className="md:col-span-2">
                 <DatePicker
-                  options={{ dateFormat: "Y-m-d", allowInput: true }}
+                  options={{ dateFormat: "Y-m-d", allowInput: true, maxDate: "today" }}
                   value={formData.date}
                   onChange={([date]) =>
                     setFormData((prev) => ({
@@ -296,60 +299,6 @@ export default function AddEnquiry() {
                   }
                   placeholder="Select Date"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                />
-              </div>
-            </div>
-
-            {/* Enquiry Received By */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Enquiry Received By <span className="text-red-500">*</span>
-              </label>
-              <div className="md:col-span-2">
-                <Select
-                  options={admins.map((admin) => ({
-                    value: admin.id,
-                    label: `${admin.firstname} ${admin.lastname}`,
-                  }))}
-                  value={
-                    admins
-                      .map((admin) => ({
-                        value: admin.id,
-                        label: `${admin.firstname} ${admin.lastname}`,
-                      }))
-                      .find((opt) => String(opt.value) === String(formData.enquiryby)) ||
-                    null
-                  }
-                  onChange={(opt) => handleSelectChange("enquiryby", opt)}
-                  placeholder="Select"
-                  isSearchable
-                />
-              </div>
-            </div>
-
-            {/* Enquiry Assigned To */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Enquiry Assigned To <span className="text-red-500">*</span>
-              </label>
-              <div className="md:col-span-2">
-                <Select
-                  options={admins.map((admin) => ({
-                    value: admin.id,
-                    label: `${admin.firstname} ${admin.lastname}`,
-                  }))}
-                  value={
-                    admins
-                      .map((admin) => ({
-                        value: admin.id,
-                        label: `${admin.firstname} ${admin.lastname}`,
-                      }))
-                      .find((opt) => String(opt.value) === String(formData.assignto)) ||
-                    null
-                  }
-                  onChange={(opt) => handleSelectChange("assignto", opt)}
-                  placeholder="Select"
-                  isSearchable
                 />
               </div>
             </div>
@@ -408,28 +357,45 @@ export default function AddEnquiry() {
               </div>
             </div>
 
-            {/* Customer */}
+            {/* Customer: New or Existing */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Customer
               </label>
-              <div className="md:col-span-2">
-                <Select
-                  options={[
-                    { value: "new", label: "New" },
-                    ...customers.map((c) => ({ value: c.id, label: c.name })),
-                  ]}
-                  value={
-                    [
-                      { value: "new", label: "New" },
-                      ...customers.map((c) => ({ value: c.id, label: c.name })),
-                    ].find((opt) => String(opt.value) === String(formData.customerid)) ||
-                    null
-                  }
-                  onChange={handleCustomerChange}
-                  placeholder="Select Customer"
-                  isSearchable
-                />
+              <div className="md:col-span-2 space-y-3">
+                <div className="inline-flex overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600">
+                  {[
+                    ["existing", "Existing customer"],
+                    ["new", "New customer"],
+                  ].map(([key, label]) => (
+                    <button
+                      type="button"
+                      key={key}
+                      onClick={() => switchCustomerMode(key)}
+                      className={clsx(
+                        "px-4 py-2 text-sm font-semibold transition",
+                        customerMode === key
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {customerMode === "existing" && (
+                  <Select
+                    options={customers.map((c) => ({ value: c.id, label: c.name }))}
+                    value={
+                      customers
+                        .map((c) => ({ value: c.id, label: c.name }))
+                        .find((opt) => String(opt.value) === String(formData.customerid)) || null
+                    }
+                    onChange={handleCustomerChange}
+                    placeholder="Search and select the customer (details are fetched automatically)"
+                    isSearchable
+                  />
+                )}
               </div>
             </div>
 
@@ -600,23 +566,6 @@ export default function AddEnquiry() {
               </div>
             )}
 
-            {/* Approx Qty */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Approx Qty <span className="text-red-500">*</span>
-              </label>
-              <div className="md:col-span-2">
-                <input
-                  type="text"
-                  name="approxqty"
-                  value={formData.approxqty}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                />
-              </div>
-            </div>
-
             {/* Approx Commercial Value */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -638,9 +587,22 @@ export default function AddEnquiry() {
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Expected Date of Finalization/Closure
               </label>
-              <div className="md:col-span-2">
+              <div className="md:col-span-2 space-y-2">
+                <Select
+                  options={FINALIZATION_OPTIONS}
+                  value={FINALIZATION_OPTIONS.find((o) => o.value === finalChoice) || null}
+                  onChange={handleFinalChoice}
+                  placeholder="Immediate / within a week / within 15 days / other"
+                  isClearable
+                />
+                {finalChoice && finalChoice !== "other" && (
+                  <p className="text-xs text-gray-500">
+                    Expected closure date: {dayjs(formData.expecteddateforfinalization).format("DD-MM-YYYY")}
+                  </p>
+                )}
+                {finalChoice === "other" && (
                 <DatePicker
-                  options={{ dateFormat: "Y-m-d", allowInput: true }}
+                  options={{ dateFormat: "Y-m-d", allowInput: true, minDate: "today" }}
                   value={formData.expecteddateforfinalization}
                   onChange={([date]) =>
                     setFormData((prev) => ({
@@ -653,64 +615,9 @@ export default function AddEnquiry() {
                   placeholder="Select Date"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
                 />
+                )}
               </div>
             </div>
-
-            {/* Details of Action Taken */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Details of the Action Taken
-              </label>
-              <div className="md:col-span-2">
-                <input
-                  type="text"
-                  name="action"
-                  value={formData.action}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                />
-              </div>
-            </div>
-
-            {/* Next Time For Contact */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Next Time For Contact
-              </label>
-              <div className="md:col-span-2">
-                <DatePicker
-                  options={{ dateFormat: "Y-m-d", allowInput: true }}
-                  value={formData.nextconactdate}
-                  onChange={([date]) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      nextconactdate: date ? dayjs(date).format("YYYY-MM-DD") : "",
-                    }))
-                  }
-                  placeholder="Select Date"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                />
-              </div>
-            </div>
-
-            {/* Remark */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 pt-2">
-                Remark <span className="text-red-500">*</span>
-              </label>
-              <div className="md:col-span-2">
-                <textarea
-                  name="remark"
-                  value={formData.remark}
-                  onChange={handleChange}
-                  required
-                  rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                />
-              </div>
-            </div>
-
-            <EnquiryExtraFields formData={formData} setFormData={setFormData} />
 
             {/* Submit Button */}
             <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">

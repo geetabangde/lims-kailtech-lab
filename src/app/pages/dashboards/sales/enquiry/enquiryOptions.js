@@ -66,3 +66,42 @@ export const whatsappLink = (mobile, name) => {
   const text = `${hello}, thank you for reaching out to Kailtech Test & Research Centre regarding your enquiry.`;
   return `https://wa.me/91${digits}?text=${encodeURIComponent(text)}`;
 };
+
+// ── Redesign 2026-11-25 ──────────────────────────────────────────────────────────────
+// Expected date of finalization choices on the Add Enquiry form
+export const FINALIZATION_OPTIONS = [
+  { value: "immediate", label: "Immediate", days: 0 },
+  { value: "week", label: "Within a week", days: 7 },
+  { value: "15days", label: "Within 15 days", days: 15 },
+  { value: "other", label: "Other (pick a date)", days: null },
+];
+
+// Weekly off days that do not count towards the quotation TAT (0 = Sunday ... 6 = Saturday).
+// Change here if the lab's working week changes. No holiday table exists yet.
+export const WEEKLY_OFF_DAYS = [0];
+export const QUOTE_TAT_HOURS = 24; // enquiry must be converted to a quotation within this many working hours
+
+// Working hours between two dates, skipping weekly-off days.
+export function workingHoursBetween(start, end = new Date()) {
+  const s = new Date(start);
+  const e = new Date(end);
+  if (Number.isNaN(s.getTime()) || e <= s) return 0;
+  let ms = 0;
+  let cursor = new Date(s);
+  while (cursor < e) {
+    const nextMidnight = new Date(cursor);
+    nextMidnight.setHours(24, 0, 0, 0);
+    const stop = nextMidnight < e ? nextMidnight : e;
+    if (!WEEKLY_OFF_DAYS.includes(cursor.getDay())) ms += stop - cursor;
+    cursor = stop;
+  }
+  return ms / 3600000;
+}
+
+// Row tone for the list: "lost" (maroon), "late" (red) or "" (normal, no colour)
+export function enquiryTone(row) {
+  const status = String(row.status);
+  if (status === "91" || row.loss_reason) return "lost";
+  if (status === "0" && workingHoursBetween(row.added_on) > QUOTE_TAT_HOURS) return "late";
+  return "";
+}
