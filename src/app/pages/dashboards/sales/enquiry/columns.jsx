@@ -63,11 +63,6 @@ export const columns = [
     header: "Status",
     cell: (info) => <StatusMenuCell {...info} />,
   }),
-  columnHelper.accessor("address", {
-    id: "address",
-    header: "Address",
-    cell: (info) => <AddressCell {...info} />,
-  }),
   columnHelper.accessor("assigntoname", {
     id: "assigntoname",
     header: "Assigned BD / Forwarded",
@@ -102,6 +97,11 @@ export const columns = [
     id: "area",
     header: "City / Area",
     cell: (info) => <div className="min-w-[100px]"><HighlightingCell {...info} /></div>,
+  }),
+  columnHelper.accessor("address", {
+    id: "address",
+    header: "Address",
+    cell: (info) => <AddressCell {...info} />,
   }),
   columnHelper.accessor("ctypename", {
     id: "ctypename",

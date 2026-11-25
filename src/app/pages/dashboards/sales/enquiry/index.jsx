@@ -27,7 +27,7 @@ import { PaginationSection } from "components/shared/table/PaginationSection";
 import { useThemeContext } from "app/contexts/theme/context";
 
 import { columns } from "./columns";
-import { SOURCE_PILLS, enquiryTone } from "./enquiryOptions";
+import { SOURCE_PILLS, enquiryTone, setHolidays } from "./enquiryOptions";
 import { Toolbar } from "./Toolbar";
 import { tableConfig } from "./TableConfig";
 import { SelectedRowsActions } from "./SelectedRowsActions";
@@ -134,6 +134,7 @@ export default function EnquiryList() {
         (res.data.status === true || res.data.status === "true") &&
         Array.isArray(res.data.data)
       ) {
+        setHolidays(res.data.holidays);
         let fetchedData = res.data.data;
         if (statusFilter !== "") {
           fetchedData = fetchedData.filter(item => String(item.status) === String(statusFilter));
@@ -433,6 +434,8 @@ export default function EnquiryList() {
                                   // late = red, order lost = maroon, on time = no colour
                                   enquiryTone(row.original) === "late"
                                     ? "!bg-red-100 dark:!bg-red-900/30"
+                                    : enquiryTone(row.original) === "overdue"
+                                      ? "!bg-[#d9a199] dark:!bg-[#5a2a24]"
                                     : enquiryTone(row.original) === "lost"
                                       ? "!bg-[#e9d3d3] dark:!bg-[#4a1f1f]"
                                       : clsx(

@@ -81,7 +81,15 @@ export const FINALIZATION_OPTIONS = [
 export const WEEKLY_OFF_DAYS = [0];
 export const QUOTE_TAT_HOURS = 24; // enquiry must be converted to a quotation within this many working hours
 
-// Working hours between two dates, skipping weekly-off days.
+// Lab holidays (YYYY-MM-DD) loaded with the enquiry list; they do not count towards the TAT
+let HOLIDAYS = new Set();
+export const setHolidays = (list) => {
+  HOLIDAYS = new Set((list || []).map((d) => String(d).slice(0, 10)));
+};
+const isoLocal = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// Working hours between two dates, skipping weekly-off days and lab holidays.
 export function workingHoursBetween(start, end = new Date()) {
   const s = new Date(start);
   const e = new Date(end);
@@ -92,16 +100,33 @@ export function workingHoursBetween(start, end = new Date()) {
     const nextMidnight = new Date(cursor);
     nextMidnight.setHours(24, 0, 0, 0);
     const stop = nextMidnight < e ? nextMidnight : e;
-    if (!WEEKLY_OFF_DAYS.includes(cursor.getDay())) ms += stop - cursor;
+    if (!WEEKLY_OFF_DAYS.includes(cursor.getDay()) && !HOLIDAYS.has(isoLocal(cursor))) ms += stop - cursor;
     cursor = stop;
   }
   return ms / 3600000;
 }
 
-// Row tone for the list: "lost" (maroon), "late" (red) or "" (normal, no colour)
+// The list sends dates as dd/mm/yyyy; an empty date comes back as year 0000 / -0001
+const parseListDate = (v) => {
+  const m = String(v || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m || Number(m[3]) < 2000) return null;
+  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+};
+
+// Row tone for the list:
+//   "lost"    maroon        - regretted / order lost
+//   "overdue" dark red-brown - expected closing date passed and the order is not closed
+//   "late"    red           - quotation not generated within 24 working hours of the enquiry
+//   ""        no colour     - on time
 export function enquiryTone(row) {
   const status = String(row.status);
   if (status === "91" || row.loss_reason) return "lost";
+  if ((status === "0" || status === "1") && !Number(row.closed)) {
+    const due = parseListDate(row.expecteddateforfinalization);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (due && due < today) return "overdue";
+  }
   if (status === "0" && workingHoursBetween(row.added_on) > QUOTE_TAT_HOURS) return "late";
   return "";
 }

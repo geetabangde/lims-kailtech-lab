@@ -35,6 +35,9 @@ export function StatusMenuCell({ row, table, getValue }) {
     <div className="flex min-w-[150px] items-center gap-2">
       <div className="flex flex-col items-start gap-1">
         <StatusCell getValue={getValue} />
+        {tone === "overdue" && (
+          <span className="rounded bg-[#7a2e24] px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Closure overdue</span>
+        )}
         {tone === "late" && (
           <span className="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Late - TAT crossed</span>
         )}
