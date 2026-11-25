@@ -9,6 +9,13 @@ const cleanWaNumber = (v) => {
   return d.length === 10 ? `91${d}` : d;
 };
 
+// Calibration dispatches: these Kailtech addresses are pre-selected in CC so the operator does not retype them
+// (they can still be removed with the x on the chip). Edit this list only.
+const DEFAULT_CALIBRATION_CC = ['dharmendra@kailtech.net', 'calibration@kailtech.com', 'bd3@kailtech.net'];
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const splitEmailText = (text) => String(text || '').split(/[\s,;]+/).map((t) => t.trim()).filter(Boolean);
+
 export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfId, onSuccess }) {
   // Calibration batch = inwardId (default); Testing batch = trfId (reports of one TRF)
   const isTesting = !inwardId && !!trfId;
@@ -34,7 +41,9 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
   // Testing Phase Safeguard State
   const [testMode, setTestMode] = useState(true);
   const [testRecipientEmail, setTestRecipientEmail] = useState('');
-  const [includeInvoice, setIncludeInvoice] = useState(false);
+  // Tax invoice: calibration = chosen ROW BY ROW (invoiceItemIds); testing = one invoice per TRF (global switch)
+  const [includeInvoiceTesting, setIncludeInvoiceTesting] = useState(false);
+  const [invoiceItemIds, setInvoiceItemIds] = useState([]);
   const [sendWhatsApp, setSendWhatsApp] = useState(false);
   const [waNumbers, setWaNumbers] = useState([]); // WhatsApp numbers (pre-filled from the directory, fully editable)
   const [newWaNumber, setNewWaNumber] = useState('');
@@ -66,6 +75,7 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
 
   const resetState = () => {
     setData(null);
+    setInvoiceItemIds([]);
     setToRecipients([]);
     setCcRecipients([]);
     setNewToEmail('');
@@ -102,7 +112,10 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
         setData(d);
         setTestMode(Boolean(d.test_mode)); // follow the server setting (DISPATCH_ALLOW_LIVE_CLIENTS); stays true until preview loads
         setToRecipients(d.recipients?.to || []);
-        setCcRecipients(d.recipients?.cc || []);
+        // Calibration: the standard Kailtech CC addresses are pre-selected (merged, no duplicates)
+        setCcRecipients(
+          [...new Set([...(d.recipients?.cc || []), ...(isTesting ? [] : DEFAULT_CALIBRATION_CC)])]
+        );
         setPoNumber(d.po_options?.recommended || '');
         setReferenceType(d.po_options?.recommended_type || 'po_number');
 
@@ -111,7 +124,11 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
           .filter((item) => item.is_approved)
           .map((item) => item.id);
         setSelectedItemIds(approvedIds);
-        setIncludeInvoice(Boolean(d.invoices && d.invoices.length > 0));
+        setIncludeInvoiceTesting(Boolean(d.invoices && d.invoices.length > 0));
+        // every approved row that has a ready tax invoice starts ticked; the operator can untick any row
+        setInvoiceItemIds(
+          (d.items || []).filter((item) => item.is_approved && item.invoice_ok === true).map((item) => item.id)
+        );
         setSendWhatsApp(Boolean(d.whatsapp_ready));
         {
           const pre = cleanWaNumber(d.recipients?.whatsapp);
@@ -129,33 +146,32 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
   };
 
   // Add / Remove Recipient Chips
+  // Type "a@x.com, b@y.com" (or paste a list): every address is added as a chip as soon as a comma / space / semicolon /
+  // Enter / leaving the field completes it. Enter is NOT compulsory between addresses.
+  const commitEmails = (text, list, setList, setText, final = false) => {
+    const tokens = splitEmailText(text);
+    const endsWithSeparator = /[\s,;]$/.test(text);
+    const toCommit = final || endsWithSeparator ? tokens : tokens.slice(0, -1);
+    const keep = final || endsWithSeparator ? [] : tokens.slice(-1);
+    const good = [];
+    const bad = [];
+    toCommit.forEach((t) => (EMAIL_RE.test(t) ? good.push(t) : bad.push(t)));
+    if (good.length) setList([...new Set([...list, ...good])]);
+    setText([...bad, ...keep].join(' '));
+    if (bad.length) toast.error(`Invalid email address: ${bad.join(', ')}`);
+  };
+
   const handleAddToEmail = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === 'Enter') {
       e.preventDefault();
-      const trimmed = newToEmail.trim().replace(',', '');
-      if (trimmed && isValidEmail(trimmed)) {
-        if (!toRecipients.includes(trimmed)) {
-          setToRecipients([...toRecipients, trimmed]);
-        }
-        setNewToEmail('');
-      } else if (trimmed) {
-        toast.error('Invalid email address format.');
-      }
+      commitEmails(newToEmail, toRecipients, setToRecipients, setNewToEmail, true);
     }
   };
 
   const handleAddCcEmail = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === 'Enter') {
       e.preventDefault();
-      const trimmed = newCcEmail.trim().replace(',', '');
-      if (trimmed && isValidEmail(trimmed)) {
-        if (!ccRecipients.includes(trimmed)) {
-          setCcRecipients([...ccRecipients, trimmed]);
-        }
-        setNewCcEmail('');
-      } else if (trimmed) {
-        toast.error('Invalid email address format.');
-      }
+      commitEmails(newCcEmail, ccRecipients, setCcRecipients, setNewCcEmail, true);
     }
   };
 
@@ -219,12 +235,17 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
   const handleQueueDispatch = async () => {
     const isTestDispatch = testMode || data?.test_mode;
     // Pending (un-entered) typed addresses are picked up so Enter is not mandatory
-    const pendingTo = newToEmail.trim().replace(/,$/, '');
+    const pendingToList = splitEmailText(newToEmail);
+    const pendingCcList = splitEmailText(newCcEmail);
+    const badPending = [...pendingToList, ...pendingCcList].filter((t) => !isValidEmail(t));
+    if (badPending.length) {
+      toast.error(`Invalid email address: ${badPending.join(', ')}. Correct or remove it before sending.`);
+      return;
+    }
     const finalTo = isTestDispatch
       ? [TEST_TO_EMAIL]
-      : [...new Set([...toRecipients, ...(pendingTo && isValidEmail(pendingTo) ? [pendingTo] : [])])];
-    const pendingCc = newCcEmail.trim().replace(/,$/, '');
-    const finalCc = [...new Set([...ccRecipients, ...(pendingCc && isValidEmail(pendingCc) ? [pendingCc] : [])])];
+      : [...new Set([...toRecipients, ...pendingToList])];
+    const finalCc = [...new Set([...ccRecipients, ...pendingCcList])];
     if (finalTo.length === 0) {
       toast.error('Please specify at least one "To" recipient email.');
       return;
@@ -270,6 +291,8 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
         test_recipient_email: parseTestRecipients(testRecipientEmail.trim() || TEST_TO_EMAIL).join(', '),
         declaration_confirmed: true,
         include_invoice: includeInvoice,
+        // calibration: exactly which certificate rows carry the tax invoice (new, additive key)
+        ...(isTesting ? {} : { invoice_item_ids: invoiceItemIds.filter((id) => selectedItemIds.includes(id)) }),
         send_whatsapp: Boolean(data?.whatsapp_ready) && sendWhatsApp && waNumbers.length > 0,
         whatsapp_phone: data?.recipients?.whatsapp || null,
         whatsapp_recipients: waNumbers,
@@ -391,6 +414,21 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
 
   if (!isOpen) return null;
 
+  // Row-wise invoice choice (calibration). includeInvoice = at least one ticked certificate carries its invoice.
+  const invoiceRowsOn = isTesting ? [] : invoiceItemIds.filter((id) => selectedItemIds.includes(id));
+  const includeInvoice = isTesting ? includeInvoiceTesting : invoiceRowsOn.length > 0;
+  const invoiceEligibleIds = (data?.items || []).filter((it) => it.is_approved && it.invoice_ok === true).map((it) => it.id);
+  const setIncludeInvoice = (on) => {
+    if (isTesting) setIncludeInvoiceTesting(on);
+    else setInvoiceItemIds(on ? invoiceEligibleIds : []);
+  };
+  const toggleInvoiceRow = (id) =>
+    setInvoiceItemIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const invoiceNosOn = [
+    ...new Set((data?.items || []).filter((it) => invoiceRowsOn.includes(it.id)).map((it) => it.invoice_no).filter(Boolean)),
+  ];
+  const multiInvoice = !isTesting && invoiceNosOn.length > 1;
+
   // Why this dispatch cannot go out (checked here for the ticked certificates; the server re-checks on send)
   const blockers = (data?.items || [])
     .filter((it) => selectedItemIds.includes(it.id))
@@ -399,11 +437,19 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
       if (!it.pdf_exists) {
         list.push({ item_id: it.id, certificate: it.certificateno, name: it.name, reason: 'The certificate PDF file is missing on the server, so it cannot be attached.' });
       }
-      if (includeInvoice && it.invoice_ok === false) {
+      if (isTesting ? includeInvoice && it.invoice_ok === false : invoiceItemIds.includes(it.id) && it.invoice_ok === false) {
         list.push({ item_id: it.id, certificate: it.certificateno, name: it.name, reason: it.invoice_reason || 'No tax invoice is ready for this certificate.' });
       }
       return list;
     });
+  if (multiInvoice) {
+    blockers.push({
+      item_id: 0,
+      certificate: 'Tax invoice',
+      name: invoiceNosOn.join(', '),
+      reason: `The rows ticked for a tax invoice belong to ${invoiceNosOn.length} different invoices (${invoiceNosOn.join(', ')}). One e-mail can carry one invoice: untick the rows of the other invoice(s).`,
+    });
+  }
   const problemItemIds = [...new Set(blockers.map((b) => b.item_id))];
 
   const allConfirmed =
@@ -837,11 +883,12 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                       </span>
                     ))}
                     <input
-                      type="email"
+                      type="text"
                       value={newToEmail}
-                      onChange={(e) => setNewToEmail(e.target.value)}
+                      onChange={(e) => commitEmails(e.target.value, toRecipients, setToRecipients, setNewToEmail)}
+                      onBlur={() => newToEmail.trim() && commitEmails(newToEmail, toRecipients, setToRecipients, setNewToEmail, true)}
                       onKeyDown={handleAddToEmail}
-                      placeholder={toRecipients.length === 0 ? 'Type email & press Enter...' : '+ add more...'}
+                      placeholder={toRecipients.length === 0 ? 'Type email(s), separate with comma...' : '+ add more...'}
                       className="flex-1 min-w-[140px] text-xs bg-transparent border-none outline-none py-1"
                     />
                   </div>
@@ -871,11 +918,12 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                       </span>
                     ))}
                     <input
-                      type="email"
+                      type="text"
                       value={newCcEmail}
-                      onChange={(e) => setNewCcEmail(e.target.value)}
+                      onChange={(e) => commitEmails(e.target.value, ccRecipients, setCcRecipients, setNewCcEmail)}
+                      onBlur={() => newCcEmail.trim() && commitEmails(newCcEmail, ccRecipients, setCcRecipients, setNewCcEmail, true)}
                       onKeyDown={handleAddCcEmail}
-                      placeholder={ccRecipients.length === 0 ? 'Type CC email & press Enter...' : '+ add more...'}
+                      placeholder={ccRecipients.length === 0 ? 'Type CC email(s), separate with comma...' : '+ add more...'}
                       className="flex-1 min-w-[140px] text-xs bg-transparent border-none outline-none py-1"
                     />
                   </div>
@@ -1095,14 +1143,33 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                           <td className="p-2.5">
                             {item.invoice_ok === undefined ? (
                               <span className="text-gray-400">-</span>
+                            ) : isTesting ? (
+                              item.invoice_ok ? (
+                                <span className={includeInvoice ? "text-emerald-600 font-medium" : "text-gray-400 line-through"}>
+                                  {item.invoice_no}
+                                  {!includeInvoice && <span className="ml-1 text-[9px] no-underline font-normal text-gray-500">(Excluded)</span>}
+                                </span>
+                              ) : (
+                                <span className={includeInvoice ? "text-red-500 font-semibold" : "text-gray-400 line-through"}>
+                                  {includeInvoice ? "Not ready" : (item.invoice_no || "Excluded")}
+                                </span>
+                              )
                             ) : item.invoice_ok ? (
-                              <span className={includeInvoice ? "text-emerald-600 font-medium" : "text-gray-400 line-through"}>
-                                {item.invoice_no}
-                                {!includeInvoice && <span className="ml-1 text-[9px] no-underline font-normal text-gray-500">(Excluded)</span>}
-                              </span>
+                              <label className="flex items-center gap-1.5 cursor-pointer select-none" title="Send this row's tax invoice with the e-mail">
+                                <input
+                                  type="checkbox"
+                                  checked={invoiceItemIds.includes(item.id)}
+                                  disabled={!item.is_approved || !selectedItemIds.includes(item.id)}
+                                  onChange={() => toggleInvoiceRow(item.id)}
+                                  className="rounded text-emerald-600 focus:ring-0"
+                                />
+                                <span className={invoiceItemIds.includes(item.id) && selectedItemIds.includes(item.id) ? "text-emerald-600 font-medium" : "text-gray-400 line-through"}>
+                                  {item.invoice_no}
+                                </span>
+                              </label>
                             ) : (
-                              <span className={includeInvoice ? "text-red-500 font-semibold" : "text-gray-400 line-through"}>
-                                {includeInvoice ? "Not ready" : (item.invoice_no || "Excluded")}
+                              <span className="text-amber-600 font-semibold" title={item.invoice_reason || ''}>
+                                Not ready <span className="font-normal text-[9px] text-gray-500">(bill not sent for this row)</span>
                               </span>
                             )}
                           </td>
@@ -1152,7 +1219,11 @@ export default function SendBatchDispatchModal({ isOpen, onClose, inwardId, trfI
                             : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
                         }`}
                       >
-                        {includeInvoice ? '✅ Will be attached' : '⚠️ Reports Only (Bill will NOT be emailed)'}
+                        {includeInvoice
+                          ? isTesting
+                            ? '✅ Will be attached'
+                            : `✅ Will be attached for ${invoiceRowsOn.length} of ${selectedItemIds.length} selected certificate(s)`
+                          : '⚠️ Reports Only (Bill will NOT be emailed)'}
                       </span>
                     </div>
                   </label>
