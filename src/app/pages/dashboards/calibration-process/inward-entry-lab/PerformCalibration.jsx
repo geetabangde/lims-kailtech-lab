@@ -36,6 +36,21 @@ const DEFAULT_COLUMN_VISIBILITY = {
     actions: true,
 };
 
+// A failed blob download hides the server's JSON answer inside a Blob: read it so the user sees the real reason
+// (e.g. "None of the selected certificates is approved yet ... use Download Drafts").
+const blobErrorMessage = async (error, fallback) => {
+    try {
+        const data = error?.response?.data;
+        if (data instanceof Blob) {
+            const j = JSON.parse(await data.text());
+            return j.message || j.error || fallback;
+        }
+        return data?.message || data?.error || fallback;
+    } catch {
+        return fallback;
+    }
+};
+
 const PerformCalibration = () => {
     const navigate = useNavigate();
 
@@ -602,10 +617,10 @@ const PerformCalibration = () => {
 
                     } catch (error) {
                         if (error.response && error.response.status === 404) {
-                            toast.error("No certificate files found");
+                            toast.error(await blobErrorMessage(error, "No certificate files found"), { duration: 9000 });
                         } else {
                             console.error('Download certificates with letterhead error:', error);
-                            toast.error("Failed to download certificates with letterhead");
+                            toast.error(await blobErrorMessage(error, "Failed to download certificates with letterhead"), { duration: 9000 });
                         }
                     }
                     break;
@@ -658,10 +673,10 @@ const PerformCalibration = () => {
 
                     } catch (error) {
                         if (error.response && error.response.status === 404) {
-                            toast.error("No certificate files found");
+                            toast.error(await blobErrorMessage(error, "No certificate files found"), { duration: 9000 });
                         } else {
                             console.error('Download certificates error:', error);
-                            toast.error("Failed to download certificates");
+                            toast.error(await blobErrorMessage(error, "Failed to download certificates"), { duration: 9000 });
                         }
                     }
                     break;
