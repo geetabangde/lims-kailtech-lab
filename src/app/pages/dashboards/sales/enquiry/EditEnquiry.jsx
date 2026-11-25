@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import clsx from "clsx";
 import Select from "react-select";
 import { DatePicker } from "components/shared/form/Datepicker";
-import EnquiryExtraFields from "./EnquiryExtraFields";
+import { FINALIZATION_OPTIONS } from "./enquiryOptions";
 import dayjs from "dayjs";
 
 export default function EditEnquiry() {
@@ -40,20 +40,25 @@ export default function EditEnquiry() {
     description: "",
     modeof: "0",
     modeother: "",
-    approxqty: "",
     approxvalue: "",
     expecteddateforfinalization: "",
-    action: "",
-    nextconactdate: "",
-    remark: "",
-    lead_source: "",
-    area: "",
-    payment_status: "",
-    sample_arrived: "",
-    whatsapp_number: "",
-    tech_verification_status: "",
-    tech_verification_remark: "",
   });
+
+  // Edit Enquiry aligned with the Add Enquiry form (2026-11-25)
+  const [finalChoice, setFinalChoice] = useState("");
+  const [dateTouched, setDateTouched] = useState(false); // only send `date` when the user changed it
+  const today = dayjs().format("YYYY-MM-DD");
+
+  const handleFinalChoice = (opt) => {
+    const v = opt ? opt.value : "";
+    setFinalChoice(v);
+    const found = FINALIZATION_OPTIONS.find((o) => o.value === v);
+    setFormData((prev) => ({
+      ...prev,
+      expecteddateforfinalization:
+        found && found.days !== null ? dayjs().add(found.days, "day").format("YYYY-MM-DD") : prev.expecteddateforfinalization,
+    }));
+  };
 
   const MODE_OPTIONS = [
     { value: "0", label: "Telephone" },
@@ -78,7 +83,12 @@ export default function EditEnquiry() {
       if (res.data?.data && res.data.data.length > 0) {
         const enquiry = res.data.data[0];
         setFormData({
-          date: enquiry.date ? dayjs(enquiry.date).format("DD-MM-YYYY") : "",
+          // Older rows kept a wrong (swapped / future) `date`; fall back to the day it was punched
+          date: (() => {
+            const d = enquiry.date ? dayjs(enquiry.date) : null;
+            if (d && d.isValid() && d.format("YYYY-MM-DD") <= today) return d.format("YYYY-MM-DD");
+            return enquiry.added_on ? dayjs(enquiry.added_on).format("YYYY-MM-DD") : today;
+          })(),
           enquiryby: String(enquiry.enquiryby || ""),
           assignto: String(enquiry.assignto || ""),
           vertical: String(enquiry.vertical || ""),
@@ -93,24 +103,14 @@ export default function EditEnquiry() {
           description: enquiry.description || "",
           modeof: String(enquiry.modeof || "0"),
           modeother: enquiry.modeother || "",
-          approxqty: enquiry.approxqty || "",
           approxvalue: enquiry.approxvalue || "",
-          expecteddateforfinalization: (enquiry.expecteddateforfinalization && enquiry.expecteddateforfinalization !== "0000-00-00")
-            ? dayjs(enquiry.expecteddateforfinalization).format("DD-MM-YYYY") 
+          expecteddateforfinalization: (enquiry.expecteddateforfinalization && !String(enquiry.expecteddateforfinalization).startsWith("0000"))
+            ? dayjs(enquiry.expecteddateforfinalization).format("YYYY-MM-DD")
             : "",
-          action: enquiry.action || "",
-          nextconactdate: (enquiry.nextconactdate && !enquiry.nextconactdate.startsWith("0000"))
-            ? dayjs(enquiry.nextconactdate).format("DD-MM-YYYY")
-            : "",
-          remark: enquiry.remark || "",
-          lead_source: enquiry.lead_source || "",
-          area: enquiry.area || "",
-          payment_status: enquiry.payment_status || "",
-          sample_arrived: enquiry.sample_arrived || "",
-          whatsapp_number: enquiry.whatsapp_number || "",
-          tech_verification_status: enquiry.tech_verification_status || "",
-          tech_verification_remark: enquiry.tech_verification_remark || "",
         });
+        if (enquiry.expecteddateforfinalization && !String(enquiry.expecteddateforfinalization).startsWith("0000")) {
+          setFinalChoice("other");
+        }
         setShowCustomerDetail(true);
       }
     } catch (err) {
@@ -119,7 +119,7 @@ export default function EditEnquiry() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, today]);
 
   const fetchDropdownData = useCallback(async () => {
     try {
@@ -225,8 +225,8 @@ export default function EditEnquiry() {
     e.preventDefault();
 
     // Validation
-    if (!formData.enquiryby) {
-      toast.error("Please select Enquiry Received By");
+    if (dateTouched && formData.date > today) {
+      toast.error("Enquiry date cannot be a future date");
       return;
     }
     if (!formData.assignto) {
@@ -245,32 +245,18 @@ export default function EditEnquiry() {
       toast.error("Please enter Description");
       return;
     }
-    if (!formData.approxqty) {
-      toast.error("Please enter Approx Qty");
-      return;
-    }
-    if (!formData.remark) {
-      toast.error("Please enter Remark");
-      return;
-    }
 
     setSubmitting(true);
     try {
+      // Only the fields that are on this form are sent, so the fields removed from the form (qty, remark,
+      // action taken, next contact, lead source ...) keep whatever value they already have.
+      const { date, expecteddateforfinalization, ...rest } = formData;
       const payload = {
-        ...formData,
+        ...rest,
         id,
-        // Format dates if needed (following the Add form pattern)
-        date: dayjs(formData.date, "DD-MM-YYYY").isValid()
-          ? dayjs(formData.date, "DD-MM-YYYY").format("MM/DD/YYYY")
-          : formData.date,
-        expecteddateforfinalization: dayjs(
-          formData.expecteddateforfinalization,
-          "DD-MM-YYYY"
-        ).isValid()
-          ? dayjs(formData.expecteddateforfinalization, "DD-MM-YYYY").format(
-              "MM/DD/YYYY"
-            )
-          : formData.expecteddateforfinalization,
+        approxvalue: Number(formData.approxvalue || 0),
+        ...(dateTouched ? { date } : {}),
+        ...(expecteddateforfinalization ? { expecteddateforfinalization } : {}),
       };
 
       await axios.post("/sales/update-enquiry", payload);
@@ -340,43 +326,17 @@ export default function EditEnquiry() {
               </label>
               <div className="md:col-span-2">
                 <DatePicker
-                  options={{ dateFormat: "d-m-Y", allowInput: true }}
+                  options={{ dateFormat: "Y-m-d", allowInput: true, maxDate: "today" }}
                   value={formData.date}
-                  onChange={([date]) =>
+                  onChange={([date]) => {
+                    setDateTouched(true);
                     setFormData((prev) => ({
                       ...prev,
                       date: date ? dayjs(date).format("YYYY-MM-DD") : "",
-                    }))
-                  }
+                    }));
+                  }}
                   placeholder="Select Date"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                />
-              </div>
-            </div>
-
-            {/* Enquiry Received By */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Enquiry Received By <span className="text-red-500">*</span>
-              </label>
-              <div className="md:col-span-2">
-                <Select
-                  options={admins.map((admin) => ({
-                    value: admin.id,
-                    label: `${admin.firstname} ${admin.lastname}`,
-                  }))}
-                  value={
-                    admins
-                      .map((admin) => ({
-                        value: admin.id,
-                        label: `${admin.firstname} ${admin.lastname}`,
-                      }))
-                      .find((opt) => String(opt.value) === String(formData.enquiryby)) ||
-                    null
-                  }
-                  onChange={(opt) => handleSelectChange("enquiryby", opt)}
-                  placeholder="Select"
-                  isSearchable
                 />
               </div>
             </div>
@@ -651,23 +611,6 @@ export default function EditEnquiry() {
               </div>
             )}
 
-            {/* Approx Qty */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Approx Qty <span className="text-red-500">*</span>
-              </label>
-              <div className="md:col-span-2">
-                <input
-                  type="text"
-                  name="approxqty"
-                  value={formData.approxqty}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                />
-              </div>
-            </div>
-
             {/* Approx Commercial Value */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -689,9 +632,22 @@ export default function EditEnquiry() {
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Expected Date of Finalization/Closure
               </label>
-              <div className="md:col-span-2">
+              <div className="md:col-span-2 space-y-2">
+                <Select
+                  options={FINALIZATION_OPTIONS}
+                  value={FINALIZATION_OPTIONS.find((o) => o.value === finalChoice) || null}
+                  onChange={handleFinalChoice}
+                  placeholder="Immediate / within a week / within 15 days / other"
+                  isClearable
+                />
+                {finalChoice && finalChoice !== "other" && formData.expecteddateforfinalization && (
+                  <p className="text-xs text-gray-500">
+                    Expected closure date: {dayjs(formData.expecteddateforfinalization).format("DD-MM-YYYY")}
+                  </p>
+                )}
+                {finalChoice === "other" && (
                 <DatePicker
-                  options={{ dateFormat: "d-m-Y", allowInput: true }}
+                  options={{ dateFormat: "Y-m-d", allowInput: true }}
                   value={formData.expecteddateforfinalization}
                   onChange={([date]) =>
                     setFormData((prev) => ({
@@ -704,64 +660,9 @@ export default function EditEnquiry() {
                   placeholder="Select Date"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
                 />
+                )}
               </div>
             </div>
-
-            {/* Details of Action Taken */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Details of the Action Taken
-              </label>
-              <div className="md:col-span-2">
-                <input
-                  type="text"
-                  name="action"
-                  value={formData.action}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                />
-              </div>
-            </div>
-
-            {/* Next Time For Contact */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Next Time For Contact
-              </label>
-              <div className="md:col-span-2">
-                <DatePicker
-                  options={{ dateFormat: "d-m-Y", allowInput: true }}
-                  value={formData.nextconactdate}
-                  onChange={([date]) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      nextconactdate: date ? dayjs(date).format("YYYY-MM-DD") : "",
-                    }))
-                  }
-                  placeholder="Select Date"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                />
-              </div>
-            </div>
-
-            {/* Remark */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 pt-2">
-                Remark <span className="text-red-500">*</span>
-              </label>
-              <div className="md:col-span-2">
-                <textarea
-                  name="remark"
-                  value={formData.remark}
-                  onChange={handleChange}
-                  required
-                  rows={3}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                />
-              </div>
-            </div>
-
-            <EnquiryExtraFields formData={formData} setFormData={setFormData} />
 
             {/* Submit Button */}
             <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
