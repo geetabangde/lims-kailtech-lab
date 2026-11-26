@@ -51,6 +51,7 @@ export default function RemnantRegister() {
     department: "",
     ctype: "",
     specificpurpose: "",
+    lrn: "",
   });
 
   const [departments, setDepartments] = useState([]);
@@ -110,6 +111,8 @@ export default function RemnantRegister() {
       if (filters.startdate) apiParams.startdate = filters.startdate;
       if (filters.enddate) apiParams.enddate = filters.enddate;
       if (filters.department) apiParams.department = filters.department;
+      // LRN search (server already supports it as search[value]); works without a date range
+      if (filters.lrn && filters.lrn.trim()) apiParams["search[value]"] = filters.lrn.trim();
       
       const res = await axios.get("/register/remnant-register", { params: apiParams });
       

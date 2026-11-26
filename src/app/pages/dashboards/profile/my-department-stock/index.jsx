@@ -4,7 +4,9 @@ import {
   getCoreRowModel,
   getFacetedMinMaxValues,
   getFacetedUniqueValues,
+  getExpandedRowModel,
   getFilteredRowModel,
+  getGroupedRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
@@ -36,6 +38,61 @@ const isSafari = getUserAgentBrowser() === "Safari";
 // PHP: $permissions → stored in localStorage after login
 function usePermissions() {
   return localStorage.getItem("userPermissions")?.split(",").map(Number) || [];
+}
+
+// ── Product (group) row: totals of all its batches ──────────────────────────────
+const toDate = (d) => {
+  const m = String(d || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? new Date(`${m[3]}-${m[2]}-${m[1]}`).getTime() : null;
+};
+
+function renderGroupCell(row, leaves, cell, colId) {
+  const first = leaves[0];
+  const items = leaves.map((l) => l.original);
+  const n = items.length;
+  if (colId === "s_no") return <div className="text-center">{row.index + 1}</div>;
+  if (colId === "name") {
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={row.getToggleExpandedHandler()}
+          title={row.getIsExpanded() ? "Hide batches" : "Show batches"}
+          className={clsx(
+            "flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs font-bold",
+            row.getIsExpanded()
+              ? "border-red-500 bg-red-50 text-red-600"
+              : "border-green-500 bg-green-50 text-green-600",
+          )}
+        >
+          {row.getIsExpanded() ? "-" : "+"}
+        </button>
+        <span>{first.original.name ?? "—"}</span>
+      </div>
+    );
+  }
+  if (colId === "batchno") return <span className="text-xs text-gray-500">{n} {n === 1 ? "batch" : "batches"}</span>;
+  if (colId === "location") {
+    const locs = [...new Set(items.map((i) => i.location).filter(Boolean))];
+    return locs.length > 1 ? `${locs.length} locations` : locs[0] ?? "—";
+  }
+  if (colId === "expdate") {
+    // nearest expiry among batches that still have stock (all batches if none has)
+    const inStock = items.filter((i) => Number(i.qty) > 0);
+    const pool = (inStock.length ? inStock : items).map((i) => toDate(i.expdate)).filter((t) => t !== null);
+    if (!pool.length) return "—";
+    const t = Math.min(...pool);
+    return <span title="Nearest expiry among batches in stock">{new Date(t).toLocaleDateString("en-GB")}</span>;
+  }
+  if (colId === "qty_with_unit") {
+    const total = items.reduce((a, i) => a + (Number(i.qty) || 0), 0);
+    const units = [...new Set(items.map((i) => i.units).filter(Boolean))];
+    return <span title="Total of all batches">{`${parseFloat(total.toFixed(3))} ${units.length === 1 ? units[0] : ""}`.trim()}</span>;
+  }
+  if (colId === "edit") return null;
+  // type / idno / category / critical: same for every batch of the product
+  const leafCell = first.getVisibleCells().find((c) => c.column.id === colId);
+  return leafCell ? flexRender(leafCell.column.columnDef.cell, leafCell.getContext()) : null;
 }
 
 export default function MyDepartmentStock() {
@@ -82,7 +139,9 @@ export default function MyDepartmentStock() {
 
   const [globalFilter, setGlobalFilter] = useState("");
 
-  const [sorting, setSorting] = useState([{ id: "s_no", desc: false }]);
+  // Products are shown once (grouped by ID no); "+" opens the batch / location list of that product
+  const [expanded, setExpanded] = useState({});
+  const [sorting, setSorting] = useState([]);
 
   // PHP: hide Edit column if permission 348 is absent
   const [columnVisibility, setColumnVisibility] = useLocalStorage(
@@ -117,7 +176,15 @@ export default function MyDepartmentStock() {
       columnVisibility,
       columnPinning,
       tableSettings,
+      grouping: ["idno"],
+      // while searching, open every product so the matching batch is visible
+      expanded: globalFilter ? true : expanded,
     },
+    onExpandedChange: setExpanded,
+    groupedColumnMode: false,
+    paginateExpandedRows: false,
+    autoResetExpanded: false,
+    defaultColumn: { aggregationFn: (colId, leafRows) => leafRows[0]?.getValue(colId) },
     meta: {
       openEditModal: (id) => setEditModal({ show: true, id }),
       updateData: (rowIndex, columnId, value) => {
@@ -155,6 +222,8 @@ export default function MyDepartmentStock() {
     getCoreRowModel: getCoreRowModel(),
     onGlobalFilterChange: setGlobalFilter,
     getFilteredRowModel: getFilteredRowModel(),
+    getGroupedRowModel: getGroupedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues(),
     globalFilterFn: fuzzyFilter,
@@ -269,25 +338,36 @@ export default function MyDepartmentStock() {
                   </THead>
                   <TBody>
                     {table.getRowModel().rows.map((row) => {
+                      const isGroup = row.getIsGrouped();
+                      const leaves = isGroup ? row.getLeafRows() : [];
                       return (
                         <Tr
                           key={row.id}
                           className={clsx(
                             "relative border-y border-transparent border-b-gray-200 dark:border-b-dark-500",
+                            isGroup && "font-semibold",
                             row.getIsSelected() && !isSafari &&
                             "row-selected after:pointer-events-none after:absolute after:inset-0 after:z-2 after:h-full after:w-full after:border-3 after:border-transparent after:bg-primary-500/10 ltr:after:border-l-primary-500 rtl:after:border-r-primary-500",
                           )}
                         >
-                          {/* first row is a normal row */}
                           {row.getVisibleCells().map((cell) => {
+                            const colId = cell.column.id;
+                            let content;
+                            if (isGroup) {
+                              content = renderGroupCell(row, leaves, cell, colId);
+                            } else if (colId === "s_no") {
+                              content = <div className="pl-4 text-center text-gray-500">{(row.getParentRow()?.subRows.indexOf(row) ?? row.index) + 1}</div>;
+                            } else {
+                              content = flexRender(cell.column.columnDef.cell, cell.getContext());
+                            }
                             return (
                               <Td
                                 key={cell.id}
                                 className={clsx(
-                                  "relative bg-white",
-                                  cardSkin === "shadow"
-                                    ? "dark:bg-dark-700"
-                                    : "dark:bg-dark-900",
+                                  "relative",
+                                  isGroup
+                                    ? "bg-gray-50 dark:bg-dark-800"
+                                    : clsx("bg-white", cardSkin === "shadow" ? "dark:bg-dark-700" : "dark:bg-dark-900"),
                                   cell.column.getCanPin() && [
                                     cell.column.getIsPinned() === "left" &&
                                     "sticky z-2 ltr:left-0 rtl:right-0",
@@ -306,10 +386,7 @@ export default function MyDepartmentStock() {
                                     )}
                                   ></div>
                                 )}
-                                {flexRender(
-                                  cell.column.columnDef.cell,
-                                  cell.getContext(),
-                                )}
+                                {content}
                               </Td>
                             );
                           })}

@@ -9,6 +9,7 @@ export function Toolbar({ filters, onChange, onSearch, departments, customerType
   const [department, setDepartment] = useState(filters.department || "");
   const [ctype, setCtype] = useState(filters.ctype || "");
   const [specificpurpose, setSpecificpurpose] = useState(filters.specificpurpose || "");
+  const [lrn, setLrn] = useState(filters.lrn || "");
 
   const handleInput = (name, value) => {
     if (name === "startdate") setStartDate(value);
@@ -16,6 +17,7 @@ export function Toolbar({ filters, onChange, onSearch, departments, customerType
     if (name === "department") setDepartment(value);
     if (name === "ctype") setCtype(value);
     if (name === "specificpurpose") setSpecificpurpose(value);
+    if (name === "lrn") setLrn(value);
     onChange(name, value);
   };
 
@@ -99,6 +101,22 @@ export function Toolbar({ filters, onChange, onSearch, departments, customerType
               isClearable
               placeholder="Select Department"
               styles={selectStyles}
+            />
+          </div>
+        </div>
+
+        {/* LRN search */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+          <div>
+            <label className="dark:text-dark-300 mb-1 block text-sm font-medium text-gray-600">
+              LRN
+            </label>
+            <input
+              type="text"
+              value={lrn}
+              onChange={(e) => handleInput("lrn", e.target.value)}
+              placeholder="Search by LRN"
+              className="h-10 w-full rounded border border-gray-300 px-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-dark-500 dark:bg-dark-800"
             />
           </div>
         </div>
