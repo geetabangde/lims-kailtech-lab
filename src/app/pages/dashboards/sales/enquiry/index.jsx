@@ -27,7 +27,8 @@ import { PaginationSection } from "components/shared/table/PaginationSection";
 import { useThemeContext } from "app/contexts/theme/context";
 
 import { columns } from "./columns";
-import { SOURCE_PILLS, enquiryTone, setHolidays } from "./enquiryOptions";
+import { SOURCE_PILLS, enquiryTone, setHolidays, effectiveStatus } from "./enquiryOptions";
+import EnquiryDetailsPanel from "./EnquiryDetailsPanel";
 import { Toolbar } from "./Toolbar";
 import { tableConfig } from "./TableConfig";
 import { SelectedRowsActions } from "./SelectedRowsActions";
@@ -63,7 +64,7 @@ export default function EnquiryList() {
   const isDue = (r) => {
     const d = String(r.nextconactdate || "").split("/");
     return (
-      String(r.status) === "0" && !isOrderDone(r) &&
+      String(r.status) === "0" && !isOrderDone(r) && effectiveStatus(r) !== "Lost" &&
       d.length === 3 &&
       `${d[2]}-${d[1]}-${d[0]}` <= new Date().toISOString().slice(0, 10)
     );
@@ -71,7 +72,7 @@ export default function EnquiryList() {
   // The top cards are clickable: a card filters the table, clicking it again (or "Total") clears it
   const data = useMemo(() => {
     switch (cardFilter) {
-      case "pending": return sourceRows.filter((r) => String(r.status) === "0" && !isOrderDone(r));
+      case "pending": return sourceRows.filter((r) => String(r.status) === "0" && !isOrderDone(r) && effectiveStatus(r) !== "Lost");
       case "tech": return sourceRows.filter((r) => r.tech_verification_status === "Under Technical Verification");
       case "quoted": return sourceRows.filter((r) => String(r.status) === "1");
       case "regretted": return sourceRows.filter((r) => String(r.status) === "91");
@@ -85,7 +86,7 @@ export default function EnquiryList() {
     const today = new Date().toISOString().slice(0, 10);
     const sum = (rows) => rows.reduce((a, r) => a + (Number(r.approxvalue) || 0), 0);
     const quoted = sourceRows.filter((r) => String(r.status) === "1");
-    const pending = sourceRows.filter((r) => String(r.status) === "0" && !isOrderDone(r));
+    const pending = sourceRows.filter((r) => String(r.status) === "0" && !isOrderDone(r) && effectiveStatus(r) !== "Lost");
     const due = pending.filter((r) => {
       const d = String(r.nextconactdate || "").split("/");
       return d.length === 3 && `${d[2]}-${d[1]}-${d[0]}` <= today;
@@ -99,6 +100,7 @@ export default function EnquiryList() {
       ready: quoted.filter((r) => r.quote_state === "ready_to_send").length,
       sent: quoted.filter((r) => r.quote_state === "sent" || r.quote_state === "order_received").length,
       regretted: sourceRows.filter((r) => String(r.status) === "91").length,
+      lost: sourceRows.filter((r) => effectiveStatus(r) === "Lost").length,
       due: due.length,
     };
   }, [sourceRows]);
@@ -112,7 +114,7 @@ export default function EnquiryList() {
   const [statusFilter, setStatusFilter] = useState("");
   const [sorting, setSorting] = useState([{ id: "added_on", desc: true }]);
   const [columnVisibility, setColumnVisibility] = useLocalStorage(
-    "col-vis-enquiry",
+    "col-vis-enquiry-v2",
     {},
   );
   const [columnPinning, setColumnPinning] = useLocalStorage(
@@ -141,7 +143,7 @@ export default function EnquiryList() {
         setHolidays(res.data.holidays);
         let fetchedData = res.data.data;
         if (statusFilter !== "") {
-          fetchedData = fetchedData.filter(item => String(item.status) === String(statusFilter));
+          fetchedData = fetchedData.filter(item => effectiveStatus(item) === String(statusFilter));
         }
         setRawData(fetchedData);
       } else {
@@ -172,17 +174,19 @@ export default function EnquiryList() {
       globalFilter,
       sorting,
       columnVisibility: {
-        // Redesign 2026-11-25: these stay available in the column toggle but start hidden
-        enquirybyname: false,
-        payment_status: false,
-        sample_arrived: false,
-        approxqty: false,
-        nextconactdate: false,
         ...columnVisibility,
+        // Slimmed 2026-11-26: these only feed the quick search (their data is in the customer cell / Details)
         id: false,
-        ...(isResponsive ? {
-          assigntoname: false,
-        } : {})
+        concernpersonname: false,
+        concernpersonmobile: false,
+        concernpersonemail: false,
+        address: false,
+        lead_source: false,
+        assigntoname: false,
+        action_taken: false,
+        area: false,
+        // BD column: only for users who can see all enquiries (permission 346: Ruby, Sushil ...), not for Nidhi / Manish
+        addedbyname: permissions.includes(346),
       },
       // The old Action column is gone (actions live behind the + button in Status)
       columnPinning: {
@@ -215,7 +219,7 @@ export default function EnquiryList() {
       isResponsive, // Pass to columns
     },
     onExpandedChange: setExpanded,
-    getRowCanExpand: () => isResponsive,
+    getRowCanExpand: () => true,
     getExpandedRowModel: getExpandedRowModel(),
     filterFns: { fuzzy: fuzzyFilter },
     globalFilterFn: fuzzyFilter,
@@ -320,7 +324,7 @@ export default function EnquiryList() {
                   ["pending", "Pending", kpi.pending, "text-amber-600"],
                   ["tech", "Under Technical Verification", kpi.tech, "text-purple-600"],
                   ["quoted", "Quotations Created", `${kpi.quoted} (₹${kpi.quotedValue.toLocaleString("en-IN")})`, "text-blue-600", `Ready to send: ${kpi.ready} · Sent: ${kpi.sent}`],
-                  ["regretted", "Regretted", kpi.regretted, "text-rose-600"],
+                  ["regretted", "Regretted", kpi.regretted, "text-rose-600", `Lost: ${kpi.lost}`],
                   ["due", "Follow-up Due", kpi.due, "text-orange-600"],
                 ].map(([key, label, value, color, sub]) => (
                   <button
@@ -461,23 +465,8 @@ export default function EnquiryList() {
                           {row.getIsExpanded() && (
                             <Tr className="bg-gray-50/50 dark:bg-dark-800/50 border-b border-gray-100 dark:border-dark-600">
                               <Td colSpan={row.getVisibleCells().length}>
-                                <div className="p-4 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                                    <span className="text-sm font-bold text-gray-800 dark:text-dark-100 w-44 shrink-0">
-                                      Enquiry Recieved By:
-                                    </span>
-                                    <span className="text-sm text-gray-600 dark:text-dark-300">
-                                      {row.original.enquirybyname || "-"}
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                                    <span className="text-sm font-bold text-gray-800 dark:text-dark-100 w-44 shrink-0">
-                                      Assign To:
-                                    </span>
-                                    <span className="text-sm text-gray-600 dark:text-dark-300">
-                                      {row.original.assigntoname || "-"}
-                                    </span>
-                                  </div>
+                                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                                  <EnquiryDetailsPanel row={row} />
                                 </div>
                               </Td>
                             </Tr>

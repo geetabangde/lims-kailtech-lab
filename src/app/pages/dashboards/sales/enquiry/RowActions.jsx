@@ -14,6 +14,8 @@ import CalMarkConvertedModal from "../calibration-quotations/MarkConvertedModal"
 import TestMarkConvertedModal from "../testing-quotations/MarkConvertedModal";
 import { TechVerifyModal, RegretEnquiryModal } from "./DenialModals";
 import ForwardEnquiryModal from "./ForwardEnquiryModal";
+import LostEnquiryModal from "./LostEnquiryModal";
+import { LAB_STATUS_MANUAL, effectiveStatus } from "./enquiryOptions";
 import QuotationDispatchModal from "../shared/QuotationDispatchModal";
 
 // ----------------------------------------------------------------------
@@ -24,6 +26,7 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
   const { id, status, vertical } = row.original;
   const enquiryStatus = Number(status || 0);
   const enquiryVertical = Number(vertical || 0);
+  const isLost = effectiveStatus(row.original) === "Lost"; // marked Lost: no more commercial actions
   const permissions = JSON.parse(localStorage.getItem("userPermissions") || "[]");
 
   const hasViewPerm = permissions.includes(91);
@@ -43,6 +46,23 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
   // The Regret popup (reason + remark, logged for management) lives in DenialModals.jsx
   const [regretOpen, setRegretOpen] = useState(false);
   const [forwardOpen, setForwardOpen] = useState(false);
+  const [lostOpen, setLostOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [statusBusy, setStatusBusy] = useState(false);
+
+  // Change the lab status by hand (the server records the date and writes the history)
+  const changeStatus = async (s) => {
+    setStatusBusy(true);
+    try {
+      await axios.post("/enquiry-lifecycle/set-status", { enquiry_id: id, lab_status: s });
+      toast.success(`Status changed to ${s}`);
+      table.options.meta?.refetch?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Could not change the status");
+    } finally {
+      setStatusBusy(false);
+    }
+  };
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
   const [orderRecvOpen, setOrderRecvOpen] = useState(false); // order received straight on the enquiry (no quotation yet)
@@ -162,7 +182,7 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
         }
       >
 
-        {enquiryStatus === 0 && (
+        {enquiryStatus === 0 && !isLost && (
           <>
             {/* Edit Button (btn-warning) */}
             {hasEditPerm && (
@@ -287,7 +307,7 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
           </>
         )}
 
-        {enquiryStatus === 1 && hasViewPerm && (
+        {enquiryStatus === 1 && hasViewPerm && !isLost && (
           <>
           <button
             onClick={handleViewQuotation}
@@ -315,6 +335,53 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
           >
             Track Followup
           </Link>
+          </>
+        )}
+
+        {/* Lab status: choose by hand (date + history are recorded) or mark as Lost with a reason */}
+        {isLost && (
+          <>
+            <span className="inline-flex items-center justify-center rounded-md bg-rose-100 px-3 py-1.5 text-[10px] font-bold text-rose-700 min-w-[110px] shadow-sm">
+              Marked Lost{row.original.loss_reason ? `: ${row.original.loss_reason}` : ""}
+            </span>
+            {hasViewPerm && (
+              <Link
+                to={`/dashboards/sales/enquiry/follow-up/${id}`}
+                className="inline-flex items-center justify-center rounded-md bg-blue-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-blue-700 min-w-[95px] shadow-sm"
+              >
+                Track Followup
+              </Link>
+            )}
+          </>
+        )}
+        {!isLost && hasEditPerm && (enquiryStatus === 0 || enquiryStatus === 1) && (
+          <>
+            <button
+              onClick={() => setStatusOpen((v) => !v)}
+              className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-indigo-700 min-w-[110px] shadow-sm"
+            >
+              {statusOpen ? "Hide Status Options" : "Change Status"}
+            </button>
+            {statusOpen &&
+              LAB_STATUS_MANUAL.map((s) => (
+                <button
+                  key={s}
+                  disabled={statusBusy}
+                  onClick={() => changeStatus(s)}
+                  className="inline-flex items-center justify-center rounded-md border border-indigo-300 bg-white px-3 py-1.5 text-[10px] font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:opacity-60 min-w-[110px] shadow-sm"
+                >
+                  {s}
+                </button>
+              ))}
+            <button
+              onClick={() => {
+                setLostOpen(true);
+                onClose?.();
+              }}
+              className="inline-flex items-center justify-center rounded-md bg-rose-700 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-rose-800 min-w-[110px] shadow-sm"
+            >
+              Lost
+            </button>
           </>
         )}
 
@@ -400,6 +467,12 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
           customerName={sendInfo.customername}
         />
       )}
+      <LostEnquiryModal
+        show={lostOpen}
+        enquiry={row.original}
+        onClose={() => setLostOpen(false)}
+        onDone={() => table.options.meta?.refetch?.()}
+      />
       <ForwardEnquiryModal
         show={forwardOpen}
         enquiry={row.original}

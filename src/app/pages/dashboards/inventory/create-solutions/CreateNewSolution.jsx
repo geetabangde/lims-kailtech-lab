@@ -326,7 +326,8 @@ export default function CreateNewSolution() {
           </div>
 
           <div className="p-4 sm:p-5">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-4xl">
+            {/* noValidate: the date box has a "max" hint; without this the browser blocks the save silently and the detailed pop-up never opens */}
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6 max-w-4xl">
               {/* Prepare again: a solution that was prepared before */}
               <div className="rounded-lg border border-gray-200 p-4 dark:border-dark-500">
                 <h4 className="text-md mb-3 font-bold text-gray-700 dark:text-gray-200">

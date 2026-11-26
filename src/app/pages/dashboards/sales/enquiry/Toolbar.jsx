@@ -6,15 +6,12 @@ import { Button } from "components/ui";
 import Select from "react-select";
 import dayjs from "dayjs";
 import { DatePicker } from "components/shared/form/Datepicker";
+import { LAB_STATUS_FILTER } from "./enquiryOptions";
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All" },
-  { value: "1", label: "Quotation Submitted" },
-  { value: "0", label: "Pending" },
-  { value: "91", label: "Regretted" },
-];
+// The lab's status list (single place: enquiryOptions.js -> LAB_STATUS_FILTER)
+const STATUS_OPTIONS = [{ value: "", label: "All" }, ...LAB_STATUS_FILTER.map((s) => ({ value: s, label: s }))];
 
 export function Toolbar({
   table,

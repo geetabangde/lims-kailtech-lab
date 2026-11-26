@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import clsx from "clsx";
 import Select from "react-select";
 import { DatePicker } from "components/shared/form/Datepicker";
-import { FINALIZATION_OPTIONS } from "./enquiryOptions";
+import { FINALIZATION_OPTIONS, CITIES } from "./enquiryOptions";
 import dayjs from "dayjs";
 
 export default function EditEnquiry() {
@@ -104,6 +104,9 @@ export default function EditEnquiry() {
           modeof: String(enquiry.modeof || "0"),
           modeother: enquiry.modeother || "",
           approxvalue: enquiry.approxvalue || "",
+          approxvalue_unknown: Number(enquiry.approxvalue_unknown) === 1 ? 1 : 0,
+          city: enquiry.city || "",
+          area: enquiry.area || "",
           expecteddateforfinalization: (enquiry.expecteddateforfinalization && !String(enquiry.expecteddateforfinalization).startsWith("0000"))
             ? dayjs(enquiry.expecteddateforfinalization).format("YYYY-MM-DD")
             : "",
@@ -254,7 +257,8 @@ export default function EditEnquiry() {
       const payload = {
         ...rest,
         id,
-        approxvalue: Number(formData.approxvalue || 0),
+        approxvalue: formData.approxvalue_unknown ? 0 : Number(formData.approxvalue || 0),
+        approxvalue_unknown: formData.approxvalue_unknown ? 1 : 0,
         ...(dateTouched ? { date } : {}),
         ...(expecteddateforfinalization ? { expecteddateforfinalization } : {}),
       };
@@ -611,6 +615,38 @@ export default function EditEnquiry() {
               </div>
             )}
 
+            {/* City and Area are separate fields (the list shows the City) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                City
+              </label>
+              <div className="md:col-span-2">
+                <Select
+                  options={CITIES}
+                  value={CITIES.find((o) => o.value === formData.city) || null}
+                  onChange={(o) => setFormData((prev) => ({ ...prev, city: o ? o.value : "" }))}
+                  placeholder="Select City"
+                  isClearable
+                  isSearchable
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Area
+              </label>
+              <div className="md:col-span-2">
+                <input
+                  type="text"
+                  name="area"
+                  value={formData.area}
+                  onChange={handleChange}
+                  placeholder="Area / locality (e.g. Sector 3, Sanwer Road)"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                />
+              </div>
+            </div>
+
             {/* Approx Commercial Value */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -622,8 +658,23 @@ export default function EditEnquiry() {
                   name="approxvalue"
                   value={formData.approxvalue}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  disabled={!!formData.approxvalue_unknown}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
                 />
+                <label className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.approxvalue_unknown}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        approxvalue_unknown: e.target.checked ? 1 : 0,
+                        approxvalue: e.target.checked ? "" : prev.approxvalue,
+                      }))
+                    }
+                  />
+                  Not known
+                </label>
               </div>
             </div>
 

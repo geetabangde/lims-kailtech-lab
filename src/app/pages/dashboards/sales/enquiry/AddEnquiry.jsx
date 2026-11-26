@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import clsx from "clsx";
 import Select from "react-select";
 import { DatePicker } from "components/shared/form/Datepicker";
-import { FINALIZATION_OPTIONS } from "./enquiryOptions";
+import { FINALIZATION_OPTIONS, CITIES } from "./enquiryOptions";
 
 export default function AddEnquiry() {
   const navigate = useNavigate();
@@ -41,6 +41,9 @@ export default function AddEnquiry() {
     modeof: "0",
     modeother: "",
     approxvalue: "",
+    approxvalue_unknown: 0,
+    city: "",
+    area: "",
     expecteddateforfinalization: "",
   });
 
@@ -238,7 +241,8 @@ export default function AddEnquiry() {
       // Dates go as ISO YYYY-MM-DD (the backend accepts this and rejects a future enquiry date)
       const formattedData = {
         ...formData,
-        approxvalue: Number(formData.approxvalue || 0), // Ensure number
+        approxvalue: formData.approxvalue_unknown ? 0 : Number(formData.approxvalue || 0), // Ensure number
+        approxvalue_unknown: formData.approxvalue_unknown ? 1 : 0,
         date: formData.date || today,
         expecteddateforfinalization: formData.expecteddateforfinalization || "",
       };
@@ -566,6 +570,38 @@ export default function AddEnquiry() {
               </div>
             )}
 
+            {/* City and Area are separate fields (the list shows the City) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                City
+              </label>
+              <div className="md:col-span-2">
+                <Select
+                  options={CITIES}
+                  value={CITIES.find((o) => o.value === formData.city) || null}
+                  onChange={(o) => setFormData((prev) => ({ ...prev, city: o ? o.value : "" }))}
+                  placeholder="Select City"
+                  isClearable
+                  isSearchable
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Area
+              </label>
+              <div className="md:col-span-2">
+                <input
+                  type="text"
+                  name="area"
+                  value={formData.area}
+                  onChange={handleChange}
+                  placeholder="Area / locality (e.g. Sector 3, Sanwer Road)"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                />
+              </div>
+            </div>
+
             {/* Approx Commercial Value */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -577,8 +613,23 @@ export default function AddEnquiry() {
                   name="approxvalue"
                   value={formData.approxvalue}
                   onChange={handleChange}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                  disabled={!!formData.approxvalue_unknown}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
                 />
+                <label className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.approxvalue_unknown}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        approxvalue_unknown: e.target.checked ? 1 : 0,
+                        approxvalue: e.target.checked ? "" : prev.approxvalue,
+                      }))
+                    }
+                  />
+                  Not known
+                </label>
               </div>
             </div>
 
