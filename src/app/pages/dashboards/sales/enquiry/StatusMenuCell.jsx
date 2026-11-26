@@ -32,7 +32,8 @@ export function StatusMenuCell({ row, table, getValue }) {
   };
 
   return (
-    <div className="flex min-w-[150px] items-center gap-2">
+    <div className="flex min-w-[150px] flex-col items-stretch">
+      <div className="flex items-center gap-2">
       <div className="flex flex-col items-start gap-1">
         <StatusCell getValue={getValue} row={row} />
         {tone === "overdue" && (
@@ -47,12 +48,14 @@ export function StatusMenuCell({ row, table, getValue }) {
         type="button"
         data-enquiry-menu-btn
         onClick={toggle}
-        title="Actions"
+        title={open ? "Hide actions" : "Show actions"}
         className={open ? minusBtn : plusBtn}
       >
         <PlusMinus open={open} />
       </button>
-      <RowActions row={row} table={table} open={open} onClose={() => setOpen(false)} anchorRect={rect} />
+      </div>
+      {/* "+" expands the row with the actions (like Contact Person); "-" collapses it back */}
+      <RowActions row={row} table={table} open={open} onClose={() => {}} anchorRect={rect} inline />
     </div>
   );
 }
@@ -64,7 +67,7 @@ export function AddressCell({ row }) {
   const address = row.original.address;
   if (!address) return <span className="text-gray-400">-</span>;
   return (
-    <div className="flex min-w-[120px] items-start gap-2 whitespace-normal">
+    <div className="flex min-w-[180px] items-start gap-2 whitespace-normal">
       <button type="button" onClick={() => setOpen((v) => !v)} className={open ? minusBtn : plusBtn} title="Show address">
         <PlusMinus open={open} />
       </button>

@@ -18,7 +18,7 @@ import QuotationDispatchModal from "../shared/QuotationDispatchModal";
 
 // ----------------------------------------------------------------------
 
-export function RowActions({ row, table, open, onClose, anchorRect }) {
+export function RowActions({ row, table, open, onClose, anchorRect, inline = false }) {
   const navigate = useNavigate();
   const menuRef = useRef(null);
   const { id, status, vertical } = row.original;
@@ -49,7 +49,7 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
 
   // close the menu on outside click / Escape
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || inline) return undefined;
     const onDown = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target) && !e.target.closest?.("[data-enquiry-menu-btn]")) {
         onClose?.();
@@ -62,7 +62,7 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, onClose]);
+  }, [open, onClose, inline]);
 
   // ── View / Order Received: both need the quotation created from this enquiry ──
   const [orderInfo, setOrderInfo] = useState(null);
@@ -145,14 +145,21 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
   const left = anchorRect ? Math.max(8, Math.min(anchorRect.left, window.innerWidth - 240)) : 8;
   const top = anchorRect ? Math.min(anchorRect.bottom + 4, Math.max(8, window.innerHeight - 420)) : 8;
 
+  // inline = the actions expand inside the Status cell (row grows) instead of floating as a popup
+  const wrap = (el) => (inline ? el : createPortal(el, document.body));
+
   return (
     <>
       {open &&
-        createPortal(
+        wrap(
       <div
         ref={menuRef}
-        style={{ position: "fixed", left, top, zIndex: 1100, maxHeight: "80vh", overflowY: "auto" }}
-        className="flex min-w-[200px] flex-col items-stretch gap-1.5 rounded-xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-600 dark:bg-gray-800 [&>*]:!w-full"
+        style={inline ? undefined : { position: "fixed", left, top, zIndex: 1100, maxHeight: "80vh", overflowY: "auto" }}
+        className={
+          inline
+            ? "mt-1.5 flex w-full min-w-[190px] flex-col items-stretch gap-1.5 [&>*]:!w-full"
+            : "flex min-w-[200px] flex-col items-stretch gap-1.5 rounded-xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-600 dark:bg-gray-800 [&>*]:!w-full"
+        }
       >
 
         {enquiryStatus === 0 && (
@@ -348,7 +355,6 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
           </>
         )}
       </div>,
-          document.body,
         )}
 
       <OrderReceivedModal
@@ -427,4 +433,5 @@ RowActions.propTypes = {
   open: PropTypes.bool,
   onClose: PropTypes.func,
   anchorRect: PropTypes.object,
+  inline: PropTypes.bool,
 };
