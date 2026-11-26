@@ -13,6 +13,7 @@ import OrderReceivedModal from "./OrderReceivedModal";
 import CalMarkConvertedModal from "../calibration-quotations/MarkConvertedModal";
 import TestMarkConvertedModal from "../testing-quotations/MarkConvertedModal";
 import { TechVerifyModal, RegretEnquiryModal } from "./DenialModals";
+import ForwardEnquiryModal from "./ForwardEnquiryModal";
 import QuotationDispatchModal from "../shared/QuotationDispatchModal";
 
 // ----------------------------------------------------------------------
@@ -41,6 +42,7 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
   // ── Regret Logic ──────────────────────────────────────────────────────────────
   // The Regret popup (reason + remark, logged for management) lives in DenialModals.jsx
   const [regretOpen, setRegretOpen] = useState(false);
+  const [forwardOpen, setForwardOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
   const [orderRecvOpen, setOrderRecvOpen] = useState(false); // order received straight on the enquiry (no quotation yet)
@@ -253,6 +255,19 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
               </Link>
             )}
 
+            {/* Forward To (pending enquiry only): reassigns the enquiry to another person */}
+            {hasEditPerm && (
+              <button
+                onClick={() => {
+                  setForwardOpen(true);
+                  onClose?.();
+                }}
+                className="inline-flex items-center justify-center rounded-md bg-cyan-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-cyan-700 min-w-[110px] shadow-sm"
+              >
+                Forward To
+              </button>
+            )}
+
             {/* Regretted Enquiry (btn-danger) */}
             {hasEditPerm && (
               <button
@@ -376,6 +391,12 @@ export function RowActions({ row, table, open, onClose, anchorRect }) {
           customerName={sendInfo.customername}
         />
       )}
+      <ForwardEnquiryModal
+        show={forwardOpen}
+        enquiry={row.original}
+        onClose={() => setForwardOpen(false)}
+        onDone={() => table.options.meta?.refetch?.()}
+      />
       <RegretEnquiryModal
         show={regretOpen}
         enquiry={row.original}
