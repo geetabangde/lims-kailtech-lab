@@ -26,6 +26,7 @@ import { PaginationSection } from "components/shared/table/PaginationSection";
 import { TableLoadingRow } from "components/shared/table/TableLoadingRow";
 
 import { TableConfig } from "./TableConfig";
+import SolutionRecordModal from "./SolutionRecordModal";
 
 // ----------------------------------------------------------------------
 
@@ -43,6 +44,7 @@ export default function CreateSolutions() {
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [recordId, setRecordId] = useState(null); // preparation record pop-up
   const [tableSettings, setTableSettings] = useState({
     enableFullScreen: false,
     enableRowDense: false,
@@ -97,6 +99,7 @@ export default function CreateSolutions() {
       tableSettings,
     },
     meta: {
+      openRecord: (id) => setRecordId(id),
       updateData: (rowIndex, columnId, value) => {
         skipAutoResetPageIndex();
         setData((old) =>
@@ -292,6 +295,7 @@ export default function CreateSolutions() {
           </Card>
         </div>
       </div>
+      <SolutionRecordModal show={!!recordId} id={recordId} onClose={() => setRecordId(null)} />
     </Page>
   );
 }
