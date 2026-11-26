@@ -16,8 +16,13 @@ export function DateCell({ getValue }) {
     return <p className="text-gray-400">-</p>;
   }
 
-  const date = dayjs(timestamp).locale(locale).format("DD-MM-YYYY");
-  const time = dayjs(timestamp).locale(locale).format("hh:mm A");
+  // The list API sends some dates as dd/mm/yyyy (follow-up / next call): read them as day/month/year (dayjs would read month/day)
+  const dmy = typeof timestamp === "string" ? timestamp.match(/^(\d{2})\/(\d{2})\/(\d{4})$/) : null;
+  if (dmy && Number(dmy[3]) < 2000) return <p className="text-gray-400">-</p>;
+  const parsed = dmy ? dayjs(`${dmy[3]}-${dmy[2]}-${dmy[1]}`) : dayjs(timestamp);
+  if (!parsed.isValid()) return <p className="text-gray-400">-</p>;
+  const date = parsed.locale(locale).format("DD-MM-YYYY");
+  const time = parsed.locale(locale).format("hh:mm A");
   
   return (
     <>

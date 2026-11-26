@@ -10,8 +10,18 @@ import { whatsappLink, effectiveStatus, sinceText, valueText } from "./enquiryOp
 // ----------------------------------------------------------------------
 
 const dash = (v) => (v === null || v === undefined || v === "" || v === "null" || String(v).startsWith("0000") ? "-" : String(v));
-const fmtDate = (v) => (!v || String(v).startsWith("0000") || String(v).startsWith("-") ? "-" : dayjs(v).format("DD-MM-YYYY"));
-const fmtDateTime = (v) => (!v || String(v).startsWith("0000") ? "-" : dayjs(v).format("DD-MM-YYYY hh:mm A"));
+// The list API sends some dates as dd/mm/yyyy (read as day/month/year), others as ISO date-times
+const toDay = (v) => {
+  if (!v) return null;
+  const s = String(v);
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return Number(m[3]) < 2000 ? null : dayjs(`${m[3]}-${m[2]}-${m[1]}`);
+  if (s.startsWith("0000") || s.startsWith("-")) return null;
+  const d = dayjs(s);
+  return d.isValid() ? d : null;
+};
+const fmtDate = (v) => (toDay(v) ? toDay(v).format("DD-MM-YYYY") : "-");
+const fmtDateTime = (v) => (toDay(v) ? toDay(v).format("DD-MM-YYYY hh:mm A") : "-");
 
 function Field({ label, children }) {
   return (
@@ -106,7 +116,7 @@ export default function EnquiryDetailsPanel({ row }) {
         <Field label="Approx quantity">{dash(e.approxqty)}</Field>
         <Field label="Payment status">{dash(e.payment_status)}</Field>
         <Field label="Sample arrived">{dash(e.sample_arrived)}</Field>
-        <Field label="Next calling time">{fmtDateTime(e.nextconactdate)}</Field>
+        <Field label="Next calling date">{fmtDate(e.nextconactdate)}</Field>
         <Field label="Expected closing date">{fmtDate(e.expecteddateforfinalization)}</Field>
         <Field label="Enquiry received by">{dash(e.enquirybyname)}</Field>
         {e.loss_reason ? <Field label="Reason (lost / regretted)">{dash(e.loss_reason)}</Field> : null}

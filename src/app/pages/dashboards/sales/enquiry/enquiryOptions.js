@@ -206,7 +206,9 @@ export function sinceText(row) {
   if (!v || String(v).startsWith("0000")) return "";
   const d = new Date(String(v).replace(" ", "T"));
   if (Number.isNaN(d.getTime())) return "";
-  const days = Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+  // calendar days (midnight to midnight), so yesterday afternoon is "1 day", not "today"
+  const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.max(0, Math.round((startOf(new Date()) - startOf(d)) / 86400000));
   const dd = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
   return `since ${dd} (${days === 0 ? "today" : days === 1 ? "1 day" : `${days} days`})`;
 }
