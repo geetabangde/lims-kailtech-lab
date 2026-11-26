@@ -357,6 +357,9 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
       </div>,
         )}
 
+      {/* All pop-up boxes are mounted on document.body: inside the table cell the other cells painted over them */}
+      {createPortal(
+        <>
       <OrderReceivedModal
         show={orderRecvOpen}
         enquiry={row.original}
@@ -423,6 +426,9 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
         onClose={() => setFollowUpOpen(false)}
         onSuccess={() => table.options.meta?.refetch?.()}
       />
+        </>,
+        document.body,
+      )}
     </>
   );
 }
