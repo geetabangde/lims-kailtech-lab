@@ -103,6 +103,13 @@ export default function ViewTQuotation() {
                                 </Button>
                             </Link>
                         )}
+                        {permissions.includes(94) && [0, 1].includes(Number(quote.status)) && (
+                            <Link to={`/dashboards/sales/testing-quotations/items/${id}`}>
+                                <Button variant="outline" color="primary">
+                                    Edit Items
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
 

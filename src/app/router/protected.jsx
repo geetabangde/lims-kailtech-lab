@@ -2938,7 +2938,7 @@ const protectedRoutes = {
                       lazy: async () => ({
                         Component: (
                           await import(
-                            "app/pages/dashboards/sales/enquiry/EditTQuotationItem"
+                            "app/pages/dashboards/sales/calibration-quotations/AddQuoteItemCalibration"
                           )
                         ).default,
                       }),

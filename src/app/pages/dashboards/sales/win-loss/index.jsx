@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import dayjs from "dayjs";
 import clsx from "clsx";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 import axios from "utils/axios";
 import { Page } from "components/shared/Page";
 import { poDocUrl } from "../shared/PoDetailsModal";
@@ -19,6 +20,9 @@ export default function WinLoss() {
   const [data, setData] = useState(null);
   const [pos, setPos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [kind, setKind] = useState(null); // the clicked card: enquiries | quotations | won | lost | open
+  const [rec, setRec] = useState({ loading: false, data: [], count: 0, total_value: 0 });
+  const [recQuery, setRecQuery] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -39,6 +43,24 @@ export default function WinLoss() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // records behind the clicked card (same period as the cards)
+  useEffect(() => {
+    if (!kind) return undefined;
+    let live = true;
+    setRec((r) => ({ ...r, loading: true }));
+    axios
+      .get("/enquiry-lifecycle/analytics-records", { params: { kind, from, to } })
+      .then((res) => live && setRec({ loading: false, data: res.data?.data || [], count: res.data?.count || 0, total_value: res.data?.total_value || 0 }))
+      .catch((e) => {
+        if (!live) return;
+        setRec({ loading: false, data: [], count: 0, total_value: 0 });
+        toast.error(e?.response?.data?.message || "Failed to load the records");
+      });
+    return () => {
+      live = false;
+    };
+  }, [kind, from, to]);
 
   const t = data?.totals;
   const enq = data?.enquiries;
@@ -95,7 +117,7 @@ export default function WinLoss() {
           <label className="text-xs font-semibold text-gray-500">To
             <input type="date" className={clsx(inputCls, "mt-1 block")} value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
-          <button type="button" onClick={() => { setFrom(fyStart()); setTo(dayjs().format("YYYY-MM-DD")); }} className="h-9 rounded-lg border border-red-300 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100">
+          <button type="button" onClick={() => { setFrom(fyStart()); setTo(dayjs().format("YYYY-MM-DD")); setKind(null); setRecQuery(""); }} className="h-9 rounded-lg border border-red-300 bg-red-50 px-4 text-sm font-semibold text-red-700 hover:bg-red-100">
             Clear Filters
           </button>
         </div>
@@ -105,13 +127,83 @@ export default function WinLoss() {
         ) : !data ? null : (
           <>
             <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-              <div className={card}><p className="text-[11px] font-semibold uppercase text-gray-500">Enquiries</p><p className="mt-1 text-lg font-bold">{enq?.total ?? 0}</p><p className="text-[11px] text-gray-500">{enq?.pending ?? 0} pending · {enq?.quoted ?? 0} quoted · {enq?.regretted ?? 0} regretted</p></div>
-              <div className={card}><p className="text-[11px] font-semibold uppercase text-gray-500">Quotations</p><p className="mt-1 text-lg font-bold text-blue-600">{t.count}</p><p className="text-[11px] text-gray-500">{inr(t.value)}</p></div>
-              <div className={card}><p className="text-[11px] font-semibold uppercase text-gray-500">Won</p><p className="mt-1 text-lg font-bold text-emerald-600">{t.won}</p><p className="text-[11px] text-gray-500">{inr(t.won_value)}</p></div>
-              <div className={card}><p className="text-[11px] font-semibold uppercase text-gray-500">Lost</p><p className="mt-1 text-lg font-bold text-rose-600">{t.lost}</p><p className="text-[11px] text-gray-500">{inr(t.lost_value)}</p></div>
-              <div className={card}><p className="text-[11px] font-semibold uppercase text-gray-500">Still open</p><p className="mt-1 text-lg font-bold text-amber-600">{t.pending}</p><p className="text-[11px] text-gray-500">{inr(t.pending_value)}</p></div>
-              <div className={card}><p className="text-[11px] font-semibold uppercase text-gray-500">Conversion</p><p className="mt-1 text-lg font-bold">{data.conversion_rate ?? "-"}%</p><p className="text-[11px] text-gray-500">won / all quotations · win rate {data.win_rate ?? "-"}% of decided</p></div>
+              {[
+                { key: "enquiries", label: "Enquiries", value: enq?.total ?? 0, cls: "", sub: `${enq?.pending ?? 0} pending · ${enq?.quoted ?? 0} quoted · ${enq?.regretted ?? 0} regretted · ${enq?.lost ?? 0} lost` },
+                { key: "quotations", label: "Quotations", value: t.count, cls: "text-blue-600", sub: inr(t.value) },
+                { key: "won", label: "Won", value: t.won, cls: "text-emerald-600", sub: inr(t.won_value) },
+                { key: "lost", label: "Lost", value: t.lost, cls: "text-rose-600", sub: `${inr(t.lost_value)} · ${enq?.lost ?? 0} enquiries lost` },
+                { key: "open", label: "Still open", value: t.pending, cls: "text-amber-600", sub: inr(t.pending_value) },
+                { key: "won", label: "Conversion", value: `${data.conversion_rate ?? "-"}%`, cls: "", sub: `won / all quotations · win rate ${data.win_rate ?? "-"}% of decided`, id: "conversion" },
+              ].map((c) => {
+                const selected = kind === c.key && c.id !== "conversion"; // Conversion opens the Won records, only the Won card is ringed
+                return (
+                  <button
+                    type="button"
+                    key={c.id || c.key}
+                    onClick={() => { setRecQuery(""); setKind(kind === c.key ? null : c.key); }}
+                    title={kind === c.key ? "Click again to hide the records" : "Click to see the records behind this number"}
+                    className={clsx(card, "text-left transition hover:shadow-md", selected && "border-primary-500 ring-2 ring-primary-500/40")}
+                  >
+                    <p className="text-[11px] font-semibold uppercase text-gray-500">{c.label}</p>
+                    <p className={clsx("mt-1 text-lg font-bold", c.cls)}>{c.value}</p>
+                    <p className="text-[11px] text-gray-500">{c.sub}</p>
+                  </button>
+                );
+              })}
             </div>
+
+            {kind && (() => {
+              const titles = { enquiries: "Enquiries", quotations: "Quotations", won: "Won (converted) quotations", lost: "Lost - quotations and enquiries", open: "Still open quotations" };
+              const q = recQuery.trim().toLowerCase();
+              const rows = q ? rec.data.filter((r) => [r.ref, r.customer, r.type, r.status, r.by, r.reason].some((v) => String(v ?? "").toLowerCase().includes(q))) : rec.data;
+              const shownValue = rows.reduce((a, r) => a + (Number(r.value) || 0), 0);
+              return (
+                <div className={clsx(card, "mb-4")}>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-dark-100">
+                      {titles[kind]} - {rows.length}{q ? ` of ${rec.count}` : ""} records · {inr(q ? shownValue : rec.total_value)}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input className={clsx(inputCls, "w-56")} placeholder="Search customer, reference..." value={recQuery} onChange={(e) => setRecQuery(e.target.value)} />
+                      <button type="button" onClick={() => setKind(null)} className="h-9 rounded-lg border border-gray-300 px-3 text-sm text-gray-600 hover:bg-gray-50 dark:border-dark-500 dark:text-dark-200">Close</button>
+                    </div>
+                  </div>
+                  {rec.loading ? (
+                    <p className="py-6 text-center text-gray-500">Loading...</p>
+                  ) : (
+                    <div className="max-h-[420px] overflow-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="sticky top-0 bg-gray-200 text-xs font-semibold uppercase text-gray-800 dark:bg-dark-800 dark:text-dark-100">
+                          <tr>{["Date", "Kind", "Type", "Reference", "Customer", "Status", "Value", "Assigned / reason", ""].map((h) => <th key={h} className={th}>{h}</th>)}</tr>
+                        </thead>
+                        <tbody>
+                          {rows.length === 0 ? (
+                            <tr><td colSpan={9} className="py-6 text-center text-gray-500">No records for this card in the period.</td></tr>
+                          ) : rows.map((r, i) => (
+                            <tr key={`${r.kind}-${r.ref}-${i}`} className="border-t border-gray-100 dark:border-dark-600">
+                              <td className="px-3 py-2 whitespace-nowrap">{r.date ? dayjs(r.date).format("DD-MM-YYYY") : "-"}</td>
+                              <td className="px-3 py-2">{r.kind}</td>
+                              <td className="px-3 py-2">{r.type || "-"}</td>
+                              <td className="px-3 py-2 font-medium">{r.ref}</td>
+                              <td className="px-3 py-2">{r.customer || "-"}</td>
+                              <td className="px-3 py-2">{r.status}</td>
+                              <td className="px-3 py-2">{r.value === null || r.value === undefined ? "Not known" : inr(r.value)}</td>
+                              <td className="px-3 py-2">{[r.by, r.reason].filter(Boolean).join(" / ") || "-"}</td>
+                              <td className="px-3 py-2">
+                                {r.kind === "Quotation" && r.quotation_id ? (
+                                  <Link to={`/dashboards/sales/${r.quotation_type}-quotations/view/${r.quotation_id}`} className="rounded-md bg-sky-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-sky-700">View</Link>
+                                ) : null}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {kind === "lost" && <p className="mt-2 text-[11px] text-gray-500">Lost quotations are those closed as lost; lost enquiries are the ones marked Lost in the Enquiry list.</p>}
+                </div>
+              );
+            })()}
 
             <div className={clsx(card, "mb-4")}>
               <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-dark-100">Funnel</p>

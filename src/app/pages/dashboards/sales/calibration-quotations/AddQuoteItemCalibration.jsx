@@ -118,12 +118,14 @@ export default function AddQuoteItemCalibration() {
     try {
       setLoading(true);
       const [quoteRes, instRes] = await Promise.all([
-        axios.get(`/sales/get-quotation-item/${id}`),
+        // calibration quotation = `quotaion` table (the testing endpoint get-quotation-item reads `tquotations` and showed another company's quotation)
+        axios.get(`/sales/get-calib-quotationitem/${id}`),
         axios.get("/calibrationoperations/list-of-instrument"),
       ]);
 
       if (quoteRes.data?.status === "true" || quoteRes.data?.status === true) {
-        const q = quoteRes.data.quotation?.[0];
+        const calibData = quoteRes.data.data || {};
+        const q = calibData.quotation ? { ...calibData.quotation, enquiry_description: calibData.enquiry_description } : undefined;
         
         // Fetch customer details to get the actual gstno
         if (q && q.customer) {
@@ -140,7 +142,7 @@ export default function AddQuoteItemCalibration() {
         setQuoteData(q || null);
         
         // Map existing items
-        const existingItems = (quoteRes.data.items || []).filter(
+        const existingItems = (calibData.items || []).filter(
           (item) => item && (item.name || item.instrument_name || item.instrument_id || item.instid)
         );
         setItems(

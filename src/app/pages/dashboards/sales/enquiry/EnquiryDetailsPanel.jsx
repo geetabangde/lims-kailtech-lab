@@ -56,7 +56,7 @@ export default function EnquiryDetailsPanel({ row }) {
   const lastForward = forwards.length ? forwards[forwards.length - 1] : null;
 
   return (
-    <div className="grid grid-cols-1 gap-x-8 gap-y-3 p-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-x-8 gap-y-3 p-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <dl className="min-w-0 space-y-2">
         <Field label="Status">
           {effectiveStatus(e)} <span className="text-gray-400">{sinceText(e)}</span>

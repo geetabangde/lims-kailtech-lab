@@ -196,6 +196,20 @@ export default function CreateQuotationFromEnquiry() {
                 setFormData(prev => ({ ...prev, caddress: String(addresses[0].id) }));
             }
 
+            // Contact person: link the customer's contact whose name matches the one on the enquiry (otherwise left empty, never guessed)
+            try {
+                const contRes = await axios.get(`/get-concern-person/${customerId}`).catch(() => null);
+                const conts = contRes?.data?.data || [];
+                setFormData((prev) => {
+                    if (prev.cperson) return prev;
+                    const nm = String(prev.contactpersonname || "").trim().toLowerCase();
+                    const m = nm && (conts.find((c) => String(c.name || "").trim().toLowerCase() === nm) || null);
+                    return m ? { ...prev, cperson: String(m.id) } : prev;
+                });
+            } catch {
+                /* contact list not available: cperson stays empty */
+            }
+
         } catch (err) {
             console.error("Error fetching customer extras:", err);
         }
@@ -279,8 +293,9 @@ export default function CreateQuotationFromEnquiry() {
 
                 // Determine navigation based on vertical
                 // (1: Calibration, Others: Testing, as per common project pattern)
-                const baseRoute = String(formData.vertical) === "1" ? "calibration-quotations" : "testing-quotations";
-                navigate(`/dashboards/sales/${baseRoute}/items/${res.data.quotation_id}`);
+                // Calibration has its own items screen (add-items); Testing uses items. (Sending calibration to "items" opened the testing editor with another company's items.)
+                const itemsPath = String(formData.vertical) === "1" ? "calibration-quotations/add-items" : "testing-quotations/items";
+                navigate(`/dashboards/sales/${itemsPath}/${res.data.quotation_id}`);
             } else {
                 toast.error(res.data.message || "Failed to create quotation");
             }

@@ -185,6 +185,11 @@ export default function ViewQuotation() {
                 Edit Quotation
               </Button>
             </Link>
+            <Link to={`/dashboards/sales/calibration-quotations/edit-items/${id}`}>
+              <Button variant="outline" color="primary">
+                Edit Items
+              </Button>
+            </Link>
           </div>
         </div>
 
