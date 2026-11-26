@@ -126,59 +126,8 @@ export default function CreateQuotationFromEnquiry() {
                 yourscope_html: "",
             };
 
-            // Attempt to enrich with Quotation Data (ID 2185)
-            try {
-                const quotRes = await axios.get(`/sales/get-quotation-item/${id}`);
-                if (quotRes.data?.status && quotRes.data.quotation?.length > 0) {
-                    const q = quotRes.data.quotation[0];
-
-                    const [custDetail] = await Promise.all([
-                        q.customer ? axios.get(`/people/get-single-customer/${q.customer}`).catch(() => null) : null,
-                        q.ctype ? axios.get(`/people/get-customer-type-byid/${q.ctype}`).catch(() => null) : null,
-                        q.specificpurpose ? axios.get(`/people/get-specific-purpose-byid/${q.specificpurpose}`).catch(() => null) : null,
-                    ]);
-
-                    const cDetail = custDetail?.data?.data;
-
-                    if (cDetail) {
-                        // Ensure the customer is in the dropdown list
-                        setDropdowns(prev => {
-                            if (!prev.customers.find(c => String(c.id) === String(cDetail.id))) {
-                                return { ...prev, customers: [...prev.customers, cDetail] };
-                            }
-                            return prev;
-                        });
-                    }
-
-                    finalData = {
-                        ...finalData,
-                        customer: String(q.customer || finalData.customer),
-                        customername: cDetail?.name || q.customername || finalData.customername,
-                        customeraddress: cDetail?.address || q.customeraddress || finalData.customeraddress,
-                        contactpersonname: cDetail?.pname || q.contactpersonname || finalData.contactpersonname,
-                        concernpersondesignation: q.concernpersondesignation || finalData.concernpersondesignation,
-                        concernpersonemail: cDetail?.email || q.concernpersonemail || finalData.concernpersonemail,
-                        concernpersonmobile: cDetail?.pnumber || q.concernpersonmobile || finalData.concernpersonmobile,
-                        gstno: cDetail?.gstno || q.gstno || "",
-                        country: String(cDetail?.country || q.country || ""),
-                        state: String(cDetail?.stateid || q.stateid || q.state || cDetail?.state || ""),
-                        caddress: String(q.caddress || ""),
-                        cperson: String(q.cperson || ""),
-                        ctype: String(q.ctype || finalData.ctype),
-                        specificpurpose: String(q.specificpurpose || finalData.specificpurpose),
-                        modeof: String(q.modeof || finalData.modeof),
-                        enquirydate: q.enquirydate ? dayjs(q.enquirydate).format("YYYY-MM-DD") : finalData.enquirydate,
-                        customterms: q.customterms ? new Delta().insert(q.customterms.replace(/<[^>]*>?/gm, '')) : finalData.customterms,
-                        customterms_html: q.customterms || finalData.customterms_html,
-                        ourscope: q.ourscope ? new Delta().insert(q.ourscope.replace(/<[^>]*>?/gm, '')) : new Delta(),
-                        ourscope_html: q.ourscope || "",
-                        yourscope: q.yourscope ? new Delta().insert(q.yourscope.replace(/<[^>]*>?/gm, '')) : new Delta(),
-                        yourscope_html: q.yourscope || "",
-                    };
-                }
-            } catch {
-                console.warn("Quotation data enrichment failed; using enquiry defaults.");
-            }
+            // NOTE (2026-11-26): the old 'enrich with Quotation Data (ID 2185)' test block was removed. It called get-quotation-item
+            // with the ENQUIRY id, so the form was overwritten with whichever quotation had the same number as the enquiry.
 
             setFormData((prev) => ({ ...prev, ...finalData }));
 
