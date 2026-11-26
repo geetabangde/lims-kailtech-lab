@@ -22,19 +22,20 @@ import { useBreakpointsContext } from "app/contexts/breakpoint/context";
 
 // ----------------------------------------------------------------------
 
-export function Toolbar({ table }) {
+export function Toolbar({ table, exportParams = {} }) {
   const { isXs } = useBreakpointsContext();
 
   // Export the lead list as an Excel-readable CSV (backend: export-leadManagement)
   const handleExport = async () => {
     try {
       const response = await axios.get("/calibrationprocess/export-leadManagement", {
+        params: exportParams, // same due-date range / BD / customer / inward filters as the list
         responseType: "blob",
       });
       const url = window.URL.createObjectURL(new Blob([response.data], { type: "text/csv;charset=utf-8;" }));
       const link = document.createElement("a");
       link.href = url;
-      link.download = `lead-management-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `lead-management-${exportParams.from || "today"}${exportParams.to ? `_to_${exportParams.to}` : ""}.csv`;
       document.body.appendChild(link);
       link.click();
       link.remove();

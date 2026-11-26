@@ -22,6 +22,7 @@ import { useLockScrollbar, useDidUpdate, useLocalStorage } from "hooks";
 import { fuzzyFilter } from "utils/react-table/fuzzyFilter";
 import { useSkipper } from "utils/react-table/useSkipper";
 import { Toolbar } from "./Toolbar";
+import { LeadFilters } from "./LeadFilters";
 import { columns } from "./columns";
 import { PaginationSection } from "components/shared/table/PaginationSection";
 import { SelectedRowsActions } from "./SelectedRowsActions";
@@ -47,18 +48,55 @@ export default function OrdersDatatableV1() {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadedOnce, setLoadedOnce] = useState(false); // full-page loader only for the first load; later the filters stay and only the table refreshes
 
-  // ✅ Fetch from API
+  // Filters (2026-11-26): due-date range, BD, customer, inward entry no. They are remembered for this browser tab (Back from Details keeps them).
+  const FILTER_KEY = "lead-mgmt-filters-v1";
+  const [filters, setFilters] = useState(() => {
+    try {
+      return { from: "", to: "", bd: "", customer: "", inward: "", ...(JSON.parse(sessionStorage.getItem(FILTER_KEY) || "{}") || {}) };
+    } catch {
+      return { from: "", to: "", bd: "", customer: "", inward: "" };
+    }
+  });
+  const [options, setOptions] = useState({ bd: [], customers: [] });
+  const [inwardApplied, setInwardApplied] = useState(filters.inward);
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(FILTER_KEY, JSON.stringify(filters));
+    } catch {
+      /* not remembered */
+    }
+  }, [filters]);
+  // the inward number is applied half a second after typing stops
+  useEffect(() => {
+    const t = setTimeout(() => setInwardApplied(filters.inward), 500);
+    return () => clearTimeout(t);
+  }, [filters.inward]);
+  const filterParams = {
+    from: filters.from || undefined,
+    to: filters.to || undefined,
+    bd: filters.bd || undefined,
+    customer: filters.customer || undefined,
+    inward: inwardApplied || undefined,
+  };
+  const clearFilters = () => {
+    setFilters({ from: "", to: "", bd: "", customer: "", inward: "" });
+    setInwardApplied("");
+  };
+
+  // ✅ Fetch from API (again whenever a filter changes)
   useEffect(() => {
     fetchModes();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.from, filters.to, filters.bd, filters.customer, inwardApplied]);
 
 
   // ✅ Updated fetchModes function with proper field mapping
   const fetchModes = async () => {
     try {
       setLoading(true); // start loader
-      const response = await axios.get("/calibrationprocess/get-leadManagement");
+      const response = await axios.get("/calibrationprocess/get-leadManagement", { params: filterParams });
 
       console.log("API response:", response.data); // debug
 
@@ -91,6 +129,7 @@ export default function OrdersDatatableV1() {
         mappedData.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
         setOrders(mappedData); // ✅ set data directly from API
+        setOptions({ bd: response.data.bd_options || [], customers: response.data.customer_options || [] });
       } else {
         console.warn("Unexpected response structure:", response.data);
         setOrders([]); // fallback
@@ -101,6 +140,7 @@ export default function OrdersDatatableV1() {
       setOrders([]); // fallback on error
     } finally {
       setLoading(false); // stop loader
+      setLoadedOnce(true);
     }
   };
 
@@ -189,7 +229,7 @@ export default function OrdersDatatableV1() {
   useLockScrollbar(tableSettings.enableFullScreen);
 
   // ✅ Loading UI
-  if (loading) {
+  if (loading && !loadedOnce) {
     return (
       <Page title="Lead Managements">
         <div className="flex h-[60vh] items-center justify-center text-gray-600">
@@ -213,7 +253,8 @@ export default function OrdersDatatableV1() {
             "fixed inset-0 z-61 bg-white pt-3 dark:bg-dark-900",
           )}
         >
-          <Toolbar table={table} />
+          <Toolbar table={table} exportParams={filterParams} />
+          <LeadFilters filters={filters} setFilters={setFilters} options={options} onClear={clearFilters} />
           <div
             className={clsx(
               "transition-content flex grow flex-col pt-3",
