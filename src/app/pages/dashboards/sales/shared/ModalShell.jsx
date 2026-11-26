@@ -1,14 +1,14 @@
 import PropTypes from "prop-types";
 
 // Small shared popup frame used by the lifecycle popups (matches the existing quotation modals).
-export default function ModalShell({ show, title, subtitle, onClose, children, footer }) {
+export default function ModalShell({ show, title, subtitle, onClose, children, footer, widthClass = "max-w-lg" }) {
   if (!show) return null;
   return (
     <div
       className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 px-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-xl bg-white text-left shadow-xl dark:bg-gray-900">
+      <div className={`w-full ${widthClass} overflow-hidden rounded-xl bg-white text-left shadow-xl dark:bg-gray-900`}>
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
           <div>
             <h4 className="text-base font-semibold text-gray-800 dark:text-white">{title}</h4>
@@ -33,6 +33,7 @@ ModalShell.propTypes = {
   onClose: PropTypes.func.isRequired,
   children: PropTypes.node,
   footer: PropTypes.node,
+  widthClass: PropTypes.string,
 };
 
 export const fieldCls =

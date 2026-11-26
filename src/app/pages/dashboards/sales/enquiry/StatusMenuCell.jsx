@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { StatusCell, ContactPersonCell } from "./rows";
 import { RowActions } from "./RowActions";
 import { enquiryTone, effectiveStatus, sinceText, LAB_STATUS_STYLE } from "./enquiryOptions";
+import EnquiryDetailsModal from "./EnquiryDetailsModal";
 
 const plusBtn =
   "flex h-5 w-5 shrink-0 items-center justify-center rounded border border-green-500 bg-green-50 text-green-600 transition hover:bg-green-100 dark:bg-green-900/20";
@@ -24,7 +25,17 @@ PlusMinus.propTypes = { open: PropTypes.bool };
 
 // Status badge + "+" button that opens the action menu (replaces the old Action column)
 export function StatusMenuCell({ row, table, getValue }) {
-  const [open, setOpen] = useState(false);
+  const meta = table?.options?.meta || {};
+  const shared = typeof meta.setOpenActionsId === "function";
+  const [localOpen, setLocalOpen] = useState(false);
+  const rowId = row.original.id;
+  const open = shared ? meta.openActionsId === rowId : localOpen;
+  // opening this row closes whichever row was open before; closing it leaves the others alone
+  const setOpen = (next) => {
+    const value = typeof next === "function" ? next(open) : next;
+    if (shared) meta.setOpenActionsId(value ? rowId : meta.openActionsId === rowId ? null : meta.openActionsId);
+    else setLocalOpen(value);
+  };
   const [rect, setRect] = useState(null);
   const btnRef = useRef(null);
   const tone = enquiryTone(row.original);
@@ -35,7 +46,7 @@ export function StatusMenuCell({ row, table, getValue }) {
   };
 
   return (
-    <div className="flex min-w-[150px] flex-col items-stretch">
+    <div className="flex min-w-[120px] flex-col items-stretch">
       <div className="flex items-center gap-2">
       <div className="flex flex-col items-start gap-1">
         <LabStatusBadge row={row} getValue={getValue} />
@@ -175,7 +186,7 @@ export function CustomerCell({ row, table }) {
   const hasContact = !!e.concernpersonname;
 
   return (
-    <div className="min-w-[190px] whitespace-normal">
+    <div className="min-w-[130px] whitespace-normal">
       <p className="text-sm font-medium text-gray-800 dark:text-dark-100">
         <Highlight query={globalQuery}>{ensureString(e.name) || "-"}</Highlight>
       </p>
@@ -211,13 +222,21 @@ export function CustomerCell({ row, table }) {
 }
 CustomerCell.propTypes = { row: PropTypes.object, table: PropTypes.object };
 
-// Last column: "+" opens the Details row under the enquiry, "-" closes it
+// Last column: a small "Details" button opens a dedicated pop-up with everything else about the enquiry
 export function DetailsCell({ row }) {
-  const open = row.getIsExpanded();
+  const [open, setOpen] = useState(false);
   return (
-    <button type="button" onClick={row.getToggleExpandedHandler()} title={open ? "Hide details" : "Show details"} className={open ? minusBtn : plusBtn}>
-      <PlusMinus open={open} />
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Show all details of this enquiry"
+        className="inline-flex items-center justify-center rounded-md bg-blue-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm transition hover:bg-blue-700"
+      >
+        Details
+      </button>
+      <EnquiryDetailsModal show={open} row={row} onClose={() => setOpen(false)} />
+    </>
   );
 }
 DetailsCell.propTypes = { row: PropTypes.object };

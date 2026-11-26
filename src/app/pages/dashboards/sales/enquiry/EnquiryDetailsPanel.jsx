@@ -26,8 +26,8 @@ const fmtDateTime = (v) => (toDay(v) ? toDay(v).format("DD-MM-YYYY hh:mm A") : "
 function Field({ label, children }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
-      <dt className="w-44 shrink-0 text-sm font-bold text-gray-800 dark:text-dark-100">{label}</dt>
-      <dd className="min-w-0 text-sm break-words text-gray-600 dark:text-dark-300">{children}</dd>
+      <dt className="w-40 shrink-0 text-sm font-bold text-gray-800 dark:text-dark-100">{label}</dt>
+      <dd className="min-w-0 flex-1 text-sm text-gray-600 [overflow-wrap:anywhere] dark:text-dark-300">{children}</dd>
     </div>
   );
 }
@@ -56,8 +56,8 @@ export default function EnquiryDetailsPanel({ row }) {
   const lastForward = forwards.length ? forwards[forwards.length - 1] : null;
 
   return (
-    <div className="grid grid-cols-1 gap-x-8 gap-y-3 p-4 lg:grid-cols-2">
-      <dl className="space-y-2">
+    <div className="grid grid-cols-1 gap-x-8 gap-y-3 p-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <dl className="min-w-0 space-y-2">
         <Field label="Status">
           {effectiveStatus(e)} <span className="text-gray-400">{sinceText(e)}</span>
         </Field>
@@ -106,7 +106,7 @@ export default function EnquiryDetailsPanel({ row }) {
         <Field label="Area">{dash(e.area)}</Field>
       </dl>
 
-      <dl className="space-y-2">
+      <dl className="min-w-0 space-y-2">
         <Field label="Technical verification">
           {dash(e.tech_verification_status)}
           {e.tech_verification_remark ? ` - ${e.tech_verification_remark}` : ""}
@@ -117,7 +117,7 @@ export default function EnquiryDetailsPanel({ row }) {
         <Field label="Payment status">{dash(e.payment_status)}</Field>
         <Field label="Sample arrived">{dash(e.sample_arrived)}</Field>
         <Field label="Next calling date">{fmtDate(e.nextconactdate)}</Field>
-        <Field label="Expected closing date">{fmtDate(e.expecteddateforfinalization)}</Field>
+        <Field label="Expected date of Closing order">{fmtDate(e.expecteddateforfinalization)}</Field>
         <Field label="Enquiry received by">{dash(e.enquirybyname)}</Field>
         {e.loss_reason ? <Field label="Reason (lost / regretted)">{dash(e.loss_reason)}</Field> : null}
         {history.length > 0 && (

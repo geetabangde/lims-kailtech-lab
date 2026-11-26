@@ -105,6 +105,23 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
       toast.error("Could not load the quotation of this enquiry");
     }
   };
+  // Edit the quotation made from this enquiry (same permission as the quotation lists: calibration 95, testing 94)
+  const canEditQuotation = permissions.includes(95) || permissions.includes(94);
+  const handleEditQuotation = async () => {
+    try {
+      const d = await findQuotation();
+      if (!d) return;
+      const type = d.quotation_type === "calibration" ? "calibration" : "testing";
+      if (!permissions.includes(type === "calibration" ? 95 : 94)) {
+        toast.error("You do not have permission to edit this quotation");
+        return;
+      }
+      onClose?.();
+      navigate(`/dashboards/sales/${type}-quotations/edit/${d.quotation_id}`);
+    } catch {
+      toast.error("Could not load the quotation of this enquiry");
+    }
+  };
   const handleOrderReceived = async () => {
     try {
       const d = await findQuotation(true);
@@ -177,7 +194,7 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
         style={inline ? undefined : { position: "fixed", left, top, zIndex: 1100, maxHeight: "80vh", overflowY: "auto" }}
         className={
           inline
-            ? "mt-1.5 flex w-full min-w-[190px] flex-col items-stretch gap-1.5 [&>*]:!w-full"
+            ? "mt-1.5 flex w-full min-w-[150px] flex-col items-stretch gap-1.5 [&>*]:!w-full"
             : "flex min-w-[200px] flex-col items-stretch gap-1.5 rounded-xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-600 dark:bg-gray-800 [&>*]:!w-full"
         }
       >
@@ -315,6 +332,14 @@ export function RowActions({ row, table, open, onClose, anchorRect, inline = fal
           >
             View Quotation
           </button>
+          {canEditQuotation && !Number(row.original.closed) && !row.original.order_received && (
+            <button
+              onClick={handleEditQuotation}
+              className="inline-flex items-center justify-center rounded-md bg-amber-500 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-amber-600 min-w-[110px] shadow-sm"
+            >
+              Edit Quotation
+            </button>
+          )}
           <button
             onClick={handleOrderReceived}
             className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-emerald-700 min-w-[110px] shadow-sm"

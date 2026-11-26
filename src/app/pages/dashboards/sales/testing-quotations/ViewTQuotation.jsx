@@ -96,6 +96,13 @@ export default function ViewTQuotation() {
                         <Button onClick={() => window.print()} color="success" className="flex items-center gap-2">
                             <Printer size={18} /> Print / Download
                         </Button>
+                        {permissions.includes(94) && [0, 1].includes(Number(quote.status)) && (
+                            <Link to={`/dashboards/sales/testing-quotations/edit/${id}`}>
+                                <Button variant="outline" color="primary">
+                                    Edit Quotation
+                                </Button>
+                            </Link>
+                        )}
                     </div>
                 </div>
 

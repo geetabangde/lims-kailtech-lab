@@ -28,12 +28,20 @@ import { useThemeContext } from "app/contexts/theme/context";
 
 import { columns } from "./columns";
 import { SOURCE_PILLS, enquiryTone, setHolidays, effectiveStatus } from "./enquiryOptions";
-import EnquiryDetailsPanel from "./EnquiryDetailsPanel";
 import { Toolbar } from "./Toolbar";
 import { tableConfig } from "./TableConfig";
 import { SelectedRowsActions } from "./SelectedRowsActions";
 
 // ----------------------------------------------------------------------
+
+const FILTER_KEY = "enquiry-list-filters-v1";
+const loadFilters = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem(FILTER_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+};
 
 export default function EnquiryList() {
   const { cardSkin } = useThemeContext();
@@ -46,9 +54,10 @@ export default function EnquiryList() {
     }
   }, [navigate, permissions]);
 
+  const [saved] = useState(loadFilters); // filters of the last visit (restored when you come back from another page)
   const [rawData, setRawData] = useState([]);
-  const [sourceFilter, setSourceFilter] = useState("");
-  const [cardFilter, setCardFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState(saved.sourceFilter || "");
+  const [cardFilter, setCardFilter] = useState(saved.cardFilter || "");
   const [loading, setLoading] = useState(true);
 
   // Source quick-filter (client side, by lead_source text) - the list below works on `data`
@@ -106,12 +115,12 @@ export default function EnquiryList() {
   }, [sourceRows]);
 
   const [tableSettings, setTableSettings] = useState(tableConfig);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const [globalFilter, setGlobalFilter] = useState(saved.globalFilter || "");
   const [admins, setAdmins] = useState([]);
-  const [selectedAssignee, setSelectedAssignee] = useState("");
-  const [minDate, setMinDate] = useState("");
-  const [maxDate, setMaxDate] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [selectedAssignee, setSelectedAssignee] = useState(saved.selectedAssignee || "");
+  const [minDate, setMinDate] = useState(saved.minDate || "");
+  const [maxDate, setMaxDate] = useState(saved.maxDate || "");
+  const [statusFilter, setStatusFilter] = useState(saved.statusFilter || "");
   const [sorting, setSorting] = useState([{ id: "added_on", desc: true }]);
   const [columnVisibility, setColumnVisibility] = useLocalStorage(
     "col-vis-enquiry-v2",
@@ -124,6 +133,18 @@ export default function EnquiryList() {
   const [autoResetPageIndex, skipAutoResetPageIndex] = useSkipper();
   const [isResponsive, setIsResponsive] = useLocalStorage("enquiry-responsive", false);
   const [expanded, setExpanded] = useState({});
+  const [openActionsId, setOpenActionsId] = useState(null); // the one enquiry whose Status "+" actions are open
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        FILTER_KEY,
+        JSON.stringify({ sourceFilter, cardFilter, minDate, maxDate, statusFilter, selectedAssignee, globalFilter }),
+      );
+    } catch {
+      /* storage not available: filters just are not remembered */
+    }
+  }, [sourceFilter, cardFilter, minDate, maxDate, statusFilter, selectedAssignee, globalFilter]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -215,11 +236,13 @@ export default function EnquiryList() {
         toast.success(`${rows.length} rows deleted locally`);
       },
       refetch: fetchData,
+      openActionsId,
+      setOpenActionsId,
       setTableSettings,
       isResponsive, // Pass to columns
     },
     onExpandedChange: setExpanded,
-    getRowCanExpand: () => true,
+    getRowCanExpand: () => false,
     getExpandedRowModel: getExpandedRowModel(),
     filterFns: { fuzzy: fuzzyFilter },
     globalFilterFn: fuzzyFilter,
@@ -461,16 +484,6 @@ export default function EnquiryList() {
                               </Td>
                             ))}
                           </Tr>
-                          {/* Expanded Row Content */}
-                          {row.getIsExpanded() && (
-                            <Tr className="bg-gray-50/50 dark:bg-dark-800/50 border-b border-gray-100 dark:border-dark-600">
-                              <Td colSpan={row.getVisibleCells().length}>
-                                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                                  <EnquiryDetailsPanel row={row} />
-                                </div>
-                              </Td>
-                            </Tr>
-                          )}
                         </Fragment>
                       ))
                     ) : (
