@@ -67,6 +67,41 @@ const toDecimalCount = (val) => {
 
 export const getRTDWOIRowType = (rowData) => (rowData?.[RTDWOI_COLS.VALUE_OF] === 'Master' ? 'master' : 'uuc');
 
+// ---- 2026-11-27 (Hemant, item 73729): both Average columns are shown in their own unit; the UUC ohm average is
+// converted to degC with the standard Pt100 table (IEC 60751, same as the PT100 calculator the lab uses).
+// units table: 35 = Ohm, 12 = Degree Centigrade.
+export const isOhmUnit = (unit) => {
+  const s = String(unit ?? '').trim();
+  return s === '35' || /^(ohm|ohms|Ω)$/i.test(s);
+};
+
+// Small unit symbol shown beside an Average value ('' when the unit is not known yet)
+export const unitSymbol = (unit) => {
+  const s = String(unit ?? '').trim();
+  if (isBlank(s)) return '';
+  if (isOhmUnit(s)) return 'Ω';
+  if (s === '12' || /degree\s*c|[°˚]\s*c|celsius|centigrade/i.test(s)) return '°C';
+  return /^\d+$/.test(s) ? '' : s;
+};
+
+// IEC 60751 Pt100 (alpha 0.00385): resistance in ohm -> temperature in degC (Newton iteration, valid about -200..850 degC)
+export const pt100ToCelsius = (ohm) => {
+  const r = Number(ohm);
+  if (!Number.isFinite(r) || r <= 0) return NaN;
+  const A = 3.9083e-3;
+  const B = -5.775e-7;
+  const C = -4.183e-12;
+  let t = (r - 100) / 0.385;
+  for (let i = 0; i < 40; i += 1) {
+    const f = 100 * (t < 0 ? 1 + A * t + B * t * t + C * (t - 100) * t * t * t : 1 + A * t + B * t * t) - r;
+    const d = 100 * (t < 0 ? A + 2 * B * t + C * (4 * t * t * t - 300 * t * t) : A + 2 * B * t);
+    const step = f / d;
+    t -= step;
+    if (Math.abs(step) < 1e-10) break;
+  }
+  return Number.isFinite(t) ? t : NaN;
+};
+
 const mean = (rowData) => {
   const readings = rowData
     .slice(RTDWOI_COLS.OBS_START, RTDWOI_COLS.OBS_END + 1)
@@ -97,9 +132,13 @@ export const isPt100OutOfRange = (sensitivity) => {
 /**
  * All calculated cells of one point (both rows) at once.
  * meta is the point's rowMeta entry ({ errorDecimals }).
- * Uses difference method with Sensitivity Coefficient S (degC/ohm):
- * Error = (UUC avg - Master avg) * S (reversed if cusset error "stduuc").
- * Converted UUC = Converted Master + Error.
+ * 2026-11-27 (Hemant): both "Average (degC)" cells are real temperatures.
+ *  - Master Average (degC) = the master's own average (the master reads degC).
+ *  - UUC Average (degC)    = the UUC average converted to degC: ohm readings through the Pt100 table (IEC 60751),
+ *                            degC readings as they are.
+ *  - Deviation = UUC degC - Master degC (reversed if cusset error "stduuc").
+ * The sensitivity coefficient is no longer used for the deviation (the uncertainty calculation uses it).
+ * Ambient / Corrected Average are no longer used (columns removed); correctedAverage is always ''.
  */
 export const calculateRTDWOIPoint = (uucRowData, masterRowData, meta, cussetError) => {
   const uucRow = uucRowData || [];
@@ -109,45 +148,22 @@ export const calculateRTDWOIPoint = (uucRowData, masterRowData, meta, cussetErro
   const uucAverage = formatUnrounded(uucMean);
 
   const masterMean = mean(masterRow);
-  const ambient = toNumber(masterRow[RTDWOI_COLS.AMBIENT]);
   const masterAverage = formatUnrounded(masterMean);
-  const correctedAverage = formatUnrounded(masterMean + (isNaN(ambient) ? 0 : ambient));
 
-  const sensitivity = toNumber(uucRow[RTDWOI_COLS.SENSITIVITY]);
+  const decimals = Number.isInteger(meta?.errorDecimals) ? meta.errorDecimals : 4;
+  const uucTemp = isOhmUnit(uucRow[RTDWOI_COLS.UNIT]) ? pt100ToCelsius(uucMean) : uucMean;
 
-  let masterConverted = masterRow[RTDWOI_COLS.CONVERTED_AVERAGE];
-  if (isBlank(masterConverted)) {
-    const sp = uucRow[RTDWOI_COLS.SET_POINT];
-    if (!isBlank(sp) && !isNaN(toNumber(sp))) {
-      masterConverted = sp;
-    } else if (!isBlank(correctedAverage)) {
-      masterConverted = correctedAverage;
-    }
-  }
+  const uucConverted = Number.isFinite(uucTemp) ? uucTemp.toFixed(decimals) : '';
+  const masterConverted = Number.isFinite(masterMean) ? masterMean.toFixed(decimals) : '';
 
   let error = '';
-  let uucConverted = uucRow[RTDWOI_COLS.CONVERTED_AVERAGE];
-
-  if (!isNaN(sensitivity) && sensitivity !== 0 && !isNaN(uucMean) && !isNaN(masterMean)) {
-    const diff = cussetError === 'stduuc' ? (masterMean - uucMean) : (uucMean - masterMean);
-    const calculatedError = diff * sensitivity;
-    error = formatDecimals(calculatedError, meta?.errorDecimals);
-
-    const mConvNum = toNumber(masterConverted);
-    if (!isNaN(mConvNum)) {
-      uucConverted = formatDecimals(cussetError === 'stduuc' ? mConvNum - calculatedError : mConvNum + calculatedError, meta?.errorDecimals);
-    }
-  } else {
-    const uucConvNum = toNumber(uucConverted);
-    const masterConvNum = toNumber(masterConverted);
-    if (!isNaN(uucConvNum) && !isNaN(masterConvNum)) {
-      error = formatDecimals(cussetError === 'stduuc' ? masterConvNum - uucConvNum : uucConvNum - masterConvNum, meta?.errorDecimals);
-    }
+  if (Number.isFinite(uucTemp) && Number.isFinite(masterMean)) {
+    error = formatDecimals(cussetError === 'stduuc' ? masterMean - uucTemp : uucTemp - masterMean, decimals);
   }
 
   return {
     uuc: { average: uucAverage, convertedAverage: uucConverted },
-    master: { average: masterAverage, correctedAverage, convertedAverage: masterConverted },
+    master: { average: masterAverage, correctedAverage: '', convertedAverage: masterConverted },
     error,
   };
 };
@@ -199,17 +215,12 @@ export const getRTDWOIFieldType = (rowType, colIndex) => {
 /**
  * Cells the user types into.
  * UUC row: unit, sensitivity, 5 readings.
- * Master row: unit, 5 readings, ambientmaster, caveragemaster.
- * caverageuuc and deviation are calculated.
+ * Master row: unit and 5 readings only (Ambient removed 2026-11-27; Average (degC) is calculated).
  */
 export const isRTDWOICellEditable = (rowType, colIndex) => {
   const isReading = colIndex >= RTDWOI_COLS.OBS_START && colIndex <= RTDWOI_COLS.OBS_END;
   if (isReading || colIndex === RTDWOI_COLS.UNIT) return true;
-  if (rowType === 'uuc') {
-    return colIndex === RTDWOI_COLS.SENSITIVITY;
-  } else {
-    return colIndex === RTDWOI_COLS.AMBIENT || colIndex === RTDWOI_COLS.CONVERTED_AVERAGE;
-  }
+  return rowType === 'uuc' && colIndex === RTDWOI_COLS.SENSITIVITY;
 };
 
 /**
@@ -258,6 +269,9 @@ const pick = (obj, ...keys) => {
 
 const asObject = (val) => (val && typeof val === 'object' && !Array.isArray(val) ? val : {});
 
+// The observation API sends the saved unit as { selected: '35', options: {...} } (uuc_unit / master_unit)
+const selectedUnit = (u) => (u && typeof u === 'object' ? safeGetValue(u.selected ?? u.value ?? '') : safeGetValue(u));
+
 // Readings come either as an array (uuc.observations) or flat keys (uuc0..uuc4 / master0..master4)
 const getReadings = (side, point, flatPrefix) => {
   if (side?.observations || side?.readings || side?.values) {
@@ -294,7 +308,9 @@ const getPointMeta = (point) => {
 /**
  * Row generator for RTDWOI Observation.
  */
-export const createRTDWOIRows = (dataArray) => {
+// options.preferStored: show the SAVED averages / deviation when present (raw data page of a finished item) and calculate only
+// the blank ones; without it every calculated cell is recalculated with the current formula (Step 3 grid).
+export const createRTDWOIRows = (dataArray, options = {}) => {
   const rows = [];
   const rowMeta = [];
   const calibrationPoints = [];
@@ -320,7 +336,7 @@ export const createRTDWOIRows = (dataArray) => {
       srNo,
       setPoint,
       'UUC',
-      pick(point, 'unit_description', 'uuc_unit_description', 'unit_label', 'uucunit') || pick(uuc, 'unit_description', 'unit_id', 'unit'),
+      selectedUnit(point.uuc_unit) || pick(point, 'uuc_unit_description', 'uucunit') || pick(uuc, 'unit_description', 'unit_id', 'unit') || pick(point, 'unit_description', 'unit_label'),
       pick(uuc, 'sensitivity_coefficient', 'sensitivitycoefficient') || pick(point, 'sensitivitycoefficient', 'sensitivity_coefficient'),
       ...getReadings(uuc, point, 'uuc'),
       pick(uuc, 'average') || pick(point, 'averageuuc', 'average_uuc'),
@@ -334,21 +350,24 @@ export const createRTDWOIRows = (dataArray) => {
       '-',
       '-',
       'Master',
-      pick(master, 'unit_id', 'unit') || pick(point, 'masterunit'),
+      selectedUnit(point.master_unit) || pick(master, 'unit_id', 'unit') || pick(point, 'masterunit'),
       '-',
       ...getReadings(master, point, 'master'),
       pick(master, 'average') || pick(point, 'averagemaster', 'average_master'),
-      pick(master, 'ambient_mv', 'ambient') || pick(point, 'ambientmaster', 'ambient_master'),
-      pick(master, 'corrected_average') || pick(point, 'saveragemaster', 's_average_master'),
+      '-',
+      '-',
       pick(master, 'converted_average', 'c_average', 'caverage') || pick(point, 'caveragemaster', 'c_average_master'),
       '-',
     ];
 
     const calc = calculateRTDWOIPoint(uucRow, masterRow, meta, point.cusset_error);
-    const useCalculated = (row, col, val) => { if (!isBlank(val)) row[col] = val; };
+    const useCalculated = (row, col, val) => {
+      if (isBlank(val)) return;
+      if (options.preferStored && !isBlank(row[col]) && row[col] !== '-') return;
+      row[col] = val;
+    };
     useCalculated(uucRow, RTDWOI_COLS.AVERAGE, calc.uuc.average);
     useCalculated(masterRow, RTDWOI_COLS.AVERAGE, calc.master.average);
-    useCalculated(masterRow, RTDWOI_COLS.CORRECTED_AVERAGE, calc.master.correctedAverage);
     useCalculated(masterRow, RTDWOI_COLS.CONVERTED_AVERAGE, calc.master.convertedAverage);
     useCalculated(uucRow, RTDWOI_COLS.CONVERTED_AVERAGE, calc.uuc.convertedAverage);
     useCalculated(uucRow, RTDWOI_COLS.DEVIATION, calc.error);
@@ -415,7 +434,8 @@ export const getRTDWOITableConfig = (observations, unitLabel) => {
       subHeaders: {
         'Observation': ['1', '2', '3', '4', '5']
       },
-      remainingHeaders: ['Average (Ω)', 'Ambient', 'Corrected Average (Ω)', `Average${suffix}`, `Deviation${suffix}`]
+      // 2026-11-27: plain 'Average' (each cell shows its own unit); Ambient and Corrected Average removed (hidden columns)
+      remainingHeaders: ['Average', `Average${suffix}`, `Deviation${suffix}`]
     },
     staticRows: rows,
     hiddenInputs: hiddenInputs,
@@ -423,6 +443,8 @@ export const getRTDWOITableConfig = (observations, unitLabel) => {
     // Columns merged across a point's UUC and Master rows in PHP (rowspan="2")
     rowSpanColumns: [RTDWOI_COLS.SR_NO, RTDWOI_COLS.SET_POINT, RTDWOI_COLS.DEVIATION],
     unitColumnIndex: RTDWOI_COLS.UNIT,
+    // columns that stay in the data model (saved rows of old items) but are not shown or saved any more
+    hiddenColumns: [RTDWOI_COLS.AMBIENT, RTDWOI_COLS.CORRECTED_AVERAGE],
   };
 };
 

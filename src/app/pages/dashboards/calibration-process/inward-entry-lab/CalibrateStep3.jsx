@@ -62,6 +62,7 @@ import {
   isRTDWOICellEditable,
   validateRTDWOIRow,
   deriveRTDWOISensitivity,
+  unitSymbol as rtdwoiUnitSymbol,
   isPt100OutOfRange,
 } from './Observations/ObservationRTDWOI';
 import {
@@ -3127,7 +3128,6 @@ const CalibrateStep3 = () => {
     const calc = calculateRTDWOIPoint(uucRow, masterRow, selectedTableData?.rowMeta?.[rowIndex], getRTDWOICussetError(rowIndex));
     values[`${uucIndex}-${RTDWOI_COLS.AVERAGE}`] = calc.uuc.average;
     values[`${masterIndex}-${RTDWOI_COLS.AVERAGE}`] = calc.master.average;
-    values[`${masterIndex}-${RTDWOI_COLS.CORRECTED_AVERAGE}`] = calc.master.correctedAverage;
     values[`${masterIndex}-${RTDWOI_COLS.CONVERTED_AVERAGE}`] = calc.master.convertedAverage;
     values[`${uucIndex}-${RTDWOI_COLS.CONVERTED_AVERAGE}`] = calc.uuc.convertedAverage;
     values[`${uucIndex}-${RTDWOI_COLS.DEVIATION}`] = calc.error;
@@ -6533,11 +6533,10 @@ const CalibrateStep3 = () => {
         }
       }
       const calcCells = [];
-      if (isReading || colIndex === RTDWOI_COLS.AMBIENT || colIndex === RTDWOI_COLS.CONVERTED_AVERAGE) {
+      if (isReading || colIndex === RTDWOI_COLS.UNIT) {
         calcCells.push(
           [uucIndex, RTDWOI_COLS.AVERAGE],
           [masterIndex, RTDWOI_COLS.AVERAGE],
-          [masterIndex, RTDWOI_COLS.CORRECTED_AVERAGE],
           [masterIndex, RTDWOI_COLS.CONVERTED_AVERAGE],
           [uucIndex, RTDWOI_COLS.CONVERTED_AVERAGE],
           [uucIndex, RTDWOI_COLS.DEVIATION],
@@ -10721,6 +10720,8 @@ const CalibrateStep3 = () => {
           [RTDWOI_COLS.DEVIATION]: calculated.error,
         };
         rowData.forEach((cell, colIndex) => {
+          // Ambient and Corrected Average (master) were removed 2026-11-27: not shown, not saved
+          if (colIndex === RTDWOI_COLS.AMBIENT || colIndex === RTDWOI_COLS.CORRECTED_AVERAGE) return;
           const field = getRTDWOIFieldType(rowType, colIndex);
           if (!field) return;
           const cellValue = colIndex in calculatedCells ? calculatedCells[colIndex] : cell;
@@ -12893,6 +12894,7 @@ const CalibrateStep3 = () => {
 
                                     // RTDWOI: all cells handled here (paired UUC/Master rows, unit selects, rowspans)
                                     if (selectedTableData.id === 'observationrtdwoi') {
+                                      if (selectedTableData.hiddenColumns?.includes(colIndex)) return null;
                                       const rowType = getRTDWOIRowType(row);
                                       const spansBothRows = selectedTableData.rowSpanColumns?.includes(colIndex);
                                       // Sr. No., Set Point and Deviation are merged into the UUC row (PHP rowspan="2")
@@ -12940,6 +12942,11 @@ const CalibrateStep3 = () => {
                                       const isSensitivityCol = colIndex === RTDWOI_COLS.SENSITIVITY && rowType === 'uuc';
                                       const isManuallyEdited = isSensitivityCol && manuallyEditedSensitivity?.[`observationrtdwoi-${rowIndex}`];
                                       const isOutOfRange = isSensitivityCol && isPt100OutOfRange && isPt100OutOfRange(currentValue);
+                                      // Average: the row's own unit (UUC ohm / master degC); Average (degC): always degC
+                                      const ownUnitValue = tableInputValues[`${rowIndex}-${RTDWOI_COLS.UNIT}`] ?? row[RTDWOI_COLS.UNIT];
+                                      const averageUnitSymbol = colIndex === RTDWOI_COLS.CONVERTED_AVERAGE
+                                        ? '\u00b0C'
+                                        : colIndex === RTDWOI_COLS.AVERAGE ? rtdwoiUnitSymbol(ownUnitValue) : '';
 
                                       return (
                                         <td key={colIndex} {...tdProps}>
@@ -12959,6 +12966,11 @@ const CalibrateStep3 = () => {
                                                 }}
                                                 disabled={!isEditable}
                                               />
+                                              {averageUnitSymbol && (
+                                                <span className="shrink-0 text-[11px] font-semibold text-gray-500 dark:text-gray-300" title="Unit">
+                                                  {averageUnitSymbol}
+                                                </span>
+                                              )}
                                               {isManuallyEdited && (
                                                 <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold px-1 py-0.5 bg-amber-50 dark:bg-amber-900/30 rounded" title="Manually edited">
                                                   (edited)

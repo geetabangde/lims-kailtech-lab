@@ -23,6 +23,7 @@ import {
   ViewObservationLMS,
   ViewObservationLS,
   TSWOI_ROWSPAN_COLUMNS,
+  RTDWOI_ROWSPAN_COLUMNS,
   TSWI_ROWSPAN_COLUMNS,
   SW_ROWSPAN_COLUMNS,
   BHT_ROWSPAN_COLUMNS,
@@ -250,8 +251,9 @@ export default function CalibrationReport() {
 
       const isSuccess = response.data.status === true || response.data.staus === true || response.data.success === true;
 
-      if (isSuccess && (response.data.data || observationTemplate === 'observationbiomedical')) {
-        const observationData = observationTemplate === 'observationbiomedical'
+      const rtdwoiRowsOnRoot = observationTemplate === 'observationrtdwoi' && Array.isArray(response.data.calibration_data);
+      if (isSuccess && (response.data.data || rtdwoiRowsOnRoot || observationTemplate === 'observationbiomedical')) {
+        const observationData = observationTemplate === 'observationbiomedical' || rtdwoiRowsOnRoot
           ? response.data
           : response.data.data;
         setBiomedicalRawData(observationTemplate === 'observationbiomedical' ? observationData : null);
@@ -1370,6 +1372,21 @@ export default function CalibrationReport() {
                               // TSWOI: Sr. No., Set Point and Deviation span the UUC and Master rows (PHP rowspan="2")
                               if (observationTemplate === 'observationtswoi') {
                                 const spansBothRows = TSWOI_ROWSPAN_COLUMNS.includes(colIndex);
+                                if (spansBothRows && row[2] !== 'UUC') return null;
+                                const isStatic = spansBothRows || cellContent === '-' || cellContent === 'UUC' || cellContent === 'Master';
+                                return (
+                                  <td
+                                    key={colIndex}
+                                    rowSpan={spansBothRows ? 2 : undefined}
+                                    className={`border border-gray-300 px-3 py-2 align-middle ${isStatic ? 'text-center font-medium' : ''}`}
+                                  >
+                                    {cellContent || ''}
+                                  </td>
+                                );
+                              }
+                              // RTDWOI: Sr. No., Set Point and Deviation span the UUC and Master rows (as on the Step 3 grid)
+                              if (observationTemplate === 'observationrtdwoi') {
+                                const spansBothRows = RTDWOI_ROWSPAN_COLUMNS.includes(colIndex);
                                 if (spansBothRows && row[2] !== 'UUC') return null;
                                 const isStatic = spansBothRows || cellContent === '-' || cellContent === 'UUC' || cellContent === 'Master';
                                 return (
