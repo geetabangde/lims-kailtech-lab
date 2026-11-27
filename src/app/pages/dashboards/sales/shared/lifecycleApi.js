@@ -12,3 +12,9 @@ export const saveDispatch = (payload) => axios.post("/enquiry-lifecycle/dispatch
 export const getDispatches = (params) => axios.get("/enquiry-lifecycle/dispatch-list", { params });
 export const savePo = (formData) =>
   axios.post("/enquiry-lifecycle/po", formData, { headers: { "Content-Type": "multipart/form-data" } });
+
+// 2026-11-27: Upload quotation (PDF) with versions
+const multipart = { headers: { "Content-Type": "multipart/form-data" } };
+export const uploadQuotation = (formData) => axios.post("/enquiry-lifecycle/quotation-upload", formData, multipart);
+export const uploadQuotationVersion = (formData) => axios.post("/enquiry-lifecycle/quotation-upload-version", formData, multipart);
+export const getQuotationUploads = (params) => axios.get("/enquiry-lifecycle/quotation-uploads", { params });

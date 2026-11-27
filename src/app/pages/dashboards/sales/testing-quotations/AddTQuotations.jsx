@@ -9,6 +9,8 @@ import Select from "react-select";
 import { DatePicker } from "components/shared/form/Datepicker";
 import dayjs from "dayjs";
 import { TextEditor } from "components/shared/form/TextEditor";
+import { QuotationModeToggle, UploadQuotationFields, QUOTATION_MODES, buildUploadFormData, checkUploadInputs } from "../shared/UploadQuotationFields";
+import { uploadQuotation } from "../shared/lifecycleApi";
 
 export default function AddTestingQuotation() {
   const navigate = useNavigate();
@@ -22,6 +24,13 @@ export default function AddTestingQuotation() {
 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // 2026-11-27: regular quotation (items added next) or an uploaded PDF
+  const [mode, setMode] = useState(QUOTATION_MODES.regular);
+  const [upNumber, setUpNumber] = useState("");
+  const [upAmount, setUpAmount] = useState("");
+  const [upNote, setUpNote] = useState("");
+  const [upFile, setUpFile] = useState(null);
+  const isUpload = mode === QUOTATION_MODES.upload;
 
   const [formData, setFormData] = useState({
     customer: "",
@@ -249,6 +258,13 @@ export default function AddTestingQuotation() {
       toast.error("Please select a specific purpose");
       return;
     }
+    if (isUpload) {
+      const upErr = checkUploadInputs({ number: upNumber, file: upFile });
+      if (upErr) {
+        toast.error(upErr);
+        return;
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -278,6 +294,17 @@ export default function AddTestingQuotation() {
         payload.stateid = formData.stateid;
       } else {
         payload.state = formData.state;
+      }
+
+      if (isUpload) {
+        const fd = buildUploadFormData(
+          { ...payload, quotation_type: "testing" },
+          { number: upNumber, amount: upAmount, note: upNote, file: upFile },
+        );
+        const upRes = await uploadQuotation(fd);
+        toast.success(upRes.data?.message || "Quotation uploaded and saved");
+        navigate(`/dashboards/sales/testing-quotations/view/${upRes.data.quotation_id}`);
+        return;
       }
 
       const res = await axios.post("/sales/add-testing-quotation", payload);
@@ -326,6 +353,7 @@ export default function AddTestingQuotation() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <QuotationModeToggle mode={mode} onChange={setMode} />
           <Card className="p-6">
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* Customer Selection */}
@@ -643,7 +671,20 @@ export default function AddTestingQuotation() {
             </div>
           </Card>
 
+          {isUpload && (
+            <Card className="p-6">
+              <h3 className="mb-4 text-lg font-medium text-gray-800">Upload Quotation</h3>
+              <UploadQuotationFields
+                number={upNumber} setNumber={setUpNumber}
+                amount={upAmount} setAmount={setUpAmount}
+                note={upNote} setNote={setUpNote}
+                file={upFile} setFile={setUpFile}
+              />
+            </Card>
+          )}
+
           {/* Terms and Scope Section */}
+          {!isUpload && (
           <Card className="p-6">
             <h3 className="mb-4 text-lg font-medium text-gray-800">
               Terms & Scope of Work
@@ -693,9 +734,10 @@ export default function AddTestingQuotation() {
               </div>
             </div>
           </Card>
+          )}
 
           {/* Statutory Details Table */}
-          {statutoryDetails.length > 0 && (
+          {!isUpload && statutoryDetails.length > 0 && (
             <Card className="p-6">
               <h3 className="mb-4 text-lg font-medium text-gray-800">
                 Statutory Detail
@@ -727,7 +769,7 @@ export default function AddTestingQuotation() {
               disabled={submitting}
               className="h-10 px-6 text-base font-medium shadow-md transition-all hover:shadow-lg"
             >
-              {submitting ? "Creating..." : "Proceed to add Quotation Items"}
+              {submitting ? (isUpload ? "Uploading..." : "Creating...") : isUpload ? "Upload & Save Quotation" : "Proceed to add Quotation Items"}
             </Button>
           </div>
         </form>

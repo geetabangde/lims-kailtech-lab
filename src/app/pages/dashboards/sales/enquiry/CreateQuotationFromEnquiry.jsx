@@ -10,6 +10,8 @@ import { Page } from "components/shared/Page";
 import { Card, Button } from "components/ui";
 import { TextEditor, Delta } from "components/shared/form/TextEditor";
 import { DatePicker } from "components/shared/form/Datepicker";
+import { QuotationModeToggle, UploadQuotationFields, QUOTATION_MODES, buildUploadFormData, checkUploadInputs } from "../shared/UploadQuotationFields";
+import { uploadQuotation } from "../shared/lifecycleApi";
 
 // ----------------------------------------------------------------------
 
@@ -27,6 +29,13 @@ export default function CreateQuotationFromEnquiry() {
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    // 2026-11-27: regular quotation (items added next) or an uploaded PDF
+    const [mode, setMode] = useState(QUOTATION_MODES.regular);
+    const [upNumber, setUpNumber] = useState("");
+    const [upAmount, setUpAmount] = useState("");
+    const [upNote, setUpNote] = useState("");
+    const [upFile, setUpFile] = useState(null);
+    const isUpload = mode === QUOTATION_MODES.upload;
 
     const [formData, setFormData] = useState({
         customer: "",
@@ -250,6 +259,13 @@ export default function CreateQuotationFromEnquiry() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isUpload) {
+            const upErr = checkUploadInputs({ number: upNumber, file: upFile });
+            if (upErr) {
+                toast.error(upErr);
+                return;
+            }
+        }
         setSubmitting(true);
 
         // Prepare the payload according to the requested format
@@ -287,6 +303,17 @@ export default function CreateQuotationFromEnquiry() {
         }
 
         try {
+            if (isUpload) {
+                const type = String(formData.vertical) === "1" ? "calibration" : "testing";
+                const fd = buildUploadFormData(
+                    { ...payload, quotation_type: type },
+                    { number: upNumber, amount: upAmount, note: upNote, file: upFile },
+                );
+                const upRes = await uploadQuotation(fd);
+                toast.success(upRes.data?.message || "Quotation uploaded and saved");
+                navigate(`/dashboards/sales/${type}-quotations/view/${upRes.data.quotation_id}`);
+                return;
+            }
             const res = await axios.post("/sales/create-quotation", payload);
             if (res.data.status === true || res.data.status === "true") {
                 toast.success(res.data.message || "New Quotation has been Added ✅");
@@ -344,6 +371,7 @@ export default function CreateQuotationFromEnquiry() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    <QuotationModeToggle mode={mode} onChange={setMode} />
                     <Card className="p-6">
                         <div className="space-y-6">
                             {/* Customer Profile Selection */}
@@ -585,7 +613,20 @@ export default function CreateQuotationFromEnquiry() {
 
                             <hr className="border-gray-200 dark:border-gray-700" />
 
+                            {isUpload && (
+                                <div className="space-y-3">
+                                    <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">Upload Quotation</h3>
+                                    <UploadQuotationFields
+                                        number={upNumber} setNumber={setUpNumber}
+                                        amount={upAmount} setAmount={setUpAmount}
+                                        note={upNote} setNote={setUpNote}
+                                        file={upFile} setFile={setUpFile}
+                                    />
+                                </div>
+                            )}
+
                             {/* Terms */}
+                            {!isUpload && (<>
                             <div className="space-y-2">
                                 <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Custom Terms</label>
                                 <TextEditor
@@ -612,6 +653,7 @@ export default function CreateQuotationFromEnquiry() {
                                     className="min-h-[120px] border rounded-lg overflow-hidden"
                                 />
                             </div>
+                            </>)}
                         </div>
 
 
@@ -630,7 +672,7 @@ export default function CreateQuotationFromEnquiry() {
                                 disabled={submitting}
                                 style={{ backgroundColor: '#16a34a', color: '#ffffff' }}
                             >
-                                {submitting ? "Creating..." : "Proceed to add Quotation Items"}
+                                {submitting ? (isUpload ? "Uploading..." : "Creating...") : isUpload ? "Upload & Save Quotation" : "Proceed to add Quotation Items"}
                             </Button>
                         </div>
                     </Card>

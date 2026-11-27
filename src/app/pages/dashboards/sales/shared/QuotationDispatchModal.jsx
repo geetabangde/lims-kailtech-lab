@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import { toast } from "sonner";
 import axios from "utils/axios";
 import ModalShell, { fieldCls, btnGhost, btnPrimary } from "./ModalShell";
-import { saveDispatch, getDispatches } from "./lifecycleApi";
+import { saveDispatch, getDispatches, getQuotationUploads } from "./lifecycleApi";
 
 const CHANNELS = ["Email", "WhatsApp", "Hand", "Courier", "Other"];
 
@@ -27,6 +27,25 @@ export default function QuotationDispatchModal({ show, id, type, onClose, defaul
   const [remark, setRemark] = useState("");
   const [history, setHistory] = useState([]);
   const [busy, setBusy] = useState(false);
+  // 2026-11-27: the current uploaded quotation PDF (only for quotations created with "Upload quotation")
+  const [uploaded, setUploaded] = useState(null);
+  const [attachUploaded, setAttachUploaded] = useState(true);
+
+  useEffect(() => {
+    if (!show || !id) return undefined;
+    let live = true;
+    setUploaded(null);
+    getQuotationUploads({ quotation_id: id, quotation_type: type })
+      .then((res) => {
+        const rows = res.data?.data || [];
+        if (live) setUploaded(rows.find((r) => Number(r.is_current) === 1) || rows[0] || null);
+      })
+      .catch(() => live && setUploaded(null));
+    setAttachUploaded(true);
+    return () => {
+      live = false;
+    };
+  }, [show, id, type]);
 
   const load = useCallback(async () => {
     try {
@@ -70,6 +89,7 @@ export default function QuotationDispatchModal({ show, id, type, onClose, defaul
         fd.append("subject", subject);
         fd.append("message", message);
         files.forEach((f) => fd.append("attachments[]", f));
+        if (uploaded && attachUploaded) fd.append("attach_uploaded", "1");
         const res = await axios.post("/enquiry-lifecycle/dispatch-email", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
@@ -173,9 +193,17 @@ export default function QuotationDispatchModal({ show, id, type, onClose, defaul
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Message <span className="text-red-500">*</span></label>
             <textarea className={fieldCls} rows={7} value={message} onChange={(e) => setMessage(e.target.value)} />
           </div>
+          {uploaded && (
+            <label className="flex items-start gap-2 rounded-lg bg-blue-50 p-2 text-xs text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+              <input type="checkbox" checked={attachUploaded} onChange={(e) => setAttachUploaded(e.target.checked)} className="mt-0.5" />
+              <span>
+                Attach the uploaded quotation PDF (version {uploaded.version}, {uploaded.original_name || "quotation.pdf"}) automatically.
+              </span>
+            </label>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Attach quotation PDF (max 3 files, 10 MB each)
+              {uploaded ? "More attachments (optional, max 3 files, 10 MB each)" : "Attach quotation PDF (max 3 files, 10 MB each)"}
             </label>
             <input
               type="file"

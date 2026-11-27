@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Printer } from "lucide-react";
 
 import logo from "assets/krtc.jpg";
+import UploadedQuotationPanel from "../shared/UploadedQuotationPanel";
 
 // ----------------------------------------------------------------------
 
@@ -192,6 +193,9 @@ export default function ViewQuotation() {
             </Link>
           </div>
         </div>
+
+        {/* 2026-11-27: only for quotations created with "Upload quotation (PDF)" */}
+        <UploadedQuotationPanel type="calibration" id={id} quotationNo={quotation_no} canEdit={permissions.includes(94)} />
 
         {/* Letterhead Document */}
         <div className="mx-auto print-area print:m-0" style={{ width: "100%", maxWidth: 1100, ...fontBase }}>

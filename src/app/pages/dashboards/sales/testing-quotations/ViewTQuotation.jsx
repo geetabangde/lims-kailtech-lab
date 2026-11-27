@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 import { Printer } from "lucide-react";
 
 import logo from "assets/krtc.jpg";
+import UploadedQuotationPanel from "../shared/UploadedQuotationPanel";
 
 // ----------------------------------------------------------------------
 
@@ -112,6 +113,9 @@ export default function ViewTQuotation() {
                         )}
                     </div>
                 </div>
+
+                {/* 2026-11-27: only for quotations created with "Upload quotation (PDF)" */}
+                <UploadedQuotationPanel type="testing" id={id} quotationNo={quote.quotationno} canEdit={permissions.includes(94)} />
 
                 {/* Letterhead Document */}
                 <div className="mx-auto print:m-0 print-area" style={{ width: "100%", maxWidth: 1100, ...fontBase }}>

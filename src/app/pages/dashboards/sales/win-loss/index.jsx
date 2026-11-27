@@ -23,6 +23,7 @@ export default function WinLoss() {
   const [kind, setKind] = useState(null); // the clicked card: enquiries | quotations | won | lost | open
   const [rec, setRec] = useState({ loading: false, data: [], count: 0, total_value: 0 });
   const [recQuery, setRecQuery] = useState("");
+  const [ageFilter, setAgeFilter] = useState("all"); // Still open records: all | recent (within 30 days) | older
 
   const load = useCallback(async () => {
     try {
@@ -64,6 +65,9 @@ export default function WinLoss() {
 
   const t = data?.totals;
   const enq = data?.enquiries;
+  const oa = data?.open_age; // still-open quotations split by age (30 days)
+  const openDays = oa?.days || 30;
+  const enqLost = Number(enq?.lost) || 0;
   const monthly = data?.monthly || [];
   const maxQ = Math.max(1, t?.count || 0, Number(enq?.total) || 0);
 
@@ -131,8 +135,8 @@ export default function WinLoss() {
                 { key: "enquiries", label: "Enquiries", value: enq?.total ?? 0, cls: "", sub: `${enq?.pending ?? 0} pending · ${enq?.quoted ?? 0} quoted · ${enq?.regretted ?? 0} regretted · ${enq?.lost ?? 0} lost` },
                 { key: "quotations", label: "Quotations", value: t.count, cls: "text-blue-600", sub: inr(t.value) },
                 { key: "won", label: "Won", value: t.won, cls: "text-emerald-600", sub: inr(t.won_value) },
-                { key: "lost", label: "Lost", value: t.lost, cls: "text-rose-600", sub: `${inr(t.lost_value)} · ${enq?.lost ?? 0} enquiries lost` },
-                { key: "open", label: "Still open", value: t.pending, cls: "text-amber-600", sub: inr(t.pending_value) },
+                { key: "lost", label: "Lost", value: t.lost + enqLost, cls: "text-rose-600", sub: `${t.lost} quotations (${inr(t.lost_value)}) · ${enqLost} enquiries` },
+                { key: "open", label: "Still open", value: t.pending, cls: "text-amber-600", sub: oa ? `${inr(t.pending_value)} · ${oa.recent.count} within ${openDays} days · ${oa.older.count} older` : inr(t.pending_value) },
                 { key: "won", label: "Conversion", value: `${data.conversion_rate ?? "-"}%`, cls: "", sub: `won / all quotations · win rate ${data.win_rate ?? "-"}% of decided`, id: "conversion" },
               ].map((c) => {
                 const selected = kind === c.key && c.id !== "conversion"; // Conversion opens the Won records, only the Won card is ringed
@@ -140,7 +144,7 @@ export default function WinLoss() {
                   <button
                     type="button"
                     key={c.id || c.key}
-                    onClick={() => { setRecQuery(""); setKind(kind === c.key ? null : c.key); }}
+                    onClick={() => { setRecQuery(""); setAgeFilter("all"); setKind(kind === c.key ? null : c.key); }}
                     title={kind === c.key ? "Click again to hide the records" : "Click to see the records behind this number"}
                     className={clsx(card, "text-left transition hover:shadow-md", selected && "border-primary-500 ring-2 ring-primary-500/40")}
                   >
@@ -155,14 +159,31 @@ export default function WinLoss() {
             {kind && (() => {
               const titles = { enquiries: "Enquiries", quotations: "Quotations", won: "Won (converted) quotations", lost: "Lost - quotations and enquiries", open: "Still open quotations" };
               const q = recQuery.trim().toLowerCase();
-              const rows = q ? rec.data.filter((r) => [r.ref, r.customer, r.type, r.status, r.by, r.reason].some((v) => String(v ?? "").toLowerCase().includes(q))) : rec.data;
+              const byAge = kind === "open" && ageFilter !== "all"
+                ? rec.data.filter((r) => (ageFilter === "recent" ? Number(r.age_days) <= openDays : Number(r.age_days) > openDays))
+                : rec.data;
+              const rows = q ? byAge.filter((r) => [r.ref, r.customer, r.type, r.status, r.by, r.reason].some((v) => String(v ?? "").toLowerCase().includes(q))) : byAge;
               const shownValue = rows.reduce((a, r) => a + (Number(r.value) || 0), 0);
               return (
                 <div className={clsx(card, "mb-4")}>
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-gray-700 dark:text-dark-100">
-                      {titles[kind]} - {rows.length}{q ? ` of ${rec.count}` : ""} records · {inr(q ? shownValue : rec.total_value)}
+                      {titles[kind]} - {rows.length}{q || byAge !== rec.data ? ` of ${rec.count}` : ""} records · {inr(q || byAge !== rec.data ? shownValue : rec.total_value)}
                     </p>
+                    {kind === "open" && (
+                      <div className="flex gap-1">
+                        {[["all", "All"], ["recent", `Within ${openDays} days`], ["older", `Older than ${openDays} days`]].map(([k, label]) => (
+                          <button
+                            type="button"
+                            key={k}
+                            onClick={() => setAgeFilter(k)}
+                            className={clsx("rounded-full border px-3 py-1 text-xs font-semibold", ageFilter === k ? "border-primary-600 bg-primary-600 text-white" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-dark-500 dark:bg-dark-800 dark:text-dark-100")}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <input className={clsx(inputCls, "w-56")} placeholder="Search customer, reference..." value={recQuery} onChange={(e) => setRecQuery(e.target.value)} />
                       <button type="button" onClick={() => setKind(null)} className="h-9 rounded-lg border border-gray-300 px-3 text-sm text-gray-600 hover:bg-gray-50 dark:border-dark-500 dark:text-dark-200">Close</button>
@@ -210,7 +231,7 @@ export default function WinLoss() {
               {bar("Enquiries", Number(enq?.total) || 0, "bg-gray-500", `${enq?.total ?? 0}`)}
               {bar("Quotations", t.count, "bg-blue-500", `${t.count}`)}
               {bar("Won", t.won, "bg-emerald-500", `${t.won} (${inr(t.won_value)})`)}
-              {bar("Lost", t.lost, "bg-rose-500", `${t.lost} (${inr(t.lost_value)})`)}
+              {bar("Lost", t.lost, "bg-rose-500", `${t.lost} quotations (${inr(t.lost_value)}) + ${enqLost} enquiries`)}
               <p className="mt-2 text-[11px] text-gray-500">Calibration: {data.quotations.calibration.count} quotations, {data.quotations.calibration.won} won · Testing: {data.quotations.testing.count} quotations, {data.quotations.testing.won} won</p>
               {t.lost === 0 && <p className="mt-1 text-[11px] text-amber-600">No quotation has been marked Lost in this period, so open quotations may include ones that were actually lost. Use the Lost Quotation button to record them.</p>}
             </div>

@@ -27,7 +27,7 @@ function Field({ label, children }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
       <dt className="w-40 shrink-0 text-sm font-bold text-gray-800 dark:text-dark-100">{label}</dt>
-      <dd className="min-w-0 flex-1 text-sm text-gray-600 [overflow-wrap:anywhere] dark:text-dark-300">{children}</dd>
+      <dd className="min-w-0 flex-1 whitespace-normal text-sm text-gray-600 [overflow-wrap:anywhere] dark:text-dark-300">{children}</dd>
     </div>
   );
 }
@@ -56,7 +56,7 @@ export default function EnquiryDetailsPanel({ row }) {
   const lastForward = forwards.length ? forwards[forwards.length - 1] : null;
 
   return (
-    <div className="grid grid-cols-1 gap-x-8 gap-y-3 p-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-x-8 gap-y-3 whitespace-normal break-words p-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <dl className="min-w-0 space-y-2">
         <Field label="Status">
           {effectiveStatus(e)} <span className="text-gray-400">{sinceText(e)}</span>
