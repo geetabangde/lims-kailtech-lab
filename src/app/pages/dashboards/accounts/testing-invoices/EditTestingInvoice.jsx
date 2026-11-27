@@ -76,7 +76,9 @@ function calcTotals({ items, charges, isSgst }) {
   items.forEach((item) => {
     const rate = parseFloat(item.rate) || 0;
     const meter = parseFloat(item.meter) || 0;
-    subtotal += item.hasMeter ? meter * rate : rate;
+    // 2026-11-27: service lines (no TRF) carry a quantity; TRF items have none (x1)
+    const qty = item.isManual ? (parseFloat(item.qty) || 1) : 1;
+    subtotal += item.hasMeter ? meter * rate : rate * qty;
   });
 
   const discnumber = parseFloat(charges.discnumber) || 0;
@@ -338,6 +340,9 @@ export default function EditTestingInvoice() {
   const [inwardOptions, setInwardOptions] = useState([]);
   const [selectedInwards, setSelectedInwards] = useState([]);
   const [items, setItems] = useState([]);
+  // 2026-11-27: direct / service invoice (no TRF behind it): its lines are the saved invoice lines
+  const [manualMode, setManualMode] = useState(false);
+  const manualRef = useRef(false);
   const [brnnos, setBrnnos] = useState("");
   const [remark, setRemark] = useState("");
   const [billingInfo, setBillingInfo] = useState(null);
@@ -446,6 +451,30 @@ export default function EditTestingInvoice() {
       });
 
       
+      // 2026-11-27 (Rahul, invoice 19486): a direct / service invoice has no TRF, so no item was loaded and the page was empty
+      // with a wrong 0.00 subtotal. Show the invoice's own saved lines (rate and charges can be edited and saved).
+      const manualRows = Array.isArray(d.manual_rows) ? d.manual_rows : [];
+      if (loadedInwards.length === 0 && manualRows.length > 0) {
+        const textLines = (html) => String(html ?? "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "").split("\n").map((t) => t.trim()).filter(Boolean);
+        manualRef.current = true;
+        setManualMode(true);
+        setItems(manualRows.map((r, idx) => {
+          const lines = textLines(r.description);
+          return {
+            _key: `manual-${idx}-${r.id}`,
+            id: r.id,
+            isManual: true,
+            name: lines[0] ?? "",
+            description: lines.slice(1).join(" - "),
+            qty: parseFloat(r.qty) || 1,
+            hasMeter: Number(r.meter_option) === 1,
+            meter: parseFloat(r.meter) || 1,
+            rate: parseFloat(r.rate) || 0,
+          };
+        }));
+        setHasMeterGlobal(manualRows.some((r) => Number(r.meter_option) === 1));
+      }
+
       if (loadedInwards.length > 0 && loadedPo) {
         const inwardParams = loadedInwards.map((i) => `inwardid[]=${encodeURIComponent(i)}`).join("&");
         const base = `customerid=${cid}&potype=${pt}&ponumber=${encodeURIComponent(loadedPo)}&invoiceid=${id}`;
@@ -529,7 +558,7 @@ export default function EditTestingInvoice() {
   // On PO change (handles both initial hydration and user changes)
   useEffect(() => {
     if (selectedPo && selectedPo !== prevPo.current) {
-      loadInwardDetail(selectedPo);
+      if (!manualRef.current) loadInwardDetail(selectedPo);
 
       // If it's a user change (not initial load), reset items and inward selection
       if (prevPo.current !== null) {
@@ -615,8 +644,8 @@ export default function EditTestingInvoice() {
   // ── 5. Submit → POST /accounts/update-testing-invoice ─────────────────────
   const handleSubmit = async () => {
     if (!customerid) return toast.error("Please select a customer");
-    if (!selectedPo) return toast.error("Please select a PO Number");
-    if (!selectedInwards.length) return toast.error("Please select at least one Inward Entry");
+    if (!manualMode && !selectedPo) return toast.error("Please select a PO Number");
+    if (!manualMode && !selectedInwards.length) return toast.error("Please select at least one Inward Entry");
     if (!items.length) return toast.error("No items found");
 
     setSaving(true);
@@ -635,10 +664,12 @@ export default function EditTestingInvoice() {
         invoicedate: toSlashDate(invoicedate),
 
         // PHP: itemid[], itemrate[], invoiceitemid[] sent together
-        itemid: items.map((i) => Number(i.id)),
-        itemmeter: items.map((i) => parseFloat(i.meter) || 1),
-        itemrate: items.map((i) => parseFloat(i.rate) || 0),
-        invoiceitemid: items.map((i) => Number(i.invoiceitemid ?? 0)),
+        itemid: manualMode ? [] : items.map((i) => Number(i.id)),
+        itemmeter: manualMode ? [] : items.map((i) => parseFloat(i.meter) || 1),
+        itemrate: manualMode ? [] : items.map((i) => parseFloat(i.rate) || 0),
+        invoiceitemid: manualMode ? [] : items.map((i) => Number(i.invoiceitemid ?? 0)),
+        // service invoice: the saved lines of the invoice with the (edited) rate / meter
+        ...(manualMode ? { manual_rows: items.map((i) => ({ id: Number(i.id), rate: parseFloat(i.rate) || 0, meter: parseFloat(i.meter) || 1 })) } : {}),
 
         subtotal: totals.subtotal,
         discnumber: parseFloat(charges.discnumber) || 0,
@@ -816,6 +847,13 @@ export default function EditTestingInvoice() {
             </div>
           )}
 
+          {manualMode && (
+            <div className="mt-5 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-200">
+              This is a direct / service invoice (no TRF behind it). The service lines billed are shown below - you can change the rate,
+              the charges, the date and the remark, and save.
+            </div>
+          )}
+
           {/* ══ Items table ══ */}
           {loadingItems
             ? <Spinner text="Loading items..." />
@@ -846,6 +884,7 @@ export default function EditTestingInvoice() {
                             <div className="font-medium text-gray-800 dark:text-dark-100">{item.name}</div>
                             {item.description && <div className="text-xs text-gray-500">{item.description}</div>}
                             {item.brnno && <div className="text-xs text-gray-400">{item.brnno}</div>}
+                            {item.isManual && item.qty > 1 && <div className="text-xs text-gray-400">Quantity: {item.qty} (rate is per unit)</div>}
                           </td>
 
                           {/* PHP: meter input for "Soil Analysis" only */}
