@@ -3095,7 +3095,8 @@ const CalibrateStep3 = () => {
   const getRTDWOICussetError = (rowIndex) => observations?.[Math.floor(rowIndex / 2)]?.cusset_error;
 
   // RTDWOI: recalculate point and auto-derive sensitivity coefficient from points 0 & 1
-  const applyRTDWOICalculations = (values, rowIndex) => {
+  // forceAutoRow: UUC row whose sensitivity cell was left blank -> re-derive it even if it was flagged "edited"
+  const applyRTDWOICalculations = (values, rowIndex, forceAutoRow = -1) => {
     const staticRows = selectedTableData?.staticRows || [];
     const totalPoints = Math.floor(staticRows.length / 2);
 
@@ -3114,7 +3115,7 @@ const CalibrateStep3 = () => {
         if (derivedS) {
           for (let p = 0; p < totalPoints; p++) {
             const uucIdx = p * 2;
-            if (!manuallyEditedSensitivity[`observationrtdwoi-${uucIdx}`]) {
+            if (!manuallyEditedSensitivity[`observationrtdwoi-${uucIdx}`] || uucIdx === forceAutoRow) {
               values[`${uucIdx}-${RTDWOI_COLS.SENSITIVITY}`] = derivedS;
             }
           }
@@ -6513,7 +6514,24 @@ const CalibrateStep3 = () => {
 
       const isReading = colIndex >= RTDWOI_COLS.OBS_START && colIndex <= RTDWOI_COLS.OBS_END;
       const values = { ...tableInputValues, [`${rowIndex}-${colIndex}`]: cellValue };
-      const { uucIndex, masterIndex } = applyRTDWOICalculations(values, rowIndex);
+      // Sensitivity cell left blank on blur: drop the "(edited)" flag, re-derive it from points 1 & 2 and
+      // save the derived value (a blank would otherwise be stored as 0 and break the error calculation)
+      const blankSensitivity = colIndex === RTDWOI_COLS.SENSITIVITY && rowType === 'uuc' && cellValue === '';
+      if (blankSensitivity) {
+        setManuallyEditedSensitivity(prev => {
+          const next = { ...prev };
+          delete next[`observationrtdwoi-${rowIndex}`];
+          return next;
+        });
+      }
+      const { uucIndex, masterIndex } = applyRTDWOICalculations(values, rowIndex, blankSensitivity ? rowIndex : -1);
+      if (blankSensitivity) {
+        const derivedSensitivity = values[`${rowIndex}-${colIndex}`];
+        if (derivedSensitivity) {
+          payloads[0].value = derivedSensitivity;
+          setTableInputValues(prev => ({ ...prev, [`${rowIndex}-${colIndex}`]: derivedSensitivity }));
+        }
+      }
       const calcCells = [];
       if (isReading || colIndex === RTDWOI_COLS.AMBIENT || colIndex === RTDWOI_COLS.CONVERTED_AVERAGE) {
         calcCells.push(
