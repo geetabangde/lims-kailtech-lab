@@ -168,6 +168,8 @@ const PerformCalibration = () => {
     const [showCalculateUncertaintyModal, setShowCalculateUncertaintyModal] = useState(false);
     const [currentCalculateUncertaintyItem, setCurrentCalculateUncertaintyItem] = useState(null);
     const [calculatingUncertainty, setCalculatingUncertainty] = useState(false);
+    // 2026-11-27: "Recalculate All" (per inward) - reruns Calculate Uncertainty for every in-progress item of this inward in one click
+    const [recalculatingAll, setRecalculatingAll] = useState(false);
 
 
 
@@ -354,6 +356,41 @@ const PerformCalibration = () => {
             setCalculatingUncertainty(false);
             setShowCalculateUncertaintyModal(false);
             setCurrentCalculateUncertaintyItem(null);
+        }
+    };
+
+    // 2026-11-27: "Recalculate All" - reruns the same Calculate Uncertainty logic for every item of this
+    // inward that is still in progress (approved/cancelled items are never touched, handled server-side)
+    const handleRecalculateAll = async () => {
+        if (!window.confirm("Recalculate uncertainty for every in-progress item of this inward? Already-approved items are not affected.")) {
+            return;
+        }
+        setRecalculatingAll(true);
+        try {
+            const response = await axios.post(
+                `${JWT_HOST_API}/calibrationprocess/recalculate-all-uncertainty`,
+                { inwardid: parseInt(inwardId) }
+            );
+            const data = response.data || {};
+            if (data.status) {
+                const failed = data.results?.filter((r) => !r.status) || [];
+                if (data.failed > 0) {
+                    toast.warning(
+                        `${data.message}. Skipped item(s): ${failed.map((f) => f.instid).join(", ")}`,
+                        { duration: 8000 }
+                    );
+                } else {
+                    toast.success(data.message || "Recalculated successfully");
+                }
+                fetchCalibrationData();
+            } else {
+                toast.error(data.message || "Failed to recalculate");
+            }
+        } catch (error) {
+            console.error("Recalculate all error:", error);
+            toast.error(error.response?.data?.message || "Failed to recalculate all items");
+        } finally {
+            setRecalculatingAll(false);
         }
     };
     // Handle action navigation
@@ -1312,12 +1349,23 @@ const PerformCalibration = () => {
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
                     <div className="flex items-center justify-between p-4 border-b border-gray-200">
                         <h1 className="text-xl font-semibold text-gray-800">Perform Calibration</h1>
-                        <Link
-                            to={`/dashboards/calibration-process/inward-entry-lab?caliblocation=${caliblocation}&calibacc=${calibacc}`}
-                            className="bg-indigo-500 hover:bg-fuchsia-500 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors inline-flex items-center justify-center"
-                        >
-                            ← Back to Inward Entry List
-                        </Link>
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={handleRecalculateAll}
+                                disabled={recalculatingAll}
+                                title="Recalculate uncertainty for every in-progress item of this inward (approved items are not touched)"
+                                className="bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors inline-flex items-center justify-center"
+                            >
+                                {recalculatingAll ? "Recalculating..." : "Recalculate All"}
+                            </button>
+                            <Link
+                                to={`/dashboards/calibration-process/inward-entry-lab?caliblocation=${caliblocation}&calibacc=${calibacc}`}
+                                className="bg-indigo-500 hover:bg-fuchsia-500 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors inline-flex items-center justify-center"
+                            >
+                                ← Back to Inward Entry List
+                            </Link>
+                        </div>
                     </div>
                 </div>
 
